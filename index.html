@@ -6,7 +6,7 @@
 <title>MT-1 Disc Player</title>
 <script>/* desktop pet (?pet=full|mini): set the page classes before the first paint, so a transparent window never flashes the grey background */
 if(/[?&]ext=1/.test(location.search))addEventListener('message',function(e){if(e.data&&e.data.chp==='port'&&e.ports&&e.ports[0])window.__chpPort=e.ports[0];});
-(function(){var m=(location.search.match(/[?&]pet=(full|mini)/)||[])[1];if(m){var c=document.documentElement.classList;c.add('pet','pet-'+m);if(/[?&]card=1/.test(location.search))c.add('pet-card');if(/[?&]embed=1/.test(location.search)||/[?&]ext=1/.test(location.search))c.add('pet-embed');if(window.petBridge)c.add('pet-app');}})();</script>
+(function(){var m=(location.search.match(/[?&]pet=(full|mini)/)||[])[1];if(m){var c=document.documentElement.classList;c.add('pet','pet-'+m);if(/[?&]card=1/.test(location.search))c.add('pet-card');if(/[?&]embed=1/.test(location.search))c.add('pet-embed');if(/[?&]ext=1/.test(location.search))c.add('pet-ext');if(window.petBridge)c.add('pet-app');}})();</script>
 <style>
 /* Layout: one full-bleed 3D stage. Frosted grey world, a single player, albums on a shelf above. */
 :root{--bg:#d9dbde;--ink:#2d3033;--mute:#6a7076;--glass:rgba(240,241,243,.72);--line:rgba(45,48,51,.2)}
@@ -127,6 +127,7 @@ html.pet-full.pet-app #petGrip,html.pet-full.pet-app #petHide{top:auto;bottom:8p
 /* small browser window (picture-in-picture or popup): a plain rectangle, so no rounded clip; a button for the dog */
 html.pet-embed{clip-path:none!important}html.pet-embed{overflow:hidden}html.pet-embed body::after{display:none}
 #petDogBtn{display:none}
+html.pet-ext #shelfHint,html.pet-ext #petDogBtn{display:none!important}   /* floating player: no album shelf, no dog */
 html.pet-embed #petDogBtn{display:grid;position:fixed;left:8px;bottom:8px;z-index:9;width:26px;height:26px;padding:0;place-items:center;border-radius:50%;font-size:14px;line-height:1;opacity:.55;--lift:2px}
 html.pet-embed #petDogBtn:hover,html.pet-embed #petDogBtn[aria-pressed="true"]{opacity:1}
 /* while nothing needs the picture, YouTube plays in a small player so it picks a low-resolution stream (set from petFrame) */
@@ -680,9 +681,9 @@ const YTA={p:null,ready:false,failed:false,waiters:[],plErr:0,plWatch:false,soun
   return {ids,title:vd?vd.title:'',author:vd?vd.author:''};
  },
  nTracks(){return this.cur.yt.ids.length||(this.call('getPlaylist')||[]).length;},   // a default list may be played before its track list has been read
- start(alb,index,t){
-  this.cur=alb;this.sound=false;this.finished=false;this.pausedAt=null;this.inf={i:0,n:alb.yt.ids.length,title:''};
-  this.whenReady(12000).then(()=>{this.call('mute');this.call('setVolume',this.vol);this.call('loadPlaylist',{listType:'playlist',list:alb.yt.list,index:index||0,startSeconds:t||0});})
+ start(alb,index,t,cue){
+  this.cur=alb;this.sound=false;this.finished=false;this.pausedAt=cue?(t||0):null;this.inf={i:0,n:alb.yt.ids.length,title:''};
+  this.whenReady(12000).then(()=>{this.call('mute');this.call('setVolume',this.vol);this.call(cue?'cuePlaylist':'loadPlaylist',{listType:'playlist',list:alb.yt.list,index:index||0,startSeconds:t||0});})
    .catch(e=>{window.__ytFail&&window.__ytFail(e.message);});
  },
  setVol(v){this.vol=v*10;if(this.sound){this.call('setVolume',this.vol);this.call(v>0?'unMute':'mute');}},
@@ -756,7 +757,7 @@ const Au={ctx:null,vol:6,playing:false,elapsed:0,step:0,timer:0,alb:null,pauseLe
   if(s===15)this.bar++;
  },
  tick(){const c=this.ctx;while(this.next<c.currentTime+.16){this.sched(this.step,this.next);this.next+=60/this.alb.bpm/4;this.step=(this.step+1)%16;}},
- start(alb,index,t){if(alb.yt){this.ensure();this.alb=alb;this.elapsed=0;this.playing=true;YTA.start(alb,index,t);return;}if(!this.ensure())return;this.alb=alb;this.step=0;this.bar=0;this.elapsed=0;this.rand=rng(alb.seed*7+3);this.pauseLead=0;this.resume();},
+ start(alb,index,t,cue){if(alb.yt){this.ensure();this.alb=alb;this.elapsed=t||0;this.playing=!cue;YTA.start(alb,index,t,cue);return;}if(!this.ensure())return;this.alb=alb;this.step=0;this.bar=0;this.elapsed=0;this.rand=rng(alb.seed*7+3);this.pauseLead=0;this.resume();},
  resume(){if(this.alb&&this.alb.yt){this.playing=true;YTA.resume();return;}if(!this.ctx)return;const n=this.ctx.currentTime;this.next=n+Math.max(.035,this.pauseLead||.06);this.pauseLead=0;this.playing=true;this.bus.gain.cancelScheduledValues(n);this.bus.gain.setTargetAtTime(1,n,.02);clearInterval(this.timer);this.timer=setInterval(()=>this.tick(),25);},
  pause(){if(this.alb&&this.alb.yt){if(this.playing){this.playing=false;YTA.pause();this.elapsed=YTA.pausedAt??this.elapsed;}return;}if(!this.ctx||!this.playing)return;this.playing=false;clearInterval(this.timer);const n=this.ctx.currentTime;this.pauseLead=Math.max(.035,this.next-n);this.bus.gain.setTargetAtTime(0,n,.03);},
  stop(){if(this.alb&&this.alb.yt){this.playing=false;this.elapsed=0;YTA.cur=null;YTA.pausedAt=null;YTA.call('stopVideo');return;}this.pause();this.step=0;this.bar=0;this.pauseLead=0;this.elapsed=0;},
@@ -2869,7 +2870,8 @@ function petSaveState(force){
 function petRestore(st){
   const ai=ALBUMS.findIndex(a=>a.yt&&a.yt.list===st.list);if(ai<0)return;
   cd=makeCD(ai);cd.mode='in';cdIn=true;lidOpen=false;state='home';
-  Au.ensure();Au.start(ALBUMS[ai],st.index||0,st.time||0);status='playing';
+  const live=st.playing&&Date.now()-st.t<90000;   // changing page: carry on playing. Reopened later (browser restart, closed the player): the CD is back in, paused where it stopped
+  Au.ensure();Au.start(ALBUMS[ai],st.index||0,st.time||0,!live);status=live?'playing':'paused';
 }
 
 /* ---------- commands from the desktop shell ---------- */
@@ -2918,10 +2920,10 @@ if(PET.on){
   }
   const hide=$id('petHide');if(hide)hide.addEventListener('click',()=>PET.bridge&&PET.bridge.hide());
   PET.cur=-1;
-  if(PET.ext&&PET.initState&&PET.initState.playing&&Date.now()-PET.initState.t<90000)petRestore(PET.initState);
+  if(PET.ext&&PET.initState&&PET.initState.list)petRestore(PET.initState);
   if(PET.ext)addEventListener('pagehide',()=>petSaveState(true));
-  if(new URLSearchParams(location.search).get('dog')==='1'||PET.wantDog)dogToggle();   // the dog is optional: the desktop shell passes dog=1, the extension sends its setting
-  window.__pet={PET,pose:DOG_PERCH,handle:petHandle,playAlbum:petPlayAlbum,toggle:petToggle,next:petNext,vol:petVol};
+  if(new URLSearchParams(location.search).get('dog')==='1'||(PET.wantDog&&!PET.ext))dogToggle();   // the dog is optional: the desktop shell passes dog=1, the extension sends its setting
+  window.__pet={PET,pose:DOG_PERCH,handle:petHandle,playAlbum:petPlayAlbum,toggle:petToggle,next:petNext,vol:petVol,get now(){return {cdIn,status,cd:cd&&cd.mode,spin:cd&&cd.spin,dog:!!dog.present};}};
 }
 /* ---------- normal page: switch the floating player (Chrome extension) on or off ----------
    The extension marks every page with data-chillhihi-ext and listens for these window messages.
@@ -2934,7 +2936,10 @@ if(!PET.on){
   addEventListener('message',e=>{
     if(e.source!==window||!e.data||e.data.chillhihi!=='widget-state')return;
     const was=on;on=!!e.data.enabled;label();
-    if(on&&!was&&(status==='playing'||status==='paused')){Au.stop();status='stopped';}   // from now on the floating player plays, not this tab
+    if(on&&!was&&(status==='playing'||status==='paused')){   // from now on the floating player plays, not this tab: hand it the CD that is in
+      const a=Au.alb;
+      if(a&&a.yt)postMessage({chillhihi:'handoff',state:{list:a.yt.list,index:YTA.inf?YTA.inf.i:0,time:YTA.time(),playing:status==='playing',t:Date.now()}},location.origin);
+      Au.stop();status='stopped';}
   });
   const query=()=>postMessage({chillhihi:'query-widget'},location.origin);
   setTimeout(()=>{query();label();},600);

@@ -9,7 +9,10 @@ if(!PET.on){
   addEventListener('message',e=>{
     if(e.source!==window||!e.data||e.data.chillhihi!=='widget-state')return;
     const was=on;on=!!e.data.enabled;label();
-    if(on&&!was&&(status==='playing'||status==='paused')){Au.stop();status='stopped';}   // from now on the floating player plays, not this tab
+    if(on&&!was&&(status==='playing'||status==='paused')){   // from now on the floating player plays, not this tab: hand it the CD that is in
+      const a=Au.alb;
+      if(a&&a.yt)postMessage({chillhihi:'handoff',state:{list:a.yt.list,index:YTA.inf?YTA.inf.i:0,time:YTA.time(),playing:status==='playing',t:Date.now()}},location.origin);
+      Au.stop();status='stopped';}
   });
   const query=()=>postMessage({chillhihi:'query-widget'},location.origin);
   setTimeout(()=>{query();label();},600);

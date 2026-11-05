@@ -3,7 +3,7 @@
    - A private MessagePort talks to the player page (the host page cannot listen in).
    - Only the visible tab shows the player (a "lease" in chrome.storage); what is playing is handed over, so it carries on. */
 (() => {
-  const DEF = {enabled: true, dog: false, size: 'm', quality: 'balanced', pos: null,
+  const DEF = {enabled: true, dog: false, size: 'm', quality: 'balanced', pos: null, w: null,
     url: 'https://balala-bubu.github.io/chill_hihi/'};
   const SIZES = {s: [160, 212], m: [200, 264], l: [260, 344]};
   const ID = Math.random().toString(36).slice(2);
@@ -17,7 +17,8 @@
   const originOf = u => { try { return new URL(u).origin; } catch (e) { return ''; } };
 
   /* ---- position: distance from the right / bottom edge, clamped to the window ---- */
-  const dims = () => SIZES[cfg.size] || SIZES.m;
+  const RATIO = 264 / 200, MINW = 110;
+  const dims = () => { if (cfg.w) { const w = Math.round(Math.max(MINW, Math.min(cfg.w, innerWidth - 8, (innerHeight - 8) / RATIO))); return [w, Math.round(w * RATIO)]; } return SIZES[cfg.size] || SIZES.m; };
   const place = () => {
     if (!host) return;
     const [w, h] = dims(), p = cfg.pos || {r: 16, b: 16};
@@ -50,7 +51,15 @@
     grip = document.createElement('div'); grip.style.cssText = gripCss(false);
     const mv = document.createElement('span'); mv.textContent = '⠿ 移動'; mv.style.cssText = 'cursor:grab;padding:0 6px;user-select:none;';
     const x = document.createElement('span'); x.textContent = '✕'; x.title = '關閉懸浮播放器（可在擴充功能圖示重新開啟）'; x.style.cssText = 'cursor:pointer;padding:0 6px;user-select:none;';
-    grip.append(mv, x); root.append(grip);
+    const rz = document.createElement('span'); rz.textContent = '⤡'; rz.title = '拖曳縮放'; rz.style.cssText = 'cursor:nwse-resize;padding:0 6px;user-select:none;';
+    grip.append(mv, rz, x); root.append(grip);
+    rz.addEventListener('pointerdown', e => {   // the player is anchored bottom-right, so dragging up-left makes it bigger
+      e.preventDefault(); dragging = true; rz.setPointerCapture(e.pointerId);
+      const sx = e.clientX, sy = e.clientY, w0 = dims()[0];
+      const mvf = ev => { cfg.w = w0 - Math.min(ev.clientX - sx, (ev.clientY - sy) / RATIO); place(); };
+      const up = () => { dragging = false; rz.removeEventListener('pointermove', mvf); rz.removeEventListener('pointerup', up); cfg.w = dims()[0]; set({w: cfg.w}); };
+      rz.addEventListener('pointermove', mvf); rz.addEventListener('pointerup', up);
+    });
     x.addEventListener('click', () => set({enabled: false}));
     mv.addEventListener('pointerdown', e => {
       e.preventDefault(); dragging = true; mv.setPointerCapture(e.pointerId);
@@ -120,6 +129,7 @@
       if (e.source !== window || !e.data) return;
       if (e.data.chillhihi === 'query-widget') send();
       else if (e.data.chillhihi === 'toggle-widget') set({enabled: !cfg.enabled});
+      else if (e.data.chillhihi === 'handoff' && e.data.state && typeof e.data.state.list === 'string') set({state: e.data.state});
     });
     chrome.storage.onChanged.addListener(c => { if (c.enabled) { cfg.enabled = c.enabled.newValue !== false; send(); } });
     send();
@@ -138,9 +148,8 @@
       if (c.lease && c.lease.newValue !== ID) { clearTimeout(mountT); unmount(); }
       if (c.enabled) { cfg.enabled ? claim() : unmount(); }
       if (c.url) { unmount(); playerOrigin = originOf(cfg.url); claim(); }
-      if (c.size || c.pos) place();
-      if (port && c.dog && !c.dog.newValue !== !c.dog.oldValue) port.postMessage({t: 'cmd', m: {type: 'dog', v: !!cfg.dog}});
-      if (port && c.quality) port.postMessage({t: 'cmd', m: {type: 'quality', v: cfg.quality}});
+      if (c.size || c.pos || c.w) place();
+            if (port && c.quality) port.postMessage({t: 'cmd', m: {type: 'quality', v: cfg.quality}});
     });
     claim();
   }

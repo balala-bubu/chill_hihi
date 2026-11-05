@@ -6,7 +6,7 @@
 <title>MT-1 Disc Player</title>
 <script>/* desktop pet (?pet=full|mini): set the page classes before the first paint, so a transparent window never flashes the grey background */
 if(/[?&]ext=1/.test(location.search))addEventListener('message',function(e){if(e.data&&e.data.chp==='port'&&e.ports&&e.ports[0])window.__chpPort=e.ports[0];});
-(function(){var m=(location.search.match(/[?&]pet=(full|mini)/)||[])[1];if(m){var c=document.documentElement.classList;c.add('pet','pet-'+m);if(/[?&]card=1/.test(location.search))c.add('pet-card');if(/[?&]embed=1/.test(location.search)||/[?&]ext=1/.test(location.search))c.add('pet-embed');if(window.petBridge)c.add('pet-app');}})();</script>
+(function(){var m=(location.search.match(/[?&]pet=(full|mini)/)||[])[1];if(m){var c=document.documentElement.classList;c.add('pet','pet-'+m);if(/[?&]card=1/.test(location.search))c.add('pet-card');if(/[?&]embed=1/.test(location.search))c.add('pet-embed');if(/[?&]ext=1/.test(location.search))c.add('pet-ext');if(window.petBridge)c.add('pet-app');}})();</script>
 <style>
 /* Layout: one full-bleed 3D stage. Frosted grey world, a single player, albums on a shelf above. */
 :root{--bg:#d9dbde;--ink:#2d3033;--mute:#6a7076;--glass:rgba(240,241,243,.72);--line:rgba(45,48,51,.2)}
@@ -127,6 +127,7 @@ html.pet-full.pet-app #petGrip,html.pet-full.pet-app #petHide{top:auto;bottom:8p
 /* small browser window (picture-in-picture or popup): a plain rectangle, so no rounded clip; a button for the dog */
 html.pet-embed{clip-path:none!important}html.pet-embed{overflow:hidden}html.pet-embed body::after{display:none}
 #petDogBtn{display:none}
+html.pet-ext #shelfHint,html.pet-ext #petDogBtn{display:none!important}   /* floating player: no album shelf, no dog */
 html.pet-embed #petDogBtn{display:grid;position:fixed;left:8px;bottom:8px;z-index:9;width:26px;height:26px;padding:0;place-items:center;border-radius:50%;font-size:14px;line-height:1;opacity:.55;--lift:2px}
 html.pet-embed #petDogBtn:hover,html.pet-embed #petDogBtn[aria-pressed="true"]{opacity:1}
 /* while nothing needs the picture, YouTube plays in a small player so it picks a low-resolution stream (set from petFrame) */
