@@ -447,13 +447,53 @@ function makeCD(ai){
 
 /* ---------- headphones + cable ---------- */
 const hp=new T.Group();hp.visible=false;scene.add(hp);
-const band=new T.Mesh(new T.TorusGeometry(1.25,.075,14,48,Math.PI),M.plate);band.castShadow=true;hp.add(band);
+/* sweep a rounded-rectangle cross-section along an arc in the xy plane (headband shell + head pad); profile u = depth (z), v = radial thickness */
+function arcBand(R,a0,a1,w,th,rnd,seg){
+  const pr=[],cn=4,rr=Math.min(w,th)/2*rnd,hw=w/2,ht=th/2;
+  [[hw-rr,ht-rr,0],[-hw+rr,ht-rr,Math.PI/2],[-hw+rr,-ht+rr,Math.PI],[hw-rr,-ht+rr,Math.PI*1.5]].forEach(([cx,cy,s0])=>{for(let k=0;k<=cn;k++){const a=s0+k/cn*Math.PI/2;pr.push([cx+Math.cos(a)*rr,cy+Math.sin(a)*rr]);}});
+  const P=pr.length,pos=[],idx=[];
+  for(let i=0;i<=seg;i++){const a=lerp(a0,a1,i/seg),c=Math.cos(a),s=Math.sin(a);for(const p0 of pr)pos.push((R+p0[1])*c,(R+p0[1])*s,p0[0]);}
+  for(let i=0;i<seg;i++)for(let j=0;j<P;j++){const a=i*P+j,b=i*P+(j+1)%P,c=(i+1)*P+j,d=(i+1)*P+(j+1)%P;idx.push(a,b,c,b,d,c);}
+  [[0,-1],[seg,1]].forEach(([i,sg])=>{   // flat end caps (own vertices so they shade flat)
+    const base=pos.length/3,a=lerp(a0,a1,i/seg),c=Math.cos(a),s=Math.sin(a);pos.push(R*c,R*s,0);
+    for(const p0 of pr)pos.push((R+p0[1])*c,(R+p0[1])*s,p0[0]);
+    for(let j=0;j<P;j++){const p=base+1+j,q=base+1+(j+1)%P;if(sg>0)idx.push(base,p,q);else idx.push(base,q,p);}});
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();return g;
+}
+/* lathe from a profile function u(0..1) -> [radius, height]; the height axis becomes the cup's axis */
+const lathe=(f,n,seg)=>{const o=[];for(let k=0;k<=n;k++){const p=f(k/n);o.push(new T.Vector2(Math.max(p[0],.0004),p[1]));}return new T.LatheGeometry(o,seg||56);};
+const FAB=new T.MeshStandardMaterial({color:0x464a4f,roughness:.95,bumpMap:WEAVE,bumpScale:.03});   // speaker cloth
+const LEDM=new T.MeshBasicMaterial({color:0x7fc4ff,toneMapped:false});
+/* ear cup, built around +y = pointing out of the ear (the group is turned so +y becomes +x, mirrored for the left side) */
+function makeCup(s){
+  const g=new T.Group();g.position.set(s*1.25,0,0);g.scale.x=s;
+  const ax=new T.Group();ax.rotation.z=-Math.PI/2;g.add(ax);
+  const add=(geo,mat,x,y,z,shadow)=>{const m=new T.Mesh(geo,mat);m.position.set(x||0,y||0,z||0);if(shadow)m.castShadow=true;ax.add(m);return m;};
+  /* housing: a soft squircle puck (superellipse profile), frosted body plastic */
+  const SQ=3.2,RAD=.58,YC=.015,HH=.165;
+  add(lathe(u=>{const f=-Math.PI/2+u*Math.PI,c=Math.cos(f),sn=Math.sin(f);return[RAD*Math.pow(Math.abs(c),2/SQ),YC+HH*Math.sign(sn)*Math.pow(Math.abs(sn),2/SQ)];},44),M.cup,0,0,0,true);
+  /* outer cap: slightly domed metal-ish plate with a parting groove around it */
+  add(lathe(u=>{const P=[[0,.206],[.15,.2],[.30,.186],[.40,.169],[.435,.15]],f=u*(P.length-1),i=Math.min(P.length-2,Math.floor(f)),t=f-i;return[lerp(P[i][0],P[i+1][0],t),lerp(P[i][1],P[i+1][1],t)];},16,56),M.plate,0,0,0,true);
+  const grv=add(new T.TorusGeometry(.447,.011,8,64),M.groove,0,.154,0);grv.rotation.x=Math.PI/2;
+  const led=add(new T.TorusGeometry(.31,.016,8,56),LEDM,0,.188,0);led.rotation.x=Math.PI/2;
+  add(new T.CylinderGeometry(.085,.085,.012,28),M.dark,0,.204,0);
+  /* cushion: fat oval donut in the weave material, with a dark cloth disc visible through the middle */
+  const cus=add(new T.TorusGeometry(.355,.13,18,48),M.orange,0,-.205,0,true);cus.rotation.x=Math.PI/2;cus.scale.set(1,1,.82);
+  add(new T.CylinderGeometry(.245,.245,.012,36),FAB,0,-.158,0);
+  return g;
+}
+const band=new T.Mesh(arcBand(1.27,.36,Math.PI-.36,.36,.095,.85,64),M.cup);band.castShadow=true;hp.add(band);            // headband shell
+const bandPad=new T.Mesh(arcBand(1.175,.62,Math.PI-.62,.3,.14,.9,48),M.orange);bandPad.castShadow=true;hp.add(bandPad);   // soft pad under it
 [-1,1].forEach(s=>{
-  const cup=new T.Mesh(new T.CylinderGeometry(.58,.58,.3,40),M.cup);cup.rotation.z=Math.PI/2;cup.position.set(s*1.25,0,0);cup.castShadow=true;hp.add(cup);
-  const cus=new T.Mesh(new T.CylinderGeometry(.5,.5,.2,40),M.orange);cus.rotation.z=Math.PI/2;cus.position.set(s*1.25-s*.2,0,0);cus.castShadow=true;hp.add(cus);
-  const ring=new T.Mesh(new T.TorusGeometry(.4,.025,8,40),new T.MeshBasicMaterial({color:0x7fc4ff,toneMapped:false}));ring.rotation.y=Math.PI/2;ring.position.set(s*1.25+s*.16,0,0);hp.add(ring);
+  hp.add(makeCup(s));
+  const hg=new T.Mesh(rrBox(.2,.36,.24,.06,.025),M.metal);hg.position.set(s*1.172,.52,0);hg.rotation.z=s*.37;hg.castShadow=true;hp.add(hg);   // hinge/slider where the band tucks into the cup
 });
+/* strain-relief boot on the right cup: the cable leaves here */
+const boot=new T.Mesh(new T.CylinderGeometry(.085,.055,.22,20),M.dark);boot.position.set(1.25,-.66,0);boot.castShadow=true;hp.add(boot);
 hp.rotation.set(.12,.5,0);
+/* where the cable leaves the model (after the model's own tilt), in the unscaled headphone frame: the physics anchor and the first cable node are placed here */
+hp.updateMatrix();
+const PORT=new T.Vector3(1.25,-.76,0).applyMatrix4(hp.matrix);
 
 
 
@@ -1157,8 +1197,12 @@ function spawnRemote(){
 }
 
 /* ---------- headphones + cable + plug ---------- */
-const NR=22,SEG=.28,CABLE_LEN=(NR-1)*SEG;
-const hpState={s:'none',body:null,org:{x:0,y:0},att:{x:0,y:0},scale:1,rope:[],cons:[],pin:null,drive:null,seek:0,plugAmt:0,aim:0,flash:0,grab:false};
+/* the cable has no length limit: it starts with NR0 nodes and the segment next to the plug pays out more cable whenever the line goes taut (payOut), so stretching can never pull the plug out */
+const NR0=22,NMAX=140,SEG=.28;
+const HOV_K=Math.pow(2*Math.PI*.75/1000,2),HOV_C=.0008;   // headphones float on a soft spring (0.75 Hz); air drag already supplies most of the damping
+const hpState={s:'none',body:null,org:{x:0,y:0},att:{x:0,y:0},scale:1,rope:[],cons:[],segC:[],hov:{x:0,y:0},pin:null,drive:null,seek:0,plugAmt:0,aim:0,flash:0,grab:false};
+const endB=()=>hpState.rope[hpState.rope.length-1];   // the plug end of the cable
+const newRopeNode=()=>Bodies.circle(0,0,5,{density:.006,frictionAir:.05,friction:.4,restitution:0,collisionFilter:{category:CAT.rope,mask:CAT.floor|CAT.tv|CAT.rem}});
 const hpRoot=new T.Group();hpRoot.visible=false;scene.add(hpRoot);
 hpRoot.add(hp);hp.position.set(0,0,0);hp.visible=true;
 hp.traverse(o=>{if(o.isMesh)o.userData.phys='hp';});
@@ -1174,7 +1218,7 @@ const plug2=new T.Group();plug2.visible=false;scene.add(plug2);const plugHit=[];
 const PLUG_LEN=.87;
 const cableM=new T.MeshStandardMaterial({color:0x2e3033,roughness:.55});
 /* cable geometry: our own tube so we can rewrite the vertices every frame without allocating */
-const CSAMP=(NR-1)*3+1,CRAD=8;
+const CSAMP=(NMAX-1)*3+1,CRAD=8;
 const cableGeo=new T.BufferGeometry();
 {const pos=new Float32Array(CSAMP*CRAD*3),nor=new Float32Array(CSAMP*CRAD*3),idx=[];
  for(let i=0;i<CSAMP-1;i++)for(let j=0;j<CRAD;j++){const a=i*CRAD+j,b=i*CRAD+(j+1)%CRAD,c=(i+1)*CRAD+j,d=(i+1)*CRAD+(j+1)%CRAD;idx.push(a,c,b,b,c,d);}
@@ -1197,41 +1241,57 @@ function makeHeadphones(s){
 function hpBuild(){   // creates bodies (not yet placed)
   const h=hpState;h.scale=hpDims();h.body=makeHeadphones(h.scale);
   h.org={x:-h.body.position.x,y:-h.body.position.y};              // geometry origin relative to the centre of mass (matter px)
-  h.att={x:1.25*h.scale*PXU+h.org.x,y:.6*h.scale*PXU+h.org.y};      // cable anchor on the right cup, relative to the centre of mass
+  h.att={x:PORT.x*h.scale*PXU+h.org.x,y:-PORT.y*h.scale*PXU+h.org.y};   // cable anchor = the boot on the right cup (where the model really lets the cable out), relative to the centre of mass
   hpRoot.scale.setScalar(h.scale);
-  h.rope=[];h.cons=[];
-  for(let i=0;i<NR;i++)h.rope.push(Bodies.circle(0,0,5,{density:.006,frictionAir:.05,friction:.4,restitution:0,collisionFilter:{category:CAT.rope,mask:CAT.floor|CAT.tv|CAT.rem}}));
+  h.rope=[];h.cons=[];h.segC=[];
+  for(let i=0;i<NR0;i++)h.rope.push(newRopeNode());
   h.cons.push(Constraint.create({bodyA:h.body,pointA:h.att,bodyB:h.rope[0],pointB:{x:0,y:0},length:0,stiffness:1,damping:.3}));
-  for(let i=0;i<NR-1;i++)h.cons.push(Constraint.create({bodyA:h.rope[i],bodyB:h.rope[i+1],length:SEG*PXU,stiffness:1,damping:.3}));
+  for(let i=0;i<NR0-1;i++){const c=Constraint.create({bodyA:h.rope[i],bodyB:h.rope[i+1],length:SEG*PXU,stiffness:1,damping:.3});h.segC.push(c);h.cons.push(c);}
   Composite.add(wld,[h.body,...h.rope,...h.cons]);
 }
 function hpPlace(ox,oy,vx,vy,spin){   // put the headphones' origin at world (ox,oy) with velocity (world units / s), cable trailing behind
   const h=hpState;Body.setAngle(h.body,0);Body.setPosition(h.body,{x:mxp(ox)-h.org.x,y:myp(oy)-h.org.y});
   const v={x:vx*PXU/180,y:-vy*PXU/180};Body.setVelocity(h.body,v);Body.setAngularVelocity(h.body,spin||0);
-  const a={x:mxp(ox)+1.25*h.scale*PXU,y:myp(oy)+.6*h.scale*PXU};
+  const a={x:mxp(ox)+PORT.x*h.scale*PXU,y:myp(oy)-PORT.y*h.scale*PXU};
   const dir=Math.hypot(vx,vy)>.1?{x:-vx/Math.hypot(vx,vy),y:vy/Math.hypot(vx,vy)}:{x:1,y:0};   // matter-space direction pointing back along the flight path
   h.rope.forEach((b,i)=>{Body.setPosition(b,{x:a.x+dir.x*i*SEG*PXU*.6,y:a.y+dir.y*i*SEG*PXU*.6});Body.setVelocity(b,v);});
 }
-function hpSpawn(){   // headphones are tossed in from above the screen, cable whipping behind
+function hpSpawn(){   // headphones swoop in from above the screen, cable whipping behind, and settle into a float beside the player
   if(!PHYS)return;if(hpState.s==='none')hpBuild();
-  const h=hpState,s=h.scale,floorTop=FLOOR_Y,restY=floorTop+.6*s;
-  const targetX=-(1.8+1.7*s+.25),y0=L.half+1.6,fall=y0-restY;
-  const g=G0*1000*1000/PXU;                       // gravity in world units / s^2
-  const t=Math.sqrt(2*fall/g);
+  const h=hpState,s=h.scale,hoverY=FLOOR_Y+2.5*s;
+  const targetX=-(1.8+1.7*s+.25),y0=L.half+1.6,t=.9;
   const x0=clamp(targetX-3.2*t,-(L.hw-1.6),-(1.8+1.7*s));
-  hpPlace(x0,y0,(targetX-x0)/t,0,.012);
+  hpPlace(x0,y0,(targetX-x0)/t,-4,.012);
+  h.hov={x:mxp(targetX)-h.org.x,y:myp(hoverY)-h.org.y};
   hpRoot.visible=true;cableMesh.visible=true;plug2.visible=true;hpState.s='free';
 }
-function hpSettled(){const h=hpState;if(!h.body)return false;const sp=Math.hypot(h.body.velocity.x,h.body.velocity.y);return sp<.6&&h.body.position.y>myp(FLOOR_Y+1.4);}
-function stretchRatio(){const r=hpState.rope;let l=0;for(let i=0;i<NR-1;i++)l+=Math.hypot(r[i+1].position.x-r[i].position.x,r[i+1].position.y-r[i].position.y);return l/PXU/CABLE_LEN;}
+function hpRest(){   // let go of the headphones: they glide a little further the way they were thrown, then float where they stop
+  const h=hpState,b=h.body,s=h.scale,mx=mxp(Math.max(.5,L.hw-1.95*s));
+  h.hov={x:clamp(b.position.x+b.velocity.x*22,-mx,mx),y:clamp(b.position.y+b.velocity.y*22,myp(Math.min(L.top,L.half)-1.7*s),myp(FLOOR_Y+1.5*s))};
+}
+function hpSettled(){const h=hpState;if(!h.body)return false;const b=h.body;return Math.hypot(b.velocity.x,b.velocity.y)<.5&&Math.hypot(b.position.x-h.hov.x,b.position.y-h.hov.y)<45;}
+function ropeLens(){const r=hpState.rope;let act=0,rest=0;for(let i=0;i<r.length-1;i++)act+=Math.hypot(r[i+1].position.x-r[i].position.x,r[i+1].position.y-r[i].position.y);for(const c of hpState.segC)rest+=c.length;return {act,rest};}
+function stretchRatio(){const l=ropeLens();return l.rest?l.act/l.rest:1;}
+/* endless cable: when the line goes taut the segment next to the plug lengthens; once it is twice as long as the others it is split in two (no visible jump) */
+function payOut(){
+  const h=hpState;if(h.s==='none'||!h.segC.length)return;
+  const l=ropeLens(),ex=l.act-l.rest;if(ex<=l.rest*.02)return;   // only when really stretched, not for the solver's usual wobble
+  const c=h.segC[h.segC.length-1],r=h.rope;c.length+=ex*.6;
+  if(c.length>2*SEG*PXU&&r.length<NMAX){
+    const a=r[r.length-2],b=r[r.length-1],nb=newRopeNode(),half=c.length/2;
+    Body.setPosition(nb,{x:(a.position.x+b.position.x)/2,y:(a.position.y+b.position.y)/2});Body.setVelocity(nb,{x:(a.velocity.x+b.velocity.x)/2,y:(a.velocity.y+b.velocity.y)/2});
+    Composite.remove(wld,c);h.cons.splice(h.cons.indexOf(c),1);h.segC.pop();
+    const c1=Constraint.create({bodyA:a,bodyB:nb,length:half,stiffness:1,damping:.3}),c2=Constraint.create({bodyA:nb,bodyB:b,length:half,stiffness:1,damping:.3});
+    h.cons.push(c1,c2);h.segC.push(c1,c2);r.splice(r.length-1,0,nb);Composite.add(wld,[nb,c1,c2]);}
+}
 function plugOut(kick){   // pull the plug out of the jack
   const h=hpState;if(h.s!=='plugged')return;
   if(h.pin){Composite.remove(wld,h.pin);h.pin=null;}h.s='free';
-  const e=h.rope[NR-1];Body.setVelocity(e,{x:kick?(kick.x||0):1.2,y:kick?(kick.y||0):-1.6});
+  const e=endB();Body.setVelocity(e,{x:kick?(kick.x||0):1.2,y:kick?(kick.y||0):-1.6});
   tween(.22,k=>{h.plugAmt=1-k;},ease.out3);Au.snap();Au.click(1.5,.8);h.flash=1;
 }
 async function plugInsert(){
-  const h=hpState;if(h.pin)return;const J=jackWorld(),e=h.rope[NR-1];
+  const h=hpState;if(h.pin)return;const J=jackWorld(),e=endB();
   h.pin=Constraint.create({pointA:{x:mxp(J.x),y:myp(J.y)},bodyB:e,pointB:{x:0,y:0},length:0,stiffness:.95,damping:.3});Composite.add(wld,h.pin);
   h.s='plugged';h.seek=0;
   await tween(.32,k=>{h.plugAmt=k;},ease.out5);
@@ -1239,7 +1299,7 @@ async function plugInsert(){
 }
 async function seekPlug(){   // auto-plug: the loose plug flies up in an arc, aligns itself with the jack, pushes in
   const h=hpState;if(h.s==='plugged'||h.s==='seek')return;h.s='seek';h.seek=1;h.plugAmt=0;
-  const e=()=>h.rope[NR-1],J=()=>jackWorld(),far=()=>Math.hypot(e().position.x/PXU-J().x,-e().position.y/PXU-J().y);
+  const e=endB,J=()=>jackWorld(),far=()=>Math.hypot(e().position.x/PXU-J().x,-e().position.y/PXU-J().y);
   h.drive={x:J().x-.5,y:J().y-.75,sp:3.6};Au.whoosh();
   await waitFor(()=>Math.hypot(e().position.x/PXU-h.drive.x,-e().position.y/PXU-h.drive.y)<.22,2600);
   h.drive={x:J().x,y:J().y,sp:2.3,follow:true};
@@ -1255,7 +1315,16 @@ if(PHYS)Events.on(eng,'beforeUpdate',()=>{
     const w=b.angularVelocity/DT_MS,W0=.0042;b.torque=-b.inertia*(W0*W0*wrapA(b.angle)+2*.8*W0*w);   // self-righting
   }
   const h=hpState;
-  if(h.drive&&h.s==='seek'){const e=h.rope[NR-1];if(h.drive.follow){h.drive.x=JACK.x;h.drive.y=JACK.y;}
+  if(h.body&&h.s!=='none'){   // the headphones float: their own weight is cancelled and a soft spring holds them at a hover spot that bobs a little
+    const b=h.body,m=b.mass;
+    if(h.grab){h.hov.x=b.position.x;h.hov.y=b.position.y;}   // being held: the hover spot just follows the hand
+    else{
+      let ex=b.position.x-(h.hov.x+Math.sin(tt*.8)*9),ey=b.position.y-(h.hov.y+Math.sin(tt*1.3+1)*13);const ed=Math.hypot(ex,ey);if(ed>220){ex*=220/ed;ey*=220/ed;}   // spring pull is capped so the entrance stays gentle
+      Body.applyForce(b,b.position,{x:-m*(HOV_K*ex+HOV_C*b.velocity.x/DT_MS),y:-m*(HOV_K*ey+HOV_C*b.velocity.y/DT_MS)});}
+    Body.applyForce(b,b.position,{x:0,y:-m*g});
+    const w=b.angularVelocity/DT_MS,W0=h.grab?.0018:.0032;b.torque=-b.inertia*(W0*W0*wrapA(b.angle-(h.grab?0:.05*Math.sin(tt*.9)))+2*.7*W0*w);   // keeps them upright, with a slow sway
+  }
+  if(h.drive&&h.s==='seek'){const e=endB();if(h.drive.follow){h.drive.x=JACK.x;h.drive.y=JACK.y;}
     const dx=mxp(h.drive.x)-e.position.x,dy=myp(h.drive.y)-e.position.y,d=Math.hypot(dx,dy)||1,sp=Math.min(h.drive.sp,d*.06+.5);
     Body.setVelocity(e,{x:dx/d*sp,y:dy/d*sp});}
   if(h.pin){h.pin.pointA.x=mxp(JACK.x);h.pin.pointA.y=myp(JACK.y);}
@@ -1269,7 +1338,7 @@ const grab={c:null,kind:null,body:null,z:.5,btn:-1,startX:0,startY:0};
 function startPhysGrab(hit){
   const o=hit.object,kind=o.userData.phys;let body=null,stiff=.2;
   if(kind==='rem'){body=rem.body;stiff=.22;}else if(kind==='hp'){body=hpState.body;stiff=.13;hpState.grab=true;}
-  else if(kind==='plug'){body=hpState.rope[NR-1];stiff=.3;if(hpState.s==='seek'){hpState.drive=null;hpState.s='free';hpState.seek=0;}}
+  else if(kind==='plug'){body=endB();stiff=.3;if(hpState.s==='seek'){hpState.drive=null;hpState.s='free';hpState.seek=0;}}
   else if(kind==='tv'){body=tv.b;stiff=.07;}
   if(!body)return false;
   grab.kind=kind;grab.body=body;grab.z=hit.point.z;grab.btn=kind==='rem'&&o.userData.rbtn!==undefined?o.userData.rbtn:-1;
@@ -1285,7 +1354,9 @@ function endPhysGrab(moved){
   if(!grab.c)return;Composite.remove(wld,grab.c);grab.c=null;
   const k=grab.kind,btn=grab.btn;grab.kind=null;hpState.grab=false;
   if(k==='rem'&&btn>=0){if(!moved){remPressAnim(btn);remoteFx(btn);}else remRelease(btn);}
-  if(k==='plug'&&hpState.s==='free'){const e=hpState.rope[NR-1];if(Math.hypot(e.position.x/PXU-JACK.x,-e.position.y/PXU-JACK.y)<1.1)seekPlug();}
+  if(k==='hp')hpRest();
+  if(k==='plug'&&!moved&&hpState.s==='plugged')plugOut();   // the plug only comes out when it is actively clicked (dragging, pulling or a long cable never unplugs it)
+  else if(k==='plug'&&hpState.s==='free'){const e=endB();if(Math.hypot(e.position.x/PXU-JACK.x,-e.position.y/PXU-JACK.y)<1.1)seekPlug();}
   grab.body=null;
 }
 
@@ -1457,37 +1528,35 @@ function ytLayout(show){
 /* ---------- per-frame sync: physics -> meshes ---------- */
 function catmull(p0,p1,p2,p3,t,out){const t2=t*t,t3=t2*t;out.x=.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3);
   out.y=.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3);out.z=.5*((2*p1.z)+(-p0.z+p2.z)*t+(2*p0.z-5*p1.z+4*p2.z-p3.z)*t2+(-p0.z+3*p1.z-3*p2.z+p3.z)*t3);return out;}
-const cp=[];for(let i=0;i<NR;i++)cp.push({x:0,y:0,z:0});
+const cp=[];for(let i=0;i<NMAX;i++)cp.push({x:0,y:0,z:0});
 const _smooth=k=>k*k*(3-2*k);
 function syncCable(dt){
-  const h=hpState,r=h.rope;
-  const aimT=h.s==='plugged'?1:(h.s==='seek'?(()=>{const e=r[NR-1],d=Math.hypot(e.position.x/PXU-JACK.x,-e.position.y/PXU-JACK.y);return _smooth(clamp((1.5-d)/1.3,0,1));})():0);
+  const h=hpState,r=h.rope,n=r.length,last=n-1,ns=last*3+1;
+  const aimT=h.s==='plugged'?1:(h.s==='seek'?(()=>{const e=r[last],d=Math.hypot(e.position.x/PXU-JACK.x,-e.position.y/PXU-JACK.y);return _smooth(clamp((1.5-d)/1.3,0,1));})():0);
   h.aim+=(aimT-h.aim)*(1-Math.exp(-dt*9));
-  const zEnd=lerp(lerp(.52,FZ+PLUG_LEN+.3,h.aim),FZ+PLUG_LEN-.1,h.plugAmt);
-  for(let i=0;i<NR;i++){const b=r[i];cp[i].x=b.position.x/PXU;cp[i].y=-b.position.y/PXU;
-    const base=lerp(.34,.52,i/(NR-1)),w=_smooth(clamp((i-(NR-8))/7,0,1));cp[i].z=base+(zEnd-base)*w;}
-  let n=0;
-  for(let i=0;i<NR-1;i++){const p0=cp[Math.max(0,i-1)],p1=cp[i],p2=cp[i+1],p3=cp[Math.min(NR-1,i+2)];for(let s=0;s<3;s++)catmull(p0,p1,p2,p3,s/3,_p[n++]);}
-  _p[n].set(cp[NR-1].x,cp[NR-1].y,cp[NR-1].z);
+  const zEnd=lerp(lerp(.52,FZ+PLUG_LEN+.3,h.aim),FZ+PLUG_LEN-.1,h.plugAmt),pz=hpRoot.position.z+PORT.z*h.scale;   // pz: depth of the boot on the (turned) cup, so the cable visibly comes out of it
+  for(let i=0;i<n;i++){const b=r[i];cp[i].x=b.position.x/PXU;cp[i].y=-b.position.y/PXU;
+    const base=lerp(.34,.52,i/last),w=_smooth(clamp((i-(n-8))/7,0,1));cp[i].z=lerp(pz,base+(zEnd-base)*w,_smooth(clamp(i/5,0,1)));}
+  let m=0;
+  for(let i=0;i<last;i++){const p0=cp[Math.max(0,i-1)],p1=cp[i],p2=cp[i+1],p3=cp[Math.min(last,i+2)];for(let q=0;q<3;q++)catmull(p0,p1,p2,p3,q/3,_p[m++]);}
+  _p[m].set(cp[last].x,cp[last].y,cp[last].z);
   const pos=cableGeo.attributes.position.array,nor=cableGeo.attributes.normal.array,R=.036;
-  for(let i=0;i<CSAMP;i++){
-    const a=_p[Math.max(0,i-1)],b=_p[Math.min(CSAMP-1,i+1)];_tmpA.set(b.x-a.x,b.y-a.y,b.z-a.z).normalize();
+  for(let i=0;i<ns;i++){
+    const a=_p[Math.max(0,i-1)],b=_p[Math.min(ns-1,i+1)];_tmpA.set(b.x-a.x,b.y-a.y,b.z-a.z).normalize();
     if(Math.abs(_tmpA.z)>.85)_tmpB.set(0,1,0);else _tmpB.set(0,0,1);
     _tmpB.crossVectors(_tmpA,_tmpB).normalize();_tmpC.crossVectors(_tmpA,_tmpB);
-    for(let j=0;j<CRAD;j++){const th=j/CRAD*TAU,c=Math.cos(th),s=Math.sin(th),nx=_tmpB.x*c+_tmpC.x*s,ny=_tmpB.y*c+_tmpC.y*s,nz=_tmpB.z*c+_tmpC.z*s,o=(i*CRAD+j)*3;
+    for(let j=0;j<CRAD;j++){const th=j/CRAD*TAU,c=Math.cos(th),sn=Math.sin(th),nx=_tmpB.x*c+_tmpC.x*sn,ny=_tmpB.y*c+_tmpC.y*sn,nz=_tmpB.z*c+_tmpC.z*sn,o=(i*CRAD+j)*3;
       pos[o]=_p[i].x+nx*R;pos[o+1]=_p[i].y+ny*R;pos[o+2]=_p[i].z+nz*R;nor[o]=nx;nor[o+1]=ny;nor[o+2]=nz;}}
-  cableGeo.attributes.position.needsUpdate=true;cableGeo.attributes.normal.needsUpdate=true;
+  cableGeo.attributes.position.needsUpdate=true;cableGeo.attributes.normal.needsUpdate=true;cableGeo.setDrawRange(0,(ns-1)*CRAD*6);
   /* plug pose: pin follows the cable's end direction, swings round to face the jack as it gets close */
-  const e=cp[NR-1],pr=cp[NR-2];_tmpA.set(e.x-pr.x,e.y-pr.y,0);if(_tmpA.lengthSq()<1e-6)_tmpA.set(1,0,0);_tmpA.normalize();
+  const e=cp[last],pr=cp[last-1];_tmpA.set(e.x-pr.x,e.y-pr.y,0);if(_tmpA.lengthSq()<1e-6)_tmpA.set(1,0,0);_tmpA.normalize();
   _tmpB.set(0,0,-1);_tmpA.lerp(_tmpB,h.aim).normalize();
   plug2.position.set(e.x,e.y,zEnd);plug2.quaternion.setFromUnitVectors(_tmpB,_tmpA);
   if(h.flash>0){h.flash=Math.max(0,h.flash-dt*2.4);jackRing.material.opacity=h.flash*.85;jackRing.scale.setScalar(1+(1-h.flash)*.9);}else if(jackRing.material.opacity!==0)jackRing.material.opacity=0;
 }
 function physFrame(dt,time){
   if(!PHYS||!physOn)return;
-  if(grab.kind==='plug'&&hpState.s==='plugged'&&grab.c){   // yanking the plug away from the jack pulls it out
-    const dx=grab.c.pointA.x-mxp(JACK.x),dy=grab.c.pointA.y-myp(JACK.y);if(Math.hypot(dx,dy)>PXU*.95)plugOut({x:0,y:0});}
-  if(hpState.s==='plugged'&&stretchRatio()>1.085)plugOut({x:0,y:0});                                // a hard tug on the cable rips the plug out
+  payOut();                                                                                          // endless cable: never pulls the plug out, it just pays out more line
   physAcc+=Math.min(dt,.05);let n=0;while(physAcc>=DT_MS/1000&&n<10){Engine.update(eng,DT_MS);physAcc-=DT_MS/1000;n++;}
   /* remote */
   if(rem.body){const p=bodyWorld(rem.body);rem.g.position.set(p.x,p.y,rem.z);rem.g.rotation.z=-rem.body.angle;
