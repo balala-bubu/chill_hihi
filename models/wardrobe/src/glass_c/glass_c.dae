@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset>
+    <created>2019-07-18T16:37:33Z</created>
+    <modified>2019-07-18T16:37:33Z</modified>
+  </asset>
+  <library_images>
+    <image id="image-glass_c">
+      <init_from>glass_c.png</init_from>
+    </image>
+  </library_images>
+  <library_materials>
+    <material id="material0" name="Dg_glass_c">
+      <instance_effect url="#effect0"/>
+    </material>
+  </library_materials>
+  <library_effects>
+    <effect id="effect0" name="Dg_glass_c">
+      <profile_COMMON>
+        <newparam sid="Image-surface">
+          <surface type="2D">
+            <init_from>image-glass_c</init_from>
+            <format>A8R8G8B8</format>
+          </surface>
+        </newparam>
+        <newparam sid="Image-sampler">
+          <sampler2D>
+            <source>Image-surface</source>
+            <wrap_s>MIRROR</wrap_s>
+            <wrap_t>MIRROR</wrap_t>
+            <minfilter>NEAREST</minfilter>
+            <magfilter>NEAREST</magfilter>
+            <mipfilter>NEAREST</mipfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <phong>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>0 0 0 1</color>
+            </ambient>
+            <diffuse>
+              <texture texture="Image-sampler" texcoord="tc"/>
+            </diffuse>
+            <specular>
+              <color>0 0 0 1</color>
+            </specular>
+            <transparent>
+              <texture texture="Image-sampler" texcoord="tc"/>
+            </transparent>
+          </phong>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_geometries>
+    <geometry id="geometry" name="glass_c">
+      <mesh>
+        <source id="positions">
+          <float_array id="positions-array" count="165">0.45141602 0.13256836 0 0.45141602 0.09082031 -0.091308594 0.45141602 0.13256836 -0.50341797 0.45141602 0.09082031 -0.4609375 0.45141602 -0.13256836 -0.50341797 0.45141602 -0.080322266 -0.4609375 0.45141602 -0.13256836 -0.072753906 0.45141602 -0.080322266 -0.091308594 -0.38598633 0.12231445 0.4711914 -0.34570313 -0.01586914 0.4711914 0.45141602 0.13256836 0.50341797 0.45141602 -0.13256836 0.50341797 0.45141602 0.09082031 0.4609375 0.45141602 -0.080322266 0.4609375 0.45141602 -0.13256836 -0.072753906 0.45141602 -0.080322266 -0.091308594 0.45141602 -0.038085938 -0.026855469 0.45141602 0.09082031 -0.091308594 0.45141602 0.13256836 0 -0.38598633 0.12231445 0.4711914 -0.6879883 0.045898438 0.42016602 -0.34570313 -0.01586914 0.4711914 -0.65356445 -0.07080078 0.42016602 -0.65356445 -0.07080078 -0.42016602 -0.6879883 0.045898438 -0.42016602 -0.34570313 -0.01586914 -0.4711914 -0.38598633 0.12231445 -0.4711914 0.45141602 -0.13256836 0.072753906 0.45141602 -0.038085938 0.026855469 0.45141602 -0.080322266 0.091308594 0.45141602 0.09082031 0.091308594 0.45141602 0.09082031 0.091308594 0.45141602 -0.038085938 0.026855469 0.45141602 0.13256836 0 0.45141602 -0.038085938 -0.026855469 0.45141602 0.13256836 0.50341797 0.45141602 0.09082031 0.4609375 0.45141602 0.09082031 0.091308594 0.45141602 0.13256836 0 0.45141602 -0.13256836 0.50341797 0.45141602 -0.13256836 0.072753906 0.45141602 -0.080322266 0.091308594 0.45141602 -0.080322266 0.4609375 0.45141602 -0.13256836 -0.50341797 -0.34570313 -0.01586914 -0.4711914 -0.38598633 0.12231445 -0.4711914 0.45141602 0.13256836 -0.50341797 0.45141602 -0.080322266 0.091308594 0.45141602 0.09082031 0.091308594 0.45141602 0.09082031 0.4609375 0.45141602 -0.080322266 0.4609375 0.45141602 -0.080322266 -0.091308594 0.45141602 -0.080322266 -0.4609375 0.45141602 0.09082031 -0.4609375 0.45141602 0.09082031 -0.091308594 </float_array>
+          <technique_common>
+            <accessor source="#positions-array" count="55" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="texcoords">
+          <float_array id="texcoords-array" count="110">0.0625 0.46875 0.28125 0.34375 0.80859375 0.46875 0.71875 0.34375 0.80859375 0.03125 0.71875 0.09375 0.1953125 0.03125 0.28125 0.09375 0.90625 0.46875 0.9375 0.33398438 0.80859375 0.46875 0.80859375 0.03125 0.71875 0.34375 0.71875 0.09375 0.1953125 0.03125 0.28125 0.09375 0.06640625 0.15039063 0.28125 0.34375 0.0625 0.46875 0.90625 0.46875 0.9375 0.46875 0.9375 0.33398438 0.96875 0.46875 0.96875 0.46875 0.9375 0.46875 0.9375 0.33398438 0.90625 0.46875 0.1953125 0.03125 0.06640625 0.15039063 0.28125 0.09375 0.28125 0.34375 0.28125 0.34375 0.06640625 0.15039063 0.0625 0.46875 0.06640625 0.15039063 0.80859375 0.46875 0.71875 0.34375 0.28125 0.34375 0.0625 0.46875 0.80859375 0.03125 0.1953125 0.03125 0.28125 0.09375 0.71875 0.09375 0.80859375 0.03125 0.9375 0.33398438 0.90625 0.46875 0.80859375 0.46875 -0.96875 0.53125 -0.96875 0.96875 -0.53125 0.96875 -0.53125 0.53125 -0.46875 0.53125 -0.03125 0.53125 -0.03125 0.96875 -0.46875 0.96875 </float_array>
+          <technique_common>
+            <accessor source="#texcoords-array" count="55" stride="2">
+              <param name="S" type="float"/>
+              <param name="T" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="colors">
+          <float_array id="colors-array" count="165">0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 0.8064516 </float_array>
+          <technique_common>
+            <accessor source="#colors-array" count="55" stride="3">
+              <param name="R" type="float"/>
+              <param name="G" type="float"/>
+              <param name="B" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="normals">
+          <float_array id="normals-array" count="165">1 0 0 1 0 0 0.89048576 -0.0019528196 -0.45500696 1 0 0 0.89048576 -0.0019528196 -0.45500696 1 0 0 1 0 0 1 0 0 -0.09772972 -0.025409728 0.99488854 -0.09772972 -0.025409728 0.99488854 0.89048576 -0.0019528196 0.45500696 0.89048576 -0.0019528196 0.45500696 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 -0.09772972 -0.025409728 0.99488854 -0.15630665 -0.044938162 0.98668575 -0.09772972 -0.025409728 0.99488854 -0.15630665 -0.044938162 0.98668575 -0.1172376 -0.03126336 -0.9926117 -0.1172376 -0.03126336 -0.9926117 -0.1172376 -0.03126336 -0.9926117 -0.1172376 -0.03126336 -0.9926117 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0.89048576 -0.0019528196 0.45500696 1 0 0 1 0 0 1 0 0 0.89048576 -0.0019528196 0.45500696 1 0 0 1 0 0 1 0 0 0.89048576 -0.0019528196 -0.45500696 -0.1172376 -0.03126336 -0.9926117 -0.1172376 -0.03126336 -0.9926117 0.89048576 -0.0019528196 -0.45500696 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 </float_array>
+          <technique_common>
+            <accessor source="#normals-array" count="55" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="vertices">
+          <input semantic="POSITION" source="#positions"/>
+          <input semantic="TEXCOORD" source="#texcoords"/>
+          <input semantic="COLOR" source="#colors"/>
+          <input semantic="NORMAL" source="#normals"/>
+        </vertices>
+        <polylist material="material0" count="21">
+          <input semantic="VERTEX" source="#vertices" offset="0"/>
+          <vcount>4 4 4 4 4 3 3 3 3 3 3 3 3 3 3 3 4 4 4 4 4 </vcount>
+          <p>0 1 3 2 2 3 5 4 4 5 7 6 8 9 11 10 10 11 13 12 14 15 16 15 17 16 16 17 18 19 20 21 20 22 21 23 24 25 24 26 25 27 28 29 28 30 29 31 32 33 32 34 33 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 </p>
+        </polylist>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_controllers>
+    <controller id="controller">
+      <skin source="#geometry">
+        <source id="controller-joints">
+          <Name_array id="controller-joints-array" count="1">joint0 </Name_array>
+          <technique_common>
+            <accessor source="#controller-joints-array" count="1">
+              <param name="JOINT" type="Name"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="controller-bind-poses">
+          <float_array id="controller-bind-poses-array" count="16">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 </float_array>
+          <technique_common>
+            <accessor source="#controller-bind-poses-array" count="1" stride="16">
+              <param name="TRANSFORM" type="float4x4"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="controller-weights">
+          <float_array id="controller-weights-array" count="1">1 </float_array>
+          <technique_common>
+            <accessor source="#controller-weights-array" count="1">
+              <param name="WEIGHT" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <joints>
+          <input semantic="JOINT" source="#controller-joints"/>
+          <input semantic="INV_BIND_MATRIX" source="#controller-bind-poses"/>
+        </joints>
+        <vertex_weights count="55">
+          <input semantic="JOINT" source="#controller-joints" offset="0"/>
+          <input semantic="WEIGHT" source="#controller-weights" offset="1"/>
+          <vcount>1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 </vcount>
+          <v>0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 </v>
+        </vertex_weights>
+      </skin>
+    </controller>
+  </library_controllers>
+  <library_visual_scenes>
+    <visual_scene id="scene0" name="glass_c">
+      <node id="joint0" sid="joint0" name="glass_c" type="JOINT">
+        <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+      </node>
+      <node id="node" name="glass_c" type="NODE">
+        <instance_controller url="#controller">
+          <skeleton>#joint0</skeleton>
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="material0" target="#material0">
+                <bind_vertex_input semantic="tc" input_semantic="TEXCOORD"/>
+              </instance_material>
+            </technique_common>
+          </bind_material>
+        </instance_controller>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#scene0"/>
+  </scene>
+</COLLADA>
