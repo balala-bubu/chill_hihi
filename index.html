@@ -1340,7 +1340,8 @@ function hpWear(){
   const b=head.worldToLocal(right.getWorldPosition(new V3()));
   const across=new V3().subVectors(b,a),span=across.length();
   if(span<.001)return false;
-  across.normalize();
+  // Swap handedness so the headset is not worn backwards.
+  across.normalize().negate();
   // Work in head-local space so the band sits on top even when the dog turns.
   dog.g.updateWorldMatrix(true,false);
   const origin=dog.g.localToWorld(new V3(0,0,0));
@@ -1355,16 +1356,21 @@ function hpWear(){
   // Allow room for the skull, both floppy ears and the thick cushion rings.
   const fitScale=clamp((span+5.2)/2.5,4.5,9.5);
   const centre=a.clone().add(b).multiplyScalar(.5);
-  // The brow lies toward the face; cups belong farther back at the ears.
+  // The brow marks the dog's muzzle direction; tilt the top band toward it.
   const brow=wBone('Brow_group');
+  let bandLean=0;
   if(brow){
     const face=head.worldToLocal(brow.getWorldPosition(new V3())).sub(centre);
     face.addScaledVector(across,-face.dot(across)).addScaledVector(upright,-face.dot(upright));
-    if(face.lengthSq()>.01)centre.addScaledVector(face.normalize(),-2.4);
+    if(face.lengthSq()>.01){
+      face.normalize();bandLean=face.dot(forward)>=0?.32:-.32;
+      centre.addScaledVector(face,-2.4);
+    }
   }
   // Move the ear pads down toward the hanging outer ears, not into the crown.
   centre.addScaledVector(upright,-2.0);
   h.worn=true;head.add(hpRoot);hpRoot.traverse(o=>o.layers.enable(1));
+  hp.rotation.set(bandLean,0,0); // only the crown leans toward the muzzle
   hpRoot.position.copy(centre);
   hpRoot.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(across,upright,forward));
   hpRoot.scale.setScalar(fitScale);
@@ -1373,7 +1379,8 @@ function hpWear(){
 }
 function hpUnwear(){
   const h=hpState;if(!h.worn)return;
-  scene.attach(hpRoot);hpRoot.traverse(o=>o.layers.disable(1));h.worn=false;h.dragNear=0;hpRoot.scale.setScalar(h.scale);
+  scene.attach(hpRoot);hpRoot.traverse(o=>o.layers.disable(1));h.worn=false;
+  hp.rotation.set(.12,.5,0); // original free-floating presentationh.dragNear=0;hpRoot.scale.setScalar(h.scale);
   const p=hpRoot.position,b=h.body;
   if(b){Body.setAngle(b,0);Body.setPosition(b,{x:mxp(p.x)-h.org.x,y:myp(p.y)-h.org.y});Body.setVelocity(b,{x:0,y:0});Body.setAngularVelocity(b,0);}
   hpRoot.rotation.set(0,0,0);hpRest();W.recycleKey='';
@@ -1965,10 +1972,10 @@ dog.g.updateMatrixWorld(true);
   /* ears are damped springs: they lift back with speed and bounce on every stride, the tips lag behind the base */
   {const spd01=Math.min(1,Math.abs(vx)/7),bn=Math.sin(dog.gait+1.2)*dog.move,E=dog.ear||(dog.ear={L:{a:0,av:0,b:0,bv:0,f:0,fv:0},R:{a:0,av:0,b:0,bv:0,f:0,fv:0}});
    const step=(e,ph,kick,sgn)=>{const n=Math.max(1,Math.ceil(dt/.012)),h2=dt/n;
-     const ta=.62*spd01+.55*bn*Math.cos(ph)+Math.sin(time*1.7+ph)*.025+dog.earWear*.75,tf=sgn*(.35*spd01+.4*Math.abs(bn)+kick*.7+dog.earWear*.85);
+     const ta=.62*spd01+.55*bn*Math.cos(ph)+Math.sin(time*1.7+ph)*.025-dog.earWear*.62,tf=sgn*(.35*spd01+.4*Math.abs(bn)+kick*.7+dog.earWear*.35);
      for(let i=0;i<n;i++){
        e.av+=(150*(ta-e.a)-9*e.av)*h2;e.a+=e.av*h2;
-       e.bv+=(95*(e.a*.9+.35*bn*.5+dog.earWear*.3-e.b)-6*e.bv)*h2;e.b+=e.bv*h2;
+       e.bv+=(95*(e.a*.9+.35*bn*.5-dog.earWear*.22-e.b)-6*e.bv)*h2;e.b+=e.bv*h2;
        e.fv+=(130*(tf-e.f)-8*e.fv)*h2;e.f+=e.fv*h2;}};
    step(E.L,0,dog.earL,-1);step(E.R,.6,dog.earR,1);
    dogAdd('LearA','r',E.L.a);dogAdd('LearB','r',E.L.b);dogAdd('LearA','f',E.L.f);dogAdd('LearB','f',E.L.f*.6);
