@@ -152,6 +152,7 @@ function wEquip(id,quiet){
   if(it.slot==='hat'&&hpState.worn)hpUnwear();   // hat and headphones are mutually exclusive: the headphones come off
   wUnequip(it.slot);
   const sg=new T.Group();sg.position.fromArray(sl.worn.pos);wSetRot(sg,sl.worn.rot);sg.userData.s=sl.worn.scale;sg.scale.setScalar(sl.worn.scale);
+  {const a=dog.fitAdj&&dog.fitAdj[it.slot];if(a){if(a.pos)sg.position.add(new T.Vector3().fromArray(a.pos));if(a.s){sg.scale.multiplyScalar(a.s);sg.userData.s*=a.s;}}}   // the second puppy has a differently shaped head
   const m=new T.Mesh(it.geo,it.mat),f=it.def.fit||{};
   if(f.pos)m.position.fromArray(f.pos);wSetRot(m,f.rot);if(f.scale){if(Array.isArray(f.scale))m.scale.fromArray(f.scale);else m.scale.setScalar(f.scale);}
   m.renderOrder=it.alpha?4:1;sg.add(m);
