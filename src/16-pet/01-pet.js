@@ -134,9 +134,23 @@ function petFrame(dt,time){
    and the next player puts the CD back in and carries on from the same track and second. */
 function petSaveState(force){
   if(!PET.ext||!PET.bridge)return;
-  const now=performance.now();if(!force&&now-PET.saveT<2000)return;PET.saveT=now;
+  const now=performance.now();if(status!==PET.lastStatus){PET.lastStatus=status;force=true;}
+  if(!force&&now-PET.saveT<2000)return;PET.saveT=now;
   const a=Au.alb;
   PET.bridge.post({chp:'state',v:{list:a&&a.yt?a.yt.list:null,index:YTA.inf?YTA.inf.i:0,time:YTA.time(),playing:status==='playing'&&!!a,t:Date.now()}});
+}
+/* the normal chill_hihi page remote-controls this player (play / pause / next / stop / this CD) */
+function petSite(c){
+  if(!c)return;
+  if(c.a==='start'){
+    const ai=ALBUMS.findIndex(a=>a.yt&&a.yt.list===c.list);if(ai<0)return;
+    if(cd&&cd.root.parent)cd.root.parent.remove(cd.root);
+    petRestore({list:c.list,index:c.index||0,time:c.time||0,playing:c.playing!==false,t:Date.now()});
+  }else if(c.a==='play'){if(status==='paused'){Au.resume();status='playing';}}
+  else if(c.a==='pause'){if(status==='playing'){Au.pause();status='paused';}}
+  else if(c.a==='stop'){if(status==='playing'||status==='paused'){Au.stop();status='stopped';}}
+  else if(c.a==='next'){if(cd&&(status==='playing'||status==='paused')){Au.skipNext();status='playing';}}
+  petSaveState(true);
 }
 function petRestore(st){
   const ai=ALBUMS.findIndex(a=>a.yt&&a.yt.list===st.list);if(ai<0)return;
@@ -156,6 +170,7 @@ function petHandle(m){
       break;
     case 'dog':petDog(!!m.v);break;
     case 'activate':if(status==='playing'){YTA.call('unMute');YTA.call('setVolume',Au.vol*10);}break;   // the first click on the host page lifts the browser's autoplay block
+    case 'site':petSite(m.c);break;
     case 'toggle':petToggle();break;
     case 'next':petNext();break;
     case 'cursor':   // the pointer anywhere on the desktop, normalised to this window (-1..1); the dog looks at it

@@ -9,7 +9,7 @@
   const ID = Math.random().toString(36).slice(2);
   const st = chrome.storage.local;
   let cfg = {...DEF}, host = null, frame = null, grip = null, port = null, mounted = false, mountT = 0, playerOrigin = '';
-  let ign = true, inRect = false, helloT = 0, gotHello = false;
+  let ign = true, inRect = false, helloT = 0, gotHello = false, aliveT = 0;
 
   const get = keys => new Promise(r => st.get(keys, r));
   const set = o => new Promise(r => st.set(o, r));
@@ -98,7 +98,7 @@
   }
   function unmount() {
     if (!mounted) return;
-    mounted = false; inRect = false; clearTimeout(helloT);
+    mounted = false; inRect = false; clearTimeout(helloT); clearInterval(aliveT);
     try { port && port.close(); } catch (e) {}
     port = null; host && host.remove(); host = frame = grip = null;
   }
@@ -107,7 +107,7 @@
     const m = e.data || {};
     switch (m.chp) {
       case 'hello': {
-        gotHello = true;
+        gotHello = true; clearInterval(aliveT); const beat = () => set({alive: Date.now()}); beat(); aliveT = setInterval(beat, 3000);
         const d = await get(['ls', 'state']);
         port && port.postMessage({t: 'init', ls: d.ls || {}, state: d.state || null, settings: {dog: cfg.dog, quality: cfg.quality}});
         break;
@@ -130,15 +130,21 @@
   /* ---- the player's own site: marker + on/off switch for its menu, no floating copy there ---- */
   function ownSite() {
     document.documentElement.dataset.chillhihiExt = '1';
-    const send = () => postMessage({chillhihi: 'widget-state', enabled: !!cfg.enabled}, location.origin);
+    let alive = 0, state = null;
+    const send = () => postMessage({chillhihi: 'widget-state', enabled: !!cfg.enabled, alive, state}, location.origin);
     addEventListener('message', e => {
       if (e.source !== window || !e.data) return;
       if (e.data.chillhihi === 'query-widget') send();
       else if (e.data.chillhihi === 'toggle-widget') set({enabled: !cfg.enabled});
-      else if (e.data.chillhihi === 'handoff' && e.data.state && typeof e.data.state.list === 'string') set({state: e.data.state});
+      else if (e.data.chillhihi === 'site-cmd' && e.data.cmd && typeof e.data.cmd.a === 'string') set({cmd: {...e.data.cmd, id: Math.random()}});   // this page remote-controls the floating player
     });
-    chrome.storage.onChanged.addListener(c => { if (c.enabled) { cfg.enabled = c.enabled.newValue !== false; send(); } });
-    send();
+    chrome.storage.onChanged.addListener(c => {
+      if (c.enabled) cfg.enabled = c.enabled.newValue !== false;
+      if (c.alive) alive = c.alive.newValue || 0;
+      if (c.state) state = c.state.newValue || null;
+      if (c.enabled || c.alive || c.state) send();
+    });
+    get(['alive', 'state']).then(d => { alive = d.alive || 0; state = d.state || null; send(); });
   }
 
   async function start() {
@@ -151,6 +157,7 @@
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') claim(); });
     chrome.storage.onChanged.addListener(c => {
       for (const k of Object.keys(c)) if (k in DEF) cfg[k] = c[k].newValue === undefined ? DEF[k] : c[k].newValue;
+      if (c.cmd && c.cmd.newValue && port && gotHello) port.postMessage({t: 'cmd', m: {type: 'site', c: c.cmd.newValue}});
       if (c.lease && c.lease.newValue !== ID) { clearTimeout(mountT); unmount(); }
       if (c.enabled) { cfg.enabled ? claim() : unmount(); }
       if (c.url) { unmount(); playerOrigin = originOf(cfg.url); claim(); }
