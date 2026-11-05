@@ -68,6 +68,13 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 #shelfHint{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:5;height:26px;padding:0 14px;border-radius:13px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 2px 0 rgba(45,48,51,.18);font:500 11px/24px "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;color:var(--mute);cursor:pointer;transition:opacity .35s,transform .35s}
 #shelfHint.gone{opacity:0;pointer-events:none;transform:translate(-50%,-10px)}
 #shelfHint:focus-visible{outline:2px solid #ee5a2c;outline-offset:2px}
+/* open display wardrobe: no doors, direct previous/next controls for each shelf */
+#wardPages{position:fixed;inset:0;z-index:5;pointer-events:none}
+.wardNav{position:absolute;display:flex;align-items:center;justify-content:space-between;gap:5px;transform:translate(-50%,-50%);pointer-events:none}
+.wardNav button{pointer-events:auto;width:29px;height:32px;border-radius:11px;border:1px solid rgba(124,130,140,.42);background:rgba(250,250,251,.94);color:#484d56;box-shadow:0 2px 9px rgba(29,35,45,.12);cursor:pointer;font:700 19px/1 sans-serif;touch-action:manipulation}
+.wardNav button:disabled{opacity:.3;cursor:default}
+.wardNav button:not(:disabled):hover,.wardNav button:not(:disabled):focus-visible{color:#ee5a2c;border-color:#ee5a2c;outline:0}
+.wardNav span{font:600 10px/1.2 "JetBrains Mono",sans-serif;color:#707780;background:rgba(249,250,251,.78);border-radius:6px;padding:3px 5px;white-space:nowrap;min-width:37px;text-align:center}
 /* dog wardrobe: a pill on the right edge for touch screens, and a name tag while hovering an item */
 #wardHint{position:fixed;right:calc(8px + env(safe-area-inset-right,0px));top:50%;transform:translateY(-50%);z-index:5;padding:12px 6px;border-radius:13px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 2px 0 rgba(45,48,51,.18);font:500 11px/1.2 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;letter-spacing:.12em;color:var(--mute);cursor:pointer;writing-mode:vertical-rl;transition:opacity .35s,transform .35s}
 #wardHint.gone{opacity:0;pointer-events:none;transform:translate(10px,-50%)}
@@ -89,7 +96,7 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 <div id="stage"></div>
 <button id="shelfHint" type="button" aria-label="展開專輯櫃">專輯櫃 ▾</button>
 <button id="wardHint" type="button" class="gone" aria-label="打開狗狗衣櫃">狗狗衣櫃 ◂</button>
-<div id="wardTip" aria-hidden="true"></div>
+<div id="wardTip" aria-hidden="true"></div><div id="wardPages" aria-label="衣櫃物品左右切換"></div>
 <div id="wardRecycle" hidden aria-label="狗狗裝飾逐件回收"><div class="wardRecycleTitle">已穿戴 · 逐件回收</div><div id="wardRecycleItems"></div></div>
 <div id="addMsg" role="status" aria-live="polite"></div>
 <div id="tools" class="away">
@@ -1933,16 +1940,18 @@ loadDog();
 
 /* ---------- dog wardrobe ----------
    models/wardrobe/manifest.json (written by tools/build_wardrobe.py) lists the slots (which bone each kind of item hangs on, and where) and the items.
-   While the dog is around, a mirrored cabinet slides in from the right edge and its door swings open; every slot has one shelf.
+   While the dog is around, an open boutique display shelf slides in from the right edge; each slot has one shelf.
    Drag an item onto the dog to put it on, drag a worn item back to the cabinet to put it away. What the dog wears is remembered. */
 const W={ready:false,items:{},slots:[],slotById:{},byslot:{},worn:{},vis:0,hover:false,pin:false,drag:null,hot:null,doorA:0,restored:false,fly:[],page:{},
   root:new T.Group(),inner:new T.Group(),door:new T.Group(),shelfG:new T.Group(),Wc:3.2,Hc:6.2,tierH:2,key:'',KEY:'chill_hihi.wear',
   nd:new T.Vector2(),ray:new T.Raycaster(),v:new T.Vector3(),
-  hintEl:$id('wardHint'),tipEl:$id('wardTip'),recycleEl:$id('wardRecycle'),recycleItemsEl:$id('wardRecycleItems'),recycleKey:''};
+  hintEl:$id('wardHint'),tipEl:$id('wardTip'),pagesEl:$id('wardPages'),nav:{},recycleEl:$id('wardRecycle'),recycleItemsEl:$id('wardRecycleItems'),recycleKey:''};
 W.root.visible=false;W.root.add(W.inner,W.door,W.shelfG);scene.add(W.root);
 const wMat={
   body:new T.MeshPhysicalMaterial({color:0xe4e6e8,roughness:.6,clearcoat:.25,clearcoatRoughness:.5,envMapIntensity:.6}),
-  back:new T.MeshStandardMaterial({color:0xb9bdc2,roughness:.95}),
+  back:new T.MeshStandardMaterial({color:0xd8dbdf,roughness:.82}),
+  trim:new T.MeshStandardMaterial({color:0xabb1b8,metalness:.7,roughness:.28}),
+  accent:new T.MeshStandardMaterial({color:0xe9ab76,metalness:.48,roughness:.32}),
   mirror:new T.MeshStandardMaterial({color:0xf2f4f6,metalness:1,roughness:.05,envMapIntensity:1.5}),
   glint:new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.13,depthWrite:false,toneMapped:false}),
   metal:new T.MeshStandardMaterial({color:0x9ea3a8,metalness:.9,roughness:.3,envMapIntensity:1})};
@@ -1969,12 +1978,14 @@ function wLayout(){
   wBox(Wc,.14,D,0,Hc/2-.07,0,wMat.body,I);wBox(Wc,.14,D,0,-(Hc/2-.07),0,wMat.body,I);
   for(let i=1;i<3;i++)wBox(Wc-.28,.07,D*.92,0,Hc/2-.14-tH*i,.02,wMat.body,I);
   W.slots.forEach((s,i)=>{const l=wLabel(s.label);l.position.set(-Wc/2+.82,Hc/2-.14-tH*i-.24,-D/2+.112);I.add(l);});
-  /* door: hinged on the outer (right) edge, so it swings out toward the viewer and ends up edge-on at the screen edge */
-  W.door.position.set(Wc/2,0,D/2);
-  wBox(Wc,Hc,.09,-Wc/2,0,.045,wMat.body,W.door);
-  const mir=new T.Mesh(new T.PlaneGeometry(Wc-.34,Hc-.34),wMat.mirror);mir.position.set(-Wc/2,0,.0915);W.door.add(mir);
-  [[.32,.5,.34],[.12,.5,.1]].forEach(([w,x,rz],i)=>{const g=new T.Mesh(new T.PlaneGeometry(w,Hc*.95),wMat.glint);g.position.set(-Wc/2+(i?-.55:.25),.1,.0925);g.rotation.z=.5;W.door.add(g);});
-  wBox(.07,.5,.07,-Wc+.2,0,.12,wMat.metal,W.door);
+  /* Open showroom frame: soft backing, slim metal trims, warm display ledges; no swinging door or glass blocker. */
+  wBox(Wc-.12,.035,.09,0,Hc/2-.20,.48,wMat.trim,I);
+  wBox(Wc-.12,.035,.09,0,-Hc/2+.18,.48,wMat.trim,I);
+  for(let i=0;i<3;i++){
+    const y=Hc/2-.14-tH*(i+1);
+    if(i<2)wBox(Wc-.35,.025,.1,0,y+.035,.42,wMat.accent,I);
+    wBox(Wc-.42,.035,.22,0,y+tH*.34,-.25,wMat.trim,I);
+  }
 }
 async function loadWardrobe(){
   try{
@@ -2001,8 +2012,27 @@ async function loadWardrobe(){
       const h=new T.Group(),m=new T.Mesh(it.geo,it.mat);m.position.set(-it.c[0],-it.c[1],-it.c[2]);m.renderOrder=it.alpha?4:0;h.add(m);
       const p=new T.Mesh(sph,hide);p.scale.setScalar(it.md*.62);p.userData.ward={id:it.id,src:'shelf'};h.add(p);   // generous invisible hit area (the glasses are thin)
       it.holder=h;it.proxy=p;W.shelfG.add(h);});
-    W.ready=true;
+    wBuildNav();W.ready=true;
   }catch(e){console.warn('wardrobe failed to load',e);}
+}
+function wBuildNav(){
+  W.pagesEl.replaceChildren();W.nav={};
+  W.slots.forEach(sl=>{
+    const bar=document.createElement('div');bar.className='wardNav';
+    const prev=document.createElement('button'),next=document.createElement('button'),count=document.createElement('span');
+    prev.type=next.type='button';prev.textContent='‹';next.textContent='›';
+    prev.setAttribute('aria-label',sl.label+'上一組物品');next.setAttribute('aria-label',sl.label+'下一組物品');
+    const step=dir=>{const max=Math.max(0,Math.ceil((W.byslot[sl.id]||[]).length/3)-1);W.page[sl.id]=clamp((W.page[sl.id]||0)+dir,0,max);wNavSync();Au.click(1.1,.35);};
+    prev.addEventListener('click',()=>step(-1));next.addEventListener('click',()=>step(1));
+    bar.append(prev,count,next);W.pagesEl.append(bar);W.nav[sl.id]={bar,prev,next,count};
+  });wNavSync();
+}
+function wNavSync(){
+  W.slots.forEach(sl=>{const n=W.nav[sl.id];if(!n)return;
+    const total=Math.max(1,Math.ceil((W.byslot[sl.id]||[]).length/3)),pg=clamp(W.page[sl.id]||0,0,total-1);
+    n.count.textContent=(pg+1)+' / '+total;n.prev.disabled=pg===0;n.next.disabled=pg>=total-1;
+    n.bar.hidden=total<=1;
+  });
 }
 function wSave(){const o={};for(const s in W.worn)o[s]=W.worn[s].id;LS.set(W.KEY,o);W.recycleKey='';}
 function wRecycle(slot){
@@ -2057,7 +2087,7 @@ function wAnchor(slot){
 function wPick(cx,cy){
   W.nd.set(cx/innerWidth*2-1,-(cy/innerHeight*2-1));W.ray.setFromCamera(W.nd,cam);
   const c=[];
-  if(W.doorA>.8)for(const id in W.items){const it=W.items[id];if(it.inWindow&&!it.away)c.push(it.proxy);}
+  if(W.vis>.55)for(const id in W.items){const it=W.items[id];if(it.inWindow&&!it.away)c.push(it.proxy);}
   for(const s in W.worn)c.push(W.worn[s].proxy);
   const h=W.ray.intersectObjects(c,false)[0];return h?h.object.userData.ward:null;
 }
@@ -2119,7 +2149,7 @@ cvs.addEventListener('wheel',e=>{
   if(!W.ready||W.vis<.8||W.drag)return;setNDC(e);const q=planeHit(0);if(!q||q.x<W.root.position.x-W.Wc/2)return;
   const si=clamp(Math.floor((W.Hc/2-(q.y-W.root.position.y))/W.tierH),0,W.slots.length-1),sl=W.slots[si],n=(W.byslot[sl.id]||[]).length;
   e.stopImmediatePropagation();e.preventDefault();
-  W.page[sl.id]=clamp((W.page[sl.id]||0)+Math.sign(e.deltaY||e.deltaX),0,Math.max(0,Math.ceil(n/3)-1));
+  W.page[sl.id]=clamp((W.page[sl.id]||0)+Math.sign(e.deltaY||e.deltaX),0,Math.max(0,Math.ceil(n/3)-1));wNavSync();
 },{capture:true,passive:false});
 function wardFrame(dt,time){
   if(!W.ready)return;
@@ -2135,8 +2165,17 @@ function wardFrame(dt,time){
   const open=ease.io2(clamp(W.vis,0,1));
   W.root.visible=W.vis>.002;
   W.root.position.set(lerp(L.hw+W.Wc/2+1.8,L.hw-W.Wc/2-.35,open),W.yc,0);
-  W.doorA+=((W.vis>.6?1:0)-W.doorA)*(1-Math.exp(-dt*5));if(Math.abs((W.vis>.6?1:0)-W.doorA)<.002)W.doorA=W.vis>.6?1:0;
-  W.door.rotation.y=ease.io2(clamp(W.doorA,0,1))*1.75;
+  /* Navigation stays aligned with projected shelf centers as camera/viewport changes. */
+  W.slots.forEach((sl,i)=>{
+    const n=W.nav[sl.id];if(!n)return;
+    n.bar.style.display=can&&W.vis>.75&&!n.bar.hidden?'flex':'none';
+    if(n.bar.style.display==='none')return;
+    W.root.updateWorldMatrix(true,false);
+    const p=new T.Vector3(0,W.Hc/2-.14-W.tierH*(i+.5),.55).applyMatrix4(W.root.matrixWorld).project(cam);
+    n.bar.style.left=((p.x+1)*.5*innerWidth)+'px';
+    n.bar.style.top=((1-p.y)*.5*innerHeight-W.tierH*10)+'px';
+    n.bar.style.width=Math.max(105,Math.min(190,W.Wc/L.hw*innerWidth*.32))+'px';
+  });
   /* shelves: up to three items per slot in view, evenly spread, slowly turning; the one under the pointer lifts a little */
   W.slots.forEach((sl,si)=>{
     const list=W.byslot[sl.id]||[],per=3,pg=clamp(W.page[sl.id]||0,0,Math.max(0,Math.ceil(list.length/per)-1)),n=Math.min(per,list.length-pg*per),
