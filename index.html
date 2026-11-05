@@ -514,6 +514,20 @@ function makeCup(s){
 }
 const band=new T.Mesh(arcBand(1.27,.36,Math.PI-.36,.36,.095,.85,64),M.cup);band.castShadow=true;hp.add(band);            // headband shell
 const bandPad=new T.Mesh(arcBand(1.175,.62,Math.PI-.62,.3,.14,.9,48),M.orange);bandPad.castShadow=true;hp.add(bandPad);   // soft pad under it
+// Bend only the headband toward the muzzle while the cups stay at the ear roots.
+// The lower ends remain at the hinges; the crown progressively moves forward.
+const hpBandRest=[band,bandPad].map(m=>new Float32Array(m.geometry.attributes.position.array));
+function hpSetBandLean(lean){
+  [band,bandPad].forEach((mesh,i)=>{
+    const attr=mesh.geometry.attributes.position,base=hpBandRest[i];
+    for(let j=0;j<attr.count;j++){
+      const o=j*3,top=clamp((base[o+1]-.43)/.8,0,1);
+      attr.array[o+2]=base[o+2]+lean*top*top;
+    }
+    attr.needsUpdate=true;mesh.geometry.computeVertexNormals();
+    mesh.geometry.computeBoundingSphere();
+  });
+}
 [-1,1].forEach(s=>{
   hp.add(makeCup(s));
   const hg=new T.Mesh(rrBox(.2,.36,.24,.06,.025),M.metal);hg.position.set(s*1.172,.52,0);hg.rotation.z=s*.37;hg.castShadow=true;hp.add(hg);   // hinge/slider where the band tucks into the cup
@@ -1370,7 +1384,8 @@ function hpWear(){
   // Move the ear pads down toward the hanging outer ears, not into the crown.
   centre.addScaledVector(upright,-2.0);
   h.worn=true;head.add(hpRoot);hpRoot.traverse(o=>o.layers.enable(1));
-  hp.rotation.set(bandLean,Math.PI,0); // rotate the worn headset 180 degrees to face correctly
+  hp.rotation.set(0,0,0); // ear cups face outward; no symmetric 180-degree flip
+  hpSetBandLean((bandLean>=0?1:-1)*1.15); // visibly sweep the crown forward, not the ear cups
   hpRoot.position.copy(centre);
   hpRoot.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(across,upright,forward));
   hpRoot.scale.setScalar(fitScale);
@@ -1380,6 +1395,7 @@ function hpWear(){
 function hpUnwear(){
   const h=hpState;if(!h.worn)return;
   scene.attach(hpRoot);hpRoot.traverse(o=>o.layers.disable(1));h.worn=false;
+  hpSetBandLean(0); // restore the original undeformed band
   hp.rotation.set(.12,.5,0); // restore free-floating presentation
   h.dragNear=0;hpRoot.scale.setScalar(h.scale);
   const p=hpRoot.position,b=h.body;
