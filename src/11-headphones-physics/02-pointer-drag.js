@@ -2,6 +2,7 @@
 const grab={c:null,kind:null,body:null,z:.5,btn:-1,startX:0,startY:0};
 function startPhysGrab(hit){
   const o=hit.object,kind=o.userData.phys;let body=null,stiff=.2;
+  if((kind==='hp'||kind==='plug')&&hpState.s==='retract')return false;   // on its way out
   if(kind==='rem'){body=rem.body;stiff=.22;}else if(kind==='hp'){if(hpState.worn)hpUnwear();body=hpState.body;stiff=.13;hpState.grab=true;}
   else if(kind==='plug'){body=endB();stiff=.3;if(hpState.s==='seek'){hpState.drive=null;hpState.s='free';hpState.seek=0;}}
   else if(kind==='tv'){body=tv.b;stiff=.07;}

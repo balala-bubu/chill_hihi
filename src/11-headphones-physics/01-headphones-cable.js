@@ -131,6 +131,24 @@ function plugOut(kick){   // pull the plug out of the jack
   const e=endB();Body.setVelocity(e,{x:kick?(kick.x||0):1.2,y:kick?(kick.y||0):-1.6});
   tween(.22,k=>{h.plugAmt=1-k;},ease.out3);Au.snap();Au.click(1.5,.8);h.flash=1;
 }
+function hpDespawn(){   // headphones and cable are gone (reeled in): free the bodies, hide the meshes; the next hpSpawn builds fresh ones
+  const h=hpState;if(h.s==='none')return;
+  if(h.worn)hpUnwear();
+  if(h.pin){Composite.remove(wld,h.pin);h.pin=null;}
+  if(h.body)[h.body,...h.rope,...h.cons].forEach(o=>Composite.remove(wld,o));
+  h.body=null;h.rope=[];h.cons=[];h.segC=[];h.drive=null;h.seek=0;h.plugAmt=0;h.aim=0;h.flash=0;h.grab=false;h.dragNear=0;h.s='none';
+  hpRoot.visible=false;cableMesh.visible=false;plug2.visible=false;blobHp.visible=false;
+}
+async function hpRetract(){   // Bluetooth disconnected: the plug pops out, the headphones float up with their cable and leave through the top of the screen
+  const h=hpState;if(h.s==='none'||h.s==='retract')return;
+  if(grab.c&&(grab.kind==='hp'||grab.kind==='plug')){Composite.remove(wld,grab.c);grab.c=null;grab.kind=null;grab.body=null;h.grab=false;}
+  if(h.worn)hpUnwear();
+  if(h.s==='plugged')plugOut({x:0,y:-2.5});
+  h.drive=null;h.seek=0;h.s='retract';h.rt0=performance.now();h.hov.y=myp(L.top+6);
+  Au.whoosh();
+  await waitFor(()=>[h.body,...h.rope].every(b=>-b.position.y/PXU>L.top+2.4),5000);
+  hpDespawn();
+}
 async function plugInsert(){
   const h=hpState;if(h.pin)return;const J=jackWorld(),e=endB();
   h.pin=Constraint.create({pointA:{x:mxp(J.x),y:myp(J.y)},bodyB:e,pointB:{x:0,y:0},length:0,stiffness:.95,damping:.3});Composite.add(wld,h.pin);
@@ -139,12 +157,14 @@ async function plugInsert(){
   Au.thunk();jiggle();h.flash=1;
 }
 async function seekPlug(){   // auto-plug: the loose plug flies up in an arc, aligns itself with the jack, pushes in
-  const h=hpState;if(h.s==='plugged'||h.s==='seek')return;h.s='seek';h.seek=1;h.plugAmt=0;
+  const h=hpState;if(h.s!=='free')return;h.s='seek';h.seek=1;h.plugAmt=0;
   const e=endB,J=()=>jackWorld(),far=()=>Math.hypot(e().position.x/PXU-J().x,-e().position.y/PXU-J().y);
   h.drive={x:J().x-.5,y:J().y-.75,sp:4.3};Au.whoosh();
-  await waitFor(()=>Math.hypot(e().position.x/PXU-h.drive.x,-e().position.y/PXU-h.drive.y)<.22,2600);
+  await waitFor(()=>h.s!=='seek'||Math.hypot(e().position.x/PXU-h.drive.x,-e().position.y/PXU-h.drive.y)<.22,2600);
+  if(h.s!=='seek')return;   // cancelled meanwhile (grabbed, or the headphones are being reeled in)
   h.drive={x:J().x,y:J().y,sp:2.8,follow:true};
-  await waitFor(()=>far()<.14,2400);
+  await waitFor(()=>h.s!=='seek'||far()<.14,2400);
+  if(h.s!=='seek')return;
   h.drive=null;h.seek=0;
   await plugInsert();
 }
@@ -158,6 +178,8 @@ if(PHYS)Events.on(eng,'beforeUpdate',()=>{
   const h=hpState;
   if(h.body&&h.s!=='none'){   // the headphones float: their own weight is cancelled and a soft spring holds them at a hover spot that bobs a little
     const b=h.body,m=b.mass;
+    if(h.s==='retract'){const up=-Math.min(8,1.5+(performance.now()-h.rt0)/1000*7)*PXU/180;   // bluetooth gone: reel the headphones and the whole cable up and off the top of the screen
+      for(const q of [b,...h.rope])Body.setVelocity(q,{x:q.velocity.x*.9,y:up});Body.setAngularVelocity(b,b.angularVelocity*.9);}
     if(h.worn){
       hpRoot.updateWorldMatrix(true,false);const p=hpRoot.getWorldPosition(new T.Vector3());
       Body.setAngle(b,0);Body.setPosition(b,{x:mxp(p.x)-h.org.x,y:myp(p.y)-h.org.y});

@@ -3,6 +3,7 @@ const L={d:18.3,half:5.25,hw:8.4,top:3.1,shelfC:1.65,shelfB:.9};   // top = worl
 const TILT_UP=.13,TILT_DN=.08;
 const TOPA=Math.atan(TILT_UP+TILT_DN)-FOV/2*Math.PI/180;   // angle of the top edge of the view below horizontal (the camera looks down, so the top of the screen is NOT at +L.half)   // camera looks slightly down so the floor reads as a deep surface the dog can run across
 const rig={x:0,y:0,d:18.3,tx:0,ty:0,td:18.3,px:0,py:0,ptx:0,pty:0};
+let lidResume=false;   // the lid was opened while playing: shutting it again carries on from the same spot
 let state='home',sel=-1,cd=null,cdIn=false,cdAlbum=-1,lidOpen=false,busy=false,camLock=false,zoomed=false,status='empty',volT=0,hpScale=1;
 let sx=3,sxTarget=3,sxVel=0,shelfDrag=false;
 let hoverKey=-1,hintT=0,wasArmed=false,bayKick=0;

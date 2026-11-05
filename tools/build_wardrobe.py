@@ -7,9 +7,10 @@
     python3 tools/build_wardrobe.py --check    # 只檢查，不寫任何檔案
 
 資料夾（都在 models/wardrobe/ 底下）：
-    inbox/            新物件先丟這裡：<名稱>.dae + 同名貼圖（.dae 裡寫的貼圖檔名就是要放的檔名）
+    inbox/            新物件先丟這裡：<名稱>.dae + 它用到的所有貼圖（.dae 裡寫的貼圖檔名就是要放的檔名；
+                      一個 .dae 可以有多個材質、多張貼圖，id 取自三角形最多的那張主貼圖）
     src/<id>/         歸檔後的原始檔（.dae、.png、item.json）。這裡是唯一的真相，可手改 item.json
-    items/            轉好的執行用檔（<id>.json 網格、<id>.png 貼圖）。自動產生，不要手改
+    items/            轉好的執行用檔（<id>.json 網格、<id>.png 貼圖；多貼圖時另有 <id>.1.png …）。自動產生，不要手改
     slots.json        部位（帽子／眼鏡／項圈）掛在哪根骨頭、基準位置。手動維護
     manifest.json     執行時只讀這一份。自動產生，不要手改
 
@@ -45,7 +46,11 @@ def floats(el):
 
 
 def parse_dae(path):
-    """讀 Collada，回傳 {pos, nor, uv, idx, tex:{file,wrapS,wrapT,filter,alpha}}。座標統一成 Y 向上。"""
+    """讀 Collada，回傳 {pos, nor, uv, idx, tex, texs, groups}。座標統一成 Y 向上。
+    一個 .dae 可以有多個材質（多個 polylist／triangles、各自的貼圖）：
+      texs   = 貼圖清單，[0] 是三角形最多的主貼圖（id 取自它）；每項 {file,wrapS,wrapT,filter,alpha}
+      groups = 單一貼圖時是 []；多貼圖時是 [{start,count,mat}]（idx 的範圍，mat 是 texs 的索引）
+      tex    = texs[0]（單一貼圖時和以前完全一樣）"""
     root = ET.parse(path).getroot()
     up = (root.findtext(q('asset') + '/' + q('up_axis')) or 'Y_UP').strip()
     geo = root.find('.//' + q('geometry') + '/' + q('mesh'))
@@ -58,64 +63,106 @@ def parse_dae(path):
         if arr is not None:
             src[s.get('id')] = (floats(arr), int(acc.get('stride') or 1))
     vsem = {i.get('semantic'): i.get('source')[1:] for i in geo.find(q('vertices')).findall(q('input'))}
-    poly = geo.find(q('polylist'))
-    tri = geo.find(q('triangles'))
-    node = poly if poly is not None else tri
-    if node is None:
+    nodes = [n for n in geo if n.tag in (q('polylist'), q('triangles'))]
+    if not nodes:
         die(path + ' 只支援 polylist / triangles')
-    ins = node.findall(q('input'))
-    stride = max(int(i.get('offset')) for i in ins) + 1
-    off = {i.get('semantic'): int(i.get('offset')) for i in ins}
-    psem = {i.get('semantic'): i.get('source')[1:] for i in ins}
-    vert_off = off['VERTEX']
-    p = [int(x) for x in node.findtext(q('p')).split()]
-    counts = [int(x) for x in poly.findtext(q('vcount')).split()] if poly is not None else [3] * (len(p) // stride // 3)
 
-    def get(sem, vi, row):
-        """取某個屬性（可能掛在 vertices 底下、也可能直接掛在 polylist）"""
-        if sem in vsem:
-            data, st = src[vsem[sem]]
-            i = vi
-        elif sem in psem:
-            data, st = src[psem[sem]]
-            i = row[off[sem]]
+    verts, key2i = [], {}
+
+    def read_node(node):
+        """一個 polylist／triangles -> 三角形索引（頂點共用 verts）"""
+        ins = node.findall(q('input'))
+        stride = max(int(i.get('offset')) for i in ins) + 1
+        off = {i.get('semantic'): int(i.get('offset')) for i in ins}
+        psem = {i.get('semantic'): i.get('source')[1:] for i in ins}
+        vert_off = off['VERTEX']
+        p = [int(x) for x in node.findtext(q('p')).split()]
+        counts = [int(x) for x in node.findtext(q('vcount')).split()] if node.tag == q('polylist') else [3] * (len(p) // stride // 3)
+
+        def get(sem, vi, row):
+            """取某個屬性（可能掛在 vertices 底下、也可能直接掛在 polylist）"""
+            if sem in vsem:
+                data, st = src[vsem[sem]]
+                i = vi
+            elif sem in psem:
+                data, st = src[psem[sem]]
+                i = row[off[sem]]
+            else:
+                return None
+            return data[i * st:(i + 1) * st]
+
+        idx, pos_i = [], 0
+        for c in counts:
+            face = []
+            for k in range(c):
+                row = p[(pos_i + k) * stride:(pos_i + k + 1) * stride]
+                vi = row[vert_off]
+                key = (vi, row[off['NORMAL']] if 'NORMAL' in off else -1, row[off['TEXCOORD']] if 'TEXCOORD' in off else -1)
+                if key not in key2i:
+                    key2i[key] = len(verts)
+                    verts.append((get('POSITION', vi, row), get('NORMAL', vi, row) or [0, 1, 0], (get('TEXCOORD', vi, row) or [0, 0])[:2]))
+                face.append(key2i[key])
+            pos_i += c
+            for k in range(1, c - 1):          # 扇形切三角形
+                idx += [face[0], face[k], face[k + 1]]
+        return idx
+
+    # 貼圖與材質：檔名、包裹方式、過濾、是否用貼圖 alpha 當透明（每個材質各自一組）
+    def tex_info(effect_root, image_id=None):
+        img = None
+        if image_id is not None:
+            for im in root.iter(q('image')):
+                if im.get('id') == image_id:
+                    img = im.findtext(q('init_from'))
         else:
-            return None
-        return data[i * st:(i + 1) * st]
+            img = root.findtext('.//' + q('library_images') + '/' + q('image') + '/' + q('init_from'))
+        if not img:
+            die(path + ' 沒有貼圖')
+        sm = effect_root.find('.//' + q('sampler2D'))
+        wrap = lambda t: (sm.findtext(q(t)) or 'WRAP').strip().lower() if sm is not None else 'wrap'
+        filt = (sm.findtext(q('minfilter')) or 'NEAREST').strip().lower() if sm is not None else 'nearest'
+        alpha = effect_root.find('.//' + q('phong') + '/' + q('transparent')) is not None
+        return {'file': os.path.basename(img.strip()), 'wrapS': wrap('wrap_s'), 'wrapT': wrap('wrap_t'),
+                'filter': 'nearest' if filt == 'nearest' else 'linear', 'alpha': alpha}
 
-    verts, key2i, idx = [], {}, []
-    pos_i = 0
-    for c in counts:
-        face = []
-        for k in range(c):
-            row = p[(pos_i + k) * stride:(pos_i + k + 1) * stride]
-            vi = row[vert_off]
-            key = (vi, row[off['NORMAL']] if 'NORMAL' in off else -1, row[off['TEXCOORD']] if 'TEXCOORD' in off else -1)
-            if key not in key2i:
-                key2i[key] = len(verts)
-                verts.append((get('POSITION', vi, row), get('NORMAL', vi, row) or [0, 1, 0], (get('TEXCOORD', vi, row) or [0, 0])[:2]))
-            face.append(key2i[key])
-        pos_i += c
-        for k in range(1, c - 1):          # 扇形切三角形
-            idx += [face[0], face[k], face[k + 1]]
+    bind = {im.get('symbol'): (im.get('target') or '').lstrip('#') for im in root.iter(q('instance_material'))}
+    mats = {m.get('id'): m for m in root.iter(q('material'))}
+    effs = {e.get('id'): e for e in root.iter(q('effect'))}
+
+    def node_tex(node):
+        """這組面的貼圖：材質 -> effect -> sampler -> surface -> image；解析不到就退回第一張貼圖"""
+        try:
+            sym = node.get('material')
+            mat = mats[bind.get(sym, sym)]
+            eff = effs[mat.find(q('instance_effect')).get('url').lstrip('#')]
+            sm = eff.find('.//' + q('sampler2D'))
+            surf_sid = sm.findtext(q('source')).strip()
+            image_id = None
+            for np_ in eff.iter(q('newparam')):
+                if np_.get('sid') == surf_sid:
+                    image_id = np_.findtext('.//' + q('init_from')).strip()
+            return tex_info(eff, image_id)
+        except (KeyError, AttributeError):
+            return tex_info(root)
+
+    per = {}                                   # 貼圖檔名 -> {'tex':..., 'idx':[...]}（依第一次出現的順序）
+    for node in nodes:
+        t = node_tex(node)
+        per.setdefault(t['file'], {'tex': t, 'idx': []})['idx'] += read_node(node)
+    order = sorted(per, key=lambda f: -len(per[f]['idx']))   # 主貼圖（三角形最多）排第一，同數量維持原順序
+    texs = [per[f]['tex'] for f in order]
+    idx, groups = [], []
+    for m, f in enumerate(order):
+        groups.append({'start': len(idx), 'count': len(per[f]['idx']), 'mat': m})
+        idx += per[f]['idx']
 
     def fix(v):                              # Z 向上 -> Y 向上
         return [v[0], v[2], -v[1]] if up == 'Z_UP' else v
     pos = [round(a, 4) for v in verts for a in fix(v[0])]
     nor = [round(a, 3) for v in verts for a in fix(v[1])]
     uv = [round(a, 4) for v in verts for a in v[2]]
-
-    # 貼圖與材質：檔名、包裹方式、過濾、是否用貼圖 alpha 當透明
-    img = root.findtext('.//' + q('library_images') + '/' + q('image') + '/' + q('init_from'))
-    if not img:
-        die(path + ' 沒有貼圖')
-    sm = root.find('.//' + q('sampler2D'))
-    wrap = lambda t: (sm.findtext(q(t)) or 'WRAP').strip().lower() if sm is not None else 'wrap'
-    filt = (sm.findtext(q('minfilter')) or 'NEAREST').strip().lower() if sm is not None else 'nearest'
-    alpha = root.find('.//' + q('phong') + '/' + q('transparent')) is not None
-    return {'pos': pos, 'nor': nor, 'uv': uv, 'idx': idx,
-            'tex': {'file': os.path.basename(img.strip()), 'wrapS': wrap('wrap_s'), 'wrapT': wrap('wrap_t'),
-                    'filter': 'nearest' if filt == 'nearest' else 'linear', 'alpha': alpha}}
+    return {'pos': pos, 'nor': nor, 'uv': uv, 'idx': idx, 'tex': texs[0], 'texs': texs,
+            'groups': groups if len(texs) > 1 else []}
 
 
 def bbox(pos):
@@ -148,11 +195,11 @@ def ingest(check):
         if not fn.lower().endswith('.dae'):
             continue
         info = parse_dae(os.path.join(INBOX, fn))
-        tex = info['tex']['file']
+        tex = info['tex']['file']                    # 主貼圖（三角形最多的那張），id 取自它
         iid = re.sub(r'\.png$', '', tex, flags=re.I).lower()
-        tex_path = os.path.join(INBOX, tex)
-        if not os.path.exists(tex_path):
-            die('inbox 裡缺貼圖：%s（%s 引用它）' % (tex, fn))
+        for t in info['texs']:
+            if not os.path.exists(os.path.join(INBOX, t['file'])):
+                die('inbox 裡缺貼圖：%s（%s 引用它）' % (t['file'], fn))
         slot = next((s for k, s in GUESS if k in iid), None)
         dst = os.path.join(SRC, iid)
         print('收件匣：%s -> src/%s/  部位=%s' % (fn, iid, slot or '（猜不到，請手動填 item.json）'))
@@ -160,7 +207,8 @@ def ingest(check):
             continue
         os.makedirs(dst, exist_ok=True)
         shutil.move(os.path.join(INBOX, fn), os.path.join(dst, fn))
-        shutil.move(tex_path, os.path.join(dst, tex))
+        for t in info['texs']:                       # 多材質的 .dae 所有貼圖一起搬
+            shutil.move(os.path.join(INBOX, t['file']), os.path.join(dst, t['file']))
         if not os.path.exists(os.path.join(dst, 'item.json')):
             dump(os.path.join(dst, 'item.json'), {'slot': slot or '', 'name': iid})
 
@@ -185,17 +233,25 @@ def build(check):
         if len(daes) != 1:
             die('src/%s/ 需要剛好一個 .dae（現在有 %d 個）' % (iid, len(daes)))
         info = parse_dae(os.path.join(d, daes[0]))
-        tex_src = os.path.join(d, info['tex']['file'])
-        if not os.path.exists(tex_src):
-            die('src/%s/ 缺貼圖 %s' % (iid, info['tex']['file']))
+        texs = info['texs']
+        out_names = [iid + ('.png' if k == 0 else '.%d.png' % k) for k in range(len(texs))]   # 主貼圖 <id>.png，其餘 <id>.1.png …
+        for t in texs:
+            if not os.path.exists(os.path.join(d, t['file'])):
+                die('src/%s/ 缺貼圖 %s' % (iid, t['file']))
         mesh = {'v': 1, 'pos': info['pos'], 'nor': info['nor'], 'uv': info['uv'], 'idx': info['idx'],
-                'bbox': bbox(info['pos']), 'tex': dict(info['tex'], file=iid + '.png')}
-        print('轉檔：%-10s 部位=%-8s 頂點=%-4d 三角形=%-4d 透明=%s' % (iid, meta['slot'], len(info['pos']) // 3, len(info['idx']) // 3, info['tex']['alpha']))
+                'bbox': bbox(info['pos']), 'tex': dict(info['tex'], file=out_names[0])}
+        if len(texs) > 1:
+            mesh['texs'] = [dict(t, file=n) for t, n in zip(texs, out_names)]
+            mesh['groups'] = info['groups']
+        print('轉檔：%-10s 部位=%-8s 頂點=%-4d 三角形=%-4d 透明=%s 貼圖=%d' % (iid, meta['slot'], len(info['pos']) // 3, len(info['idx']) // 3, any(t['alpha'] for t in texs), len(texs)))
         if not check:
             dump(os.path.join(ITEMS, iid + '.json'), mesh, compact=True)
-            shutil.copyfile(tex_src, os.path.join(ITEMS, iid + '.png'))
+            for t, n in zip(texs, out_names):
+                shutil.copyfile(os.path.join(d, t['file']), os.path.join(ITEMS, n))
         item = {'id': iid, 'slot': meta['slot'], 'name': meta.get('name', iid),
-                'mesh': 'items/%s.json' % iid, 'tex': 'items/%s.png' % iid}
+                'mesh': 'items/%s.json' % iid, 'tex': 'items/%s' % out_names[0]}
+        if len(texs) > 1:
+            item['texs'] = ['items/' + n for n in out_names]
         if 'fit' in meta:
             item['fit'] = meta['fit']
         if 'display' in meta:
@@ -206,7 +262,7 @@ def build(check):
     # 清掉已經不在 src/ 的舊產物
     keep = {e[2] for e in entries}
     for f in os.listdir(ITEMS):
-        stem = os.path.splitext(f)[0]
+        stem = f.split('.')[0]               # head_l.json / head_l.png / head_l.1.png 都屬於 head_l
         if stem not in keep:
             print('清除舊檔：items/' + f)
             if not check:

@@ -90,6 +90,71 @@
       "tex": "items/head_e.png"
     },
     {
+      "id": "head_i",
+      "slot": "hat",
+      "name": "帽子 I",
+      "mesh": "items/head_i.json",
+      "tex": "items/head_i.png",
+      "texs": [
+        "items/head_i.png",
+        "items/head_i.1.png"
+      ],
+      "fit": {
+        "pos": [
+          0,
+          0.25,
+          -0.1
+        ],
+        "rot": [
+          0.1,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "head_l",
+      "slot": "hat",
+      "name": "帽子 L",
+      "mesh": "items/head_l.json",
+      "tex": "items/head_l.png",
+      "texs": [
+        "items/head_l.png",
+        "items/head_l.1.png"
+      ],
+      "fit": {
+        "pos": [
+          0,
+          0.24,
+          -0.12
+        ],
+        "rot": [
+          0.26,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "head_t",
+      "slot": "hat",
+      "name": "帽子 T",
+      "mesh": "items/head_t.json",
+      "tex": "items/head_t.png",
+      "fit": {
+        "pos": [
+          0,
+          0.25,
+          -0.1
+        ],
+        "rot": [
+          0.1,
+          0,
+          0
+        ]
+      }
+    },
+    {
       "id": "glass_c",
       "slot": "glasses",
       "name": "眼鏡 C",
