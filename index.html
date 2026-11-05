@@ -1223,7 +1223,7 @@ function remHold(i){const g=rem.btn[i],tok=++rem.pressTok[i];tween(.06,k=>{if(re
 function spawnRemote(){
   if(!PHYS)return;if(rem.body)Composite.remove(wld,rem.body);
   const x=Math.min(3.35,L.hw-1.2);
-  rem.body=Bodies.rectangle(mxp(x),myp(-.5),RW*PXU,RH*PXU,{chamfer:{radius:24},density:.0012,frictionAir:.04,friction:.5,restitution:.35,collisionFilter:{category:CAT.rem,mask:CAT.floor|CAT.player|CAT.hp|CAT.tv|CAT.rope}});
+  rem.body=Bodies.rectangle(mxp(x),myp(-.5),RW*PXU,RH*PXU,{chamfer:{radius:24},density:.0012,frictionAir:.04,friction:.5,restitution:.35,collisionFilter:{category:CAT.rem,mask:CAT.floor|CAT.player|CAT.hp|CAT.tv}});
   Composite.add(wld,rem.body);
 }
 
@@ -1233,7 +1233,8 @@ const NR0=22,NMAX=140,SEG=.28;
 const HOV_K=Math.pow(2*Math.PI*.75/1000,2),HOV_C=.0008;   // headphones float on a soft spring (0.75 Hz); air drag already supplies most of the damping
 const hpState={s:'none',body:null,org:{x:0,y:0},att:{x:0,y:0},scale:1,rope:[],cons:[],segC:[],hov:{x:0,y:0},pin:null,drive:null,seek:0,plugAmt:0,aim:0,flash:0,grab:false,worn:false,dragNear:0};
 const endB=()=>hpState.rope[hpState.rope.length-1];   // the plug end of the cable
-const newRopeNode=()=>Bodies.circle(0,0,5,{density:.006,frictionAir:.05,friction:.4,restitution:0,collisionFilter:{category:CAT.rope,mask:CAT.floor|CAT.tv|CAT.rem}});
+/* Cable nodes only collide with the floor: other props can rest over the cable without being pushed or snagged. */
+ const newRopeNode=()=>Bodies.circle(0,0,5,{density:.006,frictionAir:.05,friction:.4,restitution:0,collisionFilter:{category:CAT.rope,mask:CAT.floor}});
 const hpRoot=new T.Group();hpRoot.visible=false;scene.add(hpRoot);
 hpRoot.add(hp);hp.position.set(0,0,0);hp.visible=true;
 hp.traverse(o=>{if(o.isMesh)o.userData.phys='hp';});
@@ -1346,15 +1347,15 @@ async function plugInsert(){
   const h=hpState;if(h.pin)return;const J=jackWorld(),e=endB();
   h.pin=Constraint.create({pointA:{x:mxp(J.x),y:myp(J.y)},bodyB:e,pointB:{x:0,y:0},length:0,stiffness:.95,damping:.3});Composite.add(wld,h.pin);
   h.s='plugged';h.seek=0;
-  await tween(.32,k=>{h.plugAmt=k;},ease.out5);
+  await tween(.27,k=>{h.plugAmt=k;},ease.out5);
   Au.thunk();jiggle();h.flash=1;
 }
 async function seekPlug(){   // auto-plug: the loose plug flies up in an arc, aligns itself with the jack, pushes in
   const h=hpState;if(h.s==='plugged'||h.s==='seek')return;h.s='seek';h.seek=1;h.plugAmt=0;
   const e=endB,J=()=>jackWorld(),far=()=>Math.hypot(e().position.x/PXU-J().x,-e().position.y/PXU-J().y);
-  h.drive={x:J().x-.5,y:J().y-.75,sp:3.6};Au.whoosh();
+  h.drive={x:J().x-.5,y:J().y-.75,sp:4.3};Au.whoosh();
   await waitFor(()=>Math.hypot(e().position.x/PXU-h.drive.x,-e().position.y/PXU-h.drive.y)<.22,2600);
-  h.drive={x:J().x,y:J().y,sp:2.3,follow:true};
+  h.drive={x:J().x,y:J().y,sp:2.8,follow:true};
   await waitFor(()=>far()<.14,2400);
   h.drive=null;h.seek=0;
   await plugInsert();
@@ -1520,7 +1521,7 @@ function tvSlotX(){return tvDrift()-PW/2-TVW/2-.2;}                      // TV l
 function tvSummon(){
   if(!PHYS||tv.state!=='none')return;tvEnsureBuilt();
   const hw=L.hw-.15,x=clamp(tvSlotX(),-hw+TVW/2+.05,hw-TVW/2-.05);
-  tv.b=Bodies.rectangle(mxp(x),myp(L.half+2.6),TVW*PXU,TVH*PXU,{chamfer:{radius:36},density:.0016,friction:.85,frictionAir:.008,restitution:.14,angle:(Math.random()-.5)*.35,collisionFilter:{category:CAT.tv,mask:CAT.floor|CAT.hp|CAT.rem|CAT.rope}});
+  tv.b=Bodies.rectangle(mxp(x),myp(L.half+2.6),TVW*PXU,TVH*PXU,{chamfer:{radius:36},density:.0016,friction:.85,frictionAir:.008,restitution:.14,angle:(Math.random()-.5)*.35,collisionFilter:{category:CAT.tv,mask:CAT.floor|CAT.hp|CAT.rem}});
   Body.setAngularVelocity(tv.b,(Math.random()-.5)*.03);Body.setVelocity(tv.b,{x:(Math.random()-.5)*1.4,y:0});
   Composite.add(wld,tv.b);tv.state='falling';tv.landed=false;tv.pw=0;tv.g.visible=true;remLit(0,true);Au.whoosh();
 }
