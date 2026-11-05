@@ -721,7 +721,14 @@ function pick(){
   /* Headphones are interactive even when their thin band overlaps the player or dog. */
   if(PHYS&&hpState.s!=='none'){
     const hpHits=ray.intersectObjects(hpHit,false);
-    if(hpHits.length)return hpHits[0];
+    if(hpHits.length){
+      // Never grab headphones through the TV: use the closest visible surface.
+      if(tv.built&&tv.state!=='none'&&tv.state!=='sinking'){
+        const tvHits=ray.intersectObjects(tv.hit,false);
+        if(tvHits.length&&tvHits[0].distance<hpHits[0].distance)return tvHits[0];
+      }
+      return hpHits[0];
+    }
   }
   const h=ray.intersectObjects(list,false);return h[0]||null;
 }
@@ -1246,7 +1253,7 @@ function remHold(i){const g=rem.btn[i],tok=++rem.pressTok[i];tween(.06,k=>{if(re
 function spawnRemote(){
   if(!PHYS)return;if(rem.body)Composite.remove(wld,rem.body);
   const x=Math.min(3.35,L.hw-1.2);
-  rem.body=Bodies.rectangle(mxp(x),myp(-.5),RW*PXU,RH*PXU,{chamfer:{radius:24},density:.0012,frictionAir:.04,friction:.5,restitution:.35,collisionFilter:{category:CAT.rem,mask:CAT.floor|CAT.player|CAT.hp|CAT.tv}});
+  rem.body=Bodies.rectangle(mxp(x),myp(-.5),RW*PXU,RH*PXU,{chamfer:{radius:24},density:.0012,frictionAir:.04,friction:.5,restitution:.35,collisionFilter:{category:CAT.rem,mask:CAT.floor|CAT.player|CAT.tv}});
   Composite.add(wld,rem.body);
 }
 
@@ -1294,7 +1301,7 @@ function makeHeadphones(s){
   parts.push(cup(-1),cup(1));
   for(let k=0;k<8;k++){const th=(k+.5)/8*Math.PI,chord=2*1.25*s*Math.sin(Math.PI/16)+.06*s;
     parts.push(Bodies.rectangle(1.25*s*Math.cos(th)*PXU,-1.25*s*Math.sin(th)*PXU,chord*PXU,.16*s*PXU,{angle:-(th+Math.PI/2)}));}
-  const b=Body.create({parts,density:.0007,friction:.7,frictionAir:.03,restitution:.2,collisionFilter:{category:CAT.hp,mask:CAT.floor|CAT.player|CAT.rem}});
+  const b=Body.create({parts,density:.0007,friction:.7,frictionAir:.03,restitution:.2,collisionFilter:{category:CAT.hp,mask:CAT.floor|CAT.player}});
   return b;
 }
 function hpBuild(){   // creates bodies (not yet placed)
@@ -1304,8 +1311,8 @@ function hpBuild(){   // creates bodies (not yet placed)
   hpRoot.scale.setScalar(h.scale);
   h.rope=[];h.cons=[];h.segC=[];
   for(let i=0;i<NR0;i++)h.rope.push(newRopeNode());
-  h.cons.push(Constraint.create({bodyA:h.body,pointA:h.att,bodyB:h.rope[0],pointB:{x:0,y:0},length:0,stiffness:1,damping:.3}));
-  for(let i=0;i<NR0-1;i++){const c=Constraint.create({bodyA:h.rope[i],bodyB:h.rope[i+1],length:SEG*PXU,stiffness:1,damping:.3});h.segC.push(c);h.cons.push(c);}
+  h.cons.push(Constraint.create({bodyA:h.body,pointA:h.att,bodyB:h.rope[0],pointB:{x:0,y:0},length:0,stiffness:.82,damping:.42}));
+  for(let i=0;i<NR0-1;i++){const c=Constraint.create({bodyA:h.rope[i],bodyB:h.rope[i+1],length:SEG*PXU,stiffness:.88,damping:.42});h.segC.push(c);h.cons.push(c);}
   Composite.add(wld,[h.body,...h.rope,...h.cons]);
 }
 function hpPlace(ox,oy,vx,vy,spin){   // put the headphones' origin at world (ox,oy) with velocity (world units / s), cable trailing behind
@@ -1357,7 +1364,7 @@ function payOut(){
     const a=r[r.length-2],b=r[r.length-1],nb=newRopeNode(),half=c.length/2;
     Body.setPosition(nb,{x:(a.position.x+b.position.x)/2,y:(a.position.y+b.position.y)/2});Body.setVelocity(nb,{x:(a.velocity.x+b.velocity.x)/2,y:(a.velocity.y+b.velocity.y)/2});
     Composite.remove(wld,c);h.cons.splice(h.cons.indexOf(c),1);h.segC.pop();
-    const c1=Constraint.create({bodyA:a,bodyB:nb,length:half,stiffness:1,damping:.3}),c2=Constraint.create({bodyA:nb,bodyB:b,length:half,stiffness:1,damping:.3});
+    const c1=Constraint.create({bodyA:a,bodyB:nb,length:half,stiffness:.88,damping:.42}),c2=Constraint.create({bodyA:nb,bodyB:b,length:half,stiffness:.88,damping:.42});
     h.cons.push(c1,c2);h.segC.push(c1,c2);r.splice(r.length-1,0,nb);Composite.add(wld,[nb,c1,c2]);}
 }
 function plugOut(kick){   // pull the plug out of the jack
