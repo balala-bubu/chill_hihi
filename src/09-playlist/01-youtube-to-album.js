@@ -1,7 +1,6 @@
 /* ---------- YouTube playlist -> album ---------- */
 const $id=i=>document.getElementById(i);
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
-const hashStr=t=>{let h=2166136261;for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;};
 function loadImg(src){return new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);im.src=src;});}
 async function loadCover(id){
   for(const q of ['hq720','mqdefault']){
@@ -20,12 +19,6 @@ function jsonp(url){return new Promise((res,rej)=>{const name='mtcb'+(++cbN)+'_'
   function done(){clearTimeout(t);delete window[name];s.remove();}
   window[name]=d=>{done();res(d);};s.onerror=()=>{done();rej(new Error('script'));};s.src=url+'&callback='+name;document.head.appendChild(s);});}
 async function plMeta(id){try{const d=await jsonp('https://noembed.com/embed?url='+encodeURIComponent('https://www.youtube.com/playlist?list='+id));return d&&d.title?{t:d.title,a:d.author_name||''}:null;}catch(e){return null;}}
-function ytAlbum(o,cov){
-  const h=hashStr(o.list),hue=h%360;let c;
-  if(cov){const [r,g,b]=cov.avg.map(Math.round);c=['rgb('+r+','+g+','+b+')','#f3f1ec','#ee5a2c','#f4b942'];}
-  else c=['hsl('+hue+',45%,24%)','hsl('+(hue+25)+',40%,72%)','hsl('+(hue+160)+',70%,56%)','hsl('+(hue+45)+',85%,66%)'];
-  return {t:o.title||'PLAYLIST',a:(o.author||'YOUTUBE').toUpperCase(),m:['orbit','tiles','sun','wave','grid','stripe'][h%6],seed:h%997+1,c,img:cov?cov.im:null,yt:{list:o.list,ids:o.ids},bpm:80,root:55,lead:'triangle',prog:[]};
-}
 function addAlbum(d){
   ALBUMS.push(d);N=ALBUMS.length;buildAlbum(d,N-1);const a=albums[N-1];a.born=0;tween(.9,k=>{a.born=k;},ease.outBack);return N-1;
 }
@@ -54,7 +47,34 @@ async function addFromUrl(raw){
 $id('addForm').addEventListener('submit',e=>{e.preventDefault();Au.ensure();addFromUrl($id('addUrl').value);});
 window.__ytEnd=()=>{if(status==='playing'||status==='paused'){status='stopped';Au.elapsed=0;}};
 window.__ytFail=m=>{if(status==='playing'){status='stopped';}say(m||'YouTube 播放失敗',6000);};
-$id('addUrl').value='https://youtube.com/playlist?list=PL09drhUwnd9l4d_4jNonOhI8iXy_5DfV6&si=GgiwHDWSV4ZndZlZ';
-if(!saved.length)setForm(true);
 (async()=>{for(const o of saved){const cov=await loadCover(o.ids[0]);addAlbum(ytAlbum(o,cov));}if(saved.length)sxTarget=N-1;applyOrder(LS.get('mt1.order',[]));})();
+
+/* ---------- default playlists: fill in tracks + cover in the background ----------
+   Track lists are cached in localStorage (mt1.defids) so later visits only fetch the covers.
+   Reading a list borrows the shared YouTube player, so it only runs while nothing is playing. */
+const defCache=LS.get('mt1.defids',{});
+ALBUMS.forEach(d=>{if(d.def&&Array.isArray(defCache[d.yt.list]))d.yt.ids=defCache[d.yt.list];});
+const defIdle=()=>!cd&&!busy&&state==='home'&&status==='empty';
+async function defCover(d){   // swap the generated cover for the real one, only while nothing is lifted off the shelf
+  if(!d.yt.ids.length)return;
+  const cov=await loadCover(d.yt.ids[0]);if(!cov)return;
+  while(ALBUMS.indexOf(d)>=0&&!(state==='home'&&!cd&&!busy&&sel<0&&!shelfDrag))await sleep(600);
+  const i=ALBUMS.indexOf(d);if(i<0)return;
+  Object.assign(d,ytAlbum({list:d.yt.list,ids:d.yt.ids,title:d.t,author:d.a},cov));rebuildAt(i);
+}
+async function defLoad(d){
+  if(!d.yt.ids.length){
+    for(let k=0;k<3&&!d.yt.ids.length;k++){
+      while(!defIdle())await sleep(500);
+      try{const r=await YTA.readList(d.yt.list);d.yt.ids=r.ids;defCache[d.yt.list]=r.ids;LS.set('mt1.defids',defCache);}
+      catch(e){console.warn('default list',d.t,e&&e.message);if(YTA.failed)return;await sleep(4000);}
+    }
+  }
+  defCover(d);
+}
+(async()=>{
+  const defs=ALBUMS.filter(d=>d.def);
+  defs.filter(d=>d.yt.ids.length).forEach(defCover);
+  for(const d of defs.filter(d=>!d.yt.ids.length)){if(YTA.failed)break;await defLoad(d);}
+})();
 

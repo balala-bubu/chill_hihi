@@ -22,10 +22,11 @@ function renderEdit(){
   const ul=$id('editList');ul.textContent='';let n=0;const sort=editMode==='sort';
   $id('editTitle').textContent=sort?'編輯排序・點名稱可改名':'刪除播放清單';
   ALBUMS.forEach((d,i)=>{
-    if(!sort&&!d.yt)return;n++;
+    const fixed=d.def||!d.yt;   // built-in albums can be reordered but not renamed or deleted
+    if(!sort&&fixed)return;n++;
     const li=document.createElement('li'),inp=document.createElement('input'),c=document.createElement('span');
-    inp.value=d.t;inp.maxLength=60;inp.setAttribute('aria-label','清單名稱');c.className='cnt';c.textContent=d.yt?d.yt.ids.length+' 首':'內建';
-    if(!d.yt){inp.readOnly=true;li.className='ro';}
+    inp.value=d.t;inp.maxLength=60;inp.setAttribute('aria-label','清單名稱');c.className='cnt';c.textContent=d.def?(d.yt.ids.length?d.yt.ids.length+' 首・內建':'內建'):d.yt?d.yt.ids.length+' 首':'內建';
+    if(fixed){inp.readOnly=true;li.className='ro';}
     inp.addEventListener('change',()=>{const v=inp.value.trim();if(!v){inp.value=d.t;return;}if(!canEdit()){inp.value=d.t;return;}
       const idx=ALBUMS.indexOf(d);renameAlbum(idx,v);const s=saved.find(x=>x.list===d.yt.list);if(s){s.title=v;LS.set('mt1.lists',saved);}say('已更新名稱。',2500);});
     if(sort){
@@ -41,7 +42,7 @@ function renderEdit(){
     }
     ul.appendChild(li);});
   $id('editEmpty').hidden=n>0;$id('editEmpty').textContent=sort?'還沒有專輯。':'還沒有加入播放清單。';
-  const rb=$id('resetBtn');rb.hidden=sort;const has=ALBUMS.some(d=>d.yt);rb.disabled=!has;rb.style.opacity=has?'':'.5';
+  const rb=$id('resetBtn');rb.hidden=sort;const has=ALBUMS.some(d=>d.yt&&!d.def);rb.disabled=!has;rb.style.opacity=has?'':'.5';
 }
 let resetT=0;
 function resetBtnState(sure){const b=$id('resetBtn');b.classList.toggle('sure',sure);b.textContent=sure?'再按一次確認':'回復預設';clearTimeout(resetT);if(sure)resetT=setTimeout(()=>resetBtnState(false),4000);}
@@ -60,7 +61,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){setMenu(false);setP
 $id('resetBtn').addEventListener('click',()=>{
   if(!$id('resetBtn').classList.contains('sure')){resetBtnState(true);return;}
   if(!canEdit()){resetBtnState(false);return;}
-  for(let i=ALBUMS.length-1;i>=0;i--)if(ALBUMS[i].yt)removeAlbumAt(i);
+  for(let i=ALBUMS.length-1;i>=0;i--)if(ALBUMS[i].yt&&!ALBUMS[i].def)removeAlbumAt(i);
   saved=[];LS.set('mt1.lists',saved);resetBtnState(false);renderEdit();say('已回復預設專輯。',3000);
 });
 

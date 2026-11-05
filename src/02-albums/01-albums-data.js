@@ -1,13 +1,26 @@
 /* ---------- albums: data + procedural artwork ---------- */
-const ALBUMS=[
- {t:'LOW LIGHT',a:'LUMEN HALL',m:'sky',seed:11,c:['#a8cdf0','#f3f0e8','#e5483a','#f4b942'],bpm:76,root:57,lead:'triangle',prog:[[0,4,7,11],[5,9,12,16],[2,5,9,12],[7,11,14,17]]},
- {t:'GLASS HOURS',a:'NOVA FIELD',m:'orbit',seed:23,c:['#20242b','#6c7a89','#f08a4b','#e8e6e1'],bpm:84,root:52,lead:'sine',prog:[[0,3,7,10],[8,12,15,19],[5,8,12,15],[10,14,17,21]]},
- {t:'PAPER MOON',a:'OTO LINE',m:'tiles',seed:37,c:['#f2e9d8','#3b6fb6','#e5483a','#f4b942'],bpm:92,root:55,lead:'triangle',prog:[[0,4,7,9],[2,5,9,12],[7,11,14,17],[0,4,7,12]]},
- {t:'SLOW ORBIT',a:'HALF PINT',m:'sun',seed:41,c:['#1f2a44','#f5d9c0','#ff6a3d','#ffc971'],bpm:70,root:50,lead:'sine',prog:[[0,7,10,15],[5,12,15,19],[3,10,14,17],[7,10,14,19]]},
- {t:'BLUE STATIC',a:'MIRA TAN',m:'wave',seed:53,c:['#12356b','#7fb2e5','#e9f1f9','#ff6a3d'],bpm:96,root:59,lead:'square',prog:[[0,4,7,11],[9,12,16,19],[5,9,12,16],[7,11,14,19]]},
- {t:'AFTER RAIN',a:'SALT & PINE',m:'grid',seed:67,c:['#cfd8cf','#4a6b57','#f3f0e8','#d9573b'],bpm:80,root:54,lead:'triangle',prog:[[0,3,7,10],[3,7,10,14],[5,8,12,15],[7,10,14,17]]},
- {t:'NIGHT FIELD',a:'KOI SOUND',m:'stripe',seed:79,c:['#2b2437','#8c6fb0','#f0c4d5','#f4b942'],bpm:88,root:53,lead:'sine',prog:[[0,5,7,12],[2,7,9,14],[3,7,10,14],[5,9,12,16]]}
+/* Default shelf = these YouTube playlists. Title and artist are fixed here (not read from YouTube);
+   the track list and the cover are filled in later in the background (see src/09-playlist). */
+const DEFAULT_LISTS=[
+ {list:'PL09drhUwnd9l4d_4jNonOhI8iXy_5DfV6',title:'更好',author:'Gummy B'},
+ {list:'OLAK5uy_l4EaHd6QNtsgR6DfUfNa1F1PLQYoyftRM',title:'如果每天都可以 happy happy 誰想要sad:))',author:'陳嫻靜'},
+ {list:'OLAK5uy_moBn9equTZCqNmY8BzAOHkZA9UptKDzDM',title:'月光',author:'蛋堡'},
+ {list:'OLAK5uy_l63K1oKt-WcVxkgyJJJAU5jDYKjJ37Teg',title:'吉他手',author:'陳綺貞'},
+ {list:'OLAK5uy_kayjlU3SJ4QiIRWihJtCW6R9Hi9sFpU3c',title:'Sent',author:'9m88'},
+ {list:'OLAK5uy_nAgtspFo6LJ1V25viuFzYsapwIqgVvtXY',title:'橙月',author:'方大同'},
+ {list:'OLAK5uy_lfNo3ANxH0bxNC6gS7WtSmR9gRkZpog04',title:'木眼鏡同名專輯',author:'木眼鏡'},
+ {list:'OLAK5uy_n9Fsvc257NW36XlPHXduZesadQaPSIjmM',title:'Requiem (Deluxe)',author:'keshi'},
+ {list:'OLAK5uy_lfueuQkROx_bShckk3aFVYxZoSrN4Zkzc',title:'The Secret of Us',author:'Gracie Abrams'}
 ];
+const hashStr=t=>{let h=2166136261;for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;};
+function ytAlbum(o,cov){
+  const h=hashStr(o.list),hue=h%360;let c;
+  if(cov){const [r,g,b]=cov.avg.map(Math.round);c=['rgb('+r+','+g+','+b+')','#f3f1ec','#ee5a2c','#f4b942'];}
+  else c=['hsl('+hue+',45%,24%)','hsl('+(hue+25)+',40%,72%)','hsl('+(hue+160)+',70%,56%)','hsl('+(hue+45)+',85%,66%)'];
+  return {t:o.title||'PLAYLIST',a:(o.author||'YOUTUBE').toUpperCase(),m:['orbit','tiles','sun','wave','grid','stripe'][h%6],seed:h%997+1,c,img:cov?cov.im:null,yt:{list:o.list,ids:o.ids},bpm:80,root:55,lead:'triangle',prog:[]};
+}
+/* def:true = built-in (can't be renamed or deleted, comes back on reload); starts with a generated cover and no track list */
+const ALBUMS=DEFAULT_LISTS.map(o=>Object.assign(ytAlbum({list:o.list,ids:[],title:o.title,author:o.author},null),{def:true}));
 let N=ALBUMS.length;
 
 function art(x,S,alb,txt){

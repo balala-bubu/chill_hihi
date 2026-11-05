@@ -211,15 +211,28 @@ function weaveTex(rep){const t=mkTex(64,64,(x,w)=>{x.fillStyle='#777';x.fillRect
 const buzz=ms=>{try{navigator.vibrate&&navigator.vibrate(ms);}catch(e){}};
 
 /* ---------- albums: data + procedural artwork ---------- */
-const ALBUMS=[
- {t:'LOW LIGHT',a:'LUMEN HALL',m:'sky',seed:11,c:['#a8cdf0','#f3f0e8','#e5483a','#f4b942'],bpm:76,root:57,lead:'triangle',prog:[[0,4,7,11],[5,9,12,16],[2,5,9,12],[7,11,14,17]]},
- {t:'GLASS HOURS',a:'NOVA FIELD',m:'orbit',seed:23,c:['#20242b','#6c7a89','#f08a4b','#e8e6e1'],bpm:84,root:52,lead:'sine',prog:[[0,3,7,10],[8,12,15,19],[5,8,12,15],[10,14,17,21]]},
- {t:'PAPER MOON',a:'OTO LINE',m:'tiles',seed:37,c:['#f2e9d8','#3b6fb6','#e5483a','#f4b942'],bpm:92,root:55,lead:'triangle',prog:[[0,4,7,9],[2,5,9,12],[7,11,14,17],[0,4,7,12]]},
- {t:'SLOW ORBIT',a:'HALF PINT',m:'sun',seed:41,c:['#1f2a44','#f5d9c0','#ff6a3d','#ffc971'],bpm:70,root:50,lead:'sine',prog:[[0,7,10,15],[5,12,15,19],[3,10,14,17],[7,10,14,19]]},
- {t:'BLUE STATIC',a:'MIRA TAN',m:'wave',seed:53,c:['#12356b','#7fb2e5','#e9f1f9','#ff6a3d'],bpm:96,root:59,lead:'square',prog:[[0,4,7,11],[9,12,16,19],[5,9,12,16],[7,11,14,19]]},
- {t:'AFTER RAIN',a:'SALT & PINE',m:'grid',seed:67,c:['#cfd8cf','#4a6b57','#f3f0e8','#d9573b'],bpm:80,root:54,lead:'triangle',prog:[[0,3,7,10],[3,7,10,14],[5,8,12,15],[7,10,14,17]]},
- {t:'NIGHT FIELD',a:'KOI SOUND',m:'stripe',seed:79,c:['#2b2437','#8c6fb0','#f0c4d5','#f4b942'],bpm:88,root:53,lead:'sine',prog:[[0,5,7,12],[2,7,9,14],[3,7,10,14],[5,9,12,16]]}
+/* Default shelf = these YouTube playlists. Title and artist are fixed here (not read from YouTube);
+   the track list and the cover are filled in later in the background (see src/09-playlist). */
+const DEFAULT_LISTS=[
+ {list:'PL09drhUwnd9l4d_4jNonOhI8iXy_5DfV6',title:'更好',author:'Gummy B'},
+ {list:'OLAK5uy_l4EaHd6QNtsgR6DfUfNa1F1PLQYoyftRM',title:'如果每天都可以 happy happy 誰想要sad:))',author:'陳嫻靜'},
+ {list:'OLAK5uy_moBn9equTZCqNmY8BzAOHkZA9UptKDzDM',title:'月光',author:'蛋堡'},
+ {list:'OLAK5uy_l63K1oKt-WcVxkgyJJJAU5jDYKjJ37Teg',title:'吉他手',author:'陳綺貞'},
+ {list:'OLAK5uy_kayjlU3SJ4QiIRWihJtCW6R9Hi9sFpU3c',title:'Sent',author:'9m88'},
+ {list:'OLAK5uy_nAgtspFo6LJ1V25viuFzYsapwIqgVvtXY',title:'橙月',author:'方大同'},
+ {list:'OLAK5uy_lfNo3ANxH0bxNC6gS7WtSmR9gRkZpog04',title:'木眼鏡同名專輯',author:'木眼鏡'},
+ {list:'OLAK5uy_n9Fsvc257NW36XlPHXduZesadQaPSIjmM',title:'Requiem (Deluxe)',author:'keshi'},
+ {list:'OLAK5uy_lfueuQkROx_bShckk3aFVYxZoSrN4Zkzc',title:'The Secret of Us',author:'Gracie Abrams'}
 ];
+const hashStr=t=>{let h=2166136261;for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;};
+function ytAlbum(o,cov){
+  const h=hashStr(o.list),hue=h%360;let c;
+  if(cov){const [r,g,b]=cov.avg.map(Math.round);c=['rgb('+r+','+g+','+b+')','#f3f1ec','#ee5a2c','#f4b942'];}
+  else c=['hsl('+hue+',45%,24%)','hsl('+(hue+25)+',40%,72%)','hsl('+(hue+160)+',70%,56%)','hsl('+(hue+45)+',85%,66%)'];
+  return {t:o.title||'PLAYLIST',a:(o.author||'YOUTUBE').toUpperCase(),m:['orbit','tiles','sun','wave','grid','stripe'][h%6],seed:h%997+1,c,img:cov?cov.im:null,yt:{list:o.list,ids:o.ids},bpm:80,root:55,lead:'triangle',prog:[]};
+}
+/* def:true = built-in (can't be renamed or deleted, comes back on reload); starts with a generated cover and no track list */
+const ALBUMS=DEFAULT_LISTS.map(o=>Object.assign(ytAlbum({list:o.list,ids:[],title:o.title,author:o.author},null),{def:true}));
 let N=ALBUMS.length;
 
 function art(x,S,alb,txt){
@@ -556,6 +569,7 @@ const YTA={p:null,ready:false,failed:false,waiters:[],plErr:0,plWatch:false,soun
   this.call('stopVideo');
   return {ids,title:vd?vd.title:'',author:vd?vd.author:''};
  },
+ nTracks(){return this.cur.yt.ids.length||(this.call('getPlaylist')||[]).length;},   // a default list may be played before its track list has been read
  start(alb){
   this.cur=alb;this.sound=false;this.finished=false;this.pausedAt=null;this.inf={i:0,n:alb.yt.ids.length,title:''};
   this.whenReady(12000).then(()=>{this.call('mute');this.call('setVolume',this.vol);this.call('loadPlaylist',{listType:'playlist',list:alb.yt.list,index:0,startSeconds:0});})
@@ -576,12 +590,12 @@ const YTA={p:null,ready:false,failed:false,waiters:[],plErr:0,plWatch:false,soun
   if(s===1&&!this.sound){this.sound=true;if(Au.vol>0){this.call('unMute');this.call('setVolume',Au.vol*10);}}
    if(s===2&&this.pausedAt===null)this.pausedAt=this.time();
    if(s===1)this.pausedAt=null;
-  if(s===0){const i=this.call('getPlaylistIndex');if(typeof i==='number'&&i>=this.cur.yt.ids.length-1)this.finish();}
+  if(s===0){const i=this.call('getPlaylistIndex');if(typeof i==='number'&&i>=this.nTracks()-1)this.finish();}
  },
  onError(c){
   if(this.plWatch){this.plErr=c;return;}
   if(!this.cur)return;const i=this.call('getPlaylistIndex');
-  if(typeof i==='number'&&i>=this.cur.yt.ids.length-1)this.finish();else this.call('nextVideo');
+  if(typeof i==='number'&&i>=this.nTracks()-1)this.finish();else this.call('nextVideo');
  },
  finish(){if(this.finished)return;this.finished=true;Au.playing=false;window.__ytEnd&&window.__ytEnd();}
 };
@@ -1131,7 +1145,6 @@ cvs.addEventListener('wheel',e=>{if(state!=='home'&&state!=='stage')return;e.pre
 /* ---------- YouTube playlist -> album ---------- */
 const $id=i=>document.getElementById(i);
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
-const hashStr=t=>{let h=2166136261;for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;};
 function loadImg(src){return new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);im.src=src;});}
 async function loadCover(id){
   for(const q of ['hq720','mqdefault']){
@@ -1150,12 +1163,6 @@ function jsonp(url){return new Promise((res,rej)=>{const name='mtcb'+(++cbN)+'_'
   function done(){clearTimeout(t);delete window[name];s.remove();}
   window[name]=d=>{done();res(d);};s.onerror=()=>{done();rej(new Error('script'));};s.src=url+'&callback='+name;document.head.appendChild(s);});}
 async function plMeta(id){try{const d=await jsonp('https://noembed.com/embed?url='+encodeURIComponent('https://www.youtube.com/playlist?list='+id));return d&&d.title?{t:d.title,a:d.author_name||''}:null;}catch(e){return null;}}
-function ytAlbum(o,cov){
-  const h=hashStr(o.list),hue=h%360;let c;
-  if(cov){const [r,g,b]=cov.avg.map(Math.round);c=['rgb('+r+','+g+','+b+')','#f3f1ec','#ee5a2c','#f4b942'];}
-  else c=['hsl('+hue+',45%,24%)','hsl('+(hue+25)+',40%,72%)','hsl('+(hue+160)+',70%,56%)','hsl('+(hue+45)+',85%,66%)'];
-  return {t:o.title||'PLAYLIST',a:(o.author||'YOUTUBE').toUpperCase(),m:['orbit','tiles','sun','wave','grid','stripe'][h%6],seed:h%997+1,c,img:cov?cov.im:null,yt:{list:o.list,ids:o.ids},bpm:80,root:55,lead:'triangle',prog:[]};
-}
 function addAlbum(d){
   ALBUMS.push(d);N=ALBUMS.length;buildAlbum(d,N-1);const a=albums[N-1];a.born=0;tween(.9,k=>{a.born=k;},ease.outBack);return N-1;
 }
@@ -1184,9 +1191,36 @@ async function addFromUrl(raw){
 $id('addForm').addEventListener('submit',e=>{e.preventDefault();Au.ensure();addFromUrl($id('addUrl').value);});
 window.__ytEnd=()=>{if(status==='playing'||status==='paused'){status='stopped';Au.elapsed=0;}};
 window.__ytFail=m=>{if(status==='playing'){status='stopped';}say(m||'YouTube 播放失敗',6000);};
-$id('addUrl').value='https://youtube.com/playlist?list=PL09drhUwnd9l4d_4jNonOhI8iXy_5DfV6&si=GgiwHDWSV4ZndZlZ';
-if(!saved.length)setForm(true);
 (async()=>{for(const o of saved){const cov=await loadCover(o.ids[0]);addAlbum(ytAlbum(o,cov));}if(saved.length)sxTarget=N-1;applyOrder(LS.get('mt1.order',[]));})();
+
+/* ---------- default playlists: fill in tracks + cover in the background ----------
+   Track lists are cached in localStorage (mt1.defids) so later visits only fetch the covers.
+   Reading a list borrows the shared YouTube player, so it only runs while nothing is playing. */
+const defCache=LS.get('mt1.defids',{});
+ALBUMS.forEach(d=>{if(d.def&&Array.isArray(defCache[d.yt.list]))d.yt.ids=defCache[d.yt.list];});
+const defIdle=()=>!cd&&!busy&&state==='home'&&status==='empty';
+async function defCover(d){   // swap the generated cover for the real one, only while nothing is lifted off the shelf
+  if(!d.yt.ids.length)return;
+  const cov=await loadCover(d.yt.ids[0]);if(!cov)return;
+  while(ALBUMS.indexOf(d)>=0&&!(state==='home'&&!cd&&!busy&&sel<0&&!shelfDrag))await sleep(600);
+  const i=ALBUMS.indexOf(d);if(i<0)return;
+  Object.assign(d,ytAlbum({list:d.yt.list,ids:d.yt.ids,title:d.t,author:d.a},cov));rebuildAt(i);
+}
+async function defLoad(d){
+  if(!d.yt.ids.length){
+    for(let k=0;k<3&&!d.yt.ids.length;k++){
+      while(!defIdle())await sleep(500);
+      try{const r=await YTA.readList(d.yt.list);d.yt.ids=r.ids;defCache[d.yt.list]=r.ids;LS.set('mt1.defids',defCache);}
+      catch(e){console.warn('default list',d.t,e&&e.message);if(YTA.failed)return;await sleep(4000);}
+    }
+  }
+  defCover(d);
+}
+(async()=>{
+  const defs=ALBUMS.filter(d=>d.def);
+  defs.filter(d=>d.yt.ids.length).forEach(defCover);
+  for(const d of defs.filter(d=>!d.yt.ids.length)){if(YTA.failed)break;await defLoad(d);}
+})();
 
 /* ---------- edit / reset playlist shelf ---------- */
 function disposeAlbum(a){scene.remove(a.g);a.g.traverse(o=>{if(o.geometry&&o.geometry!==cdGeo)o.geometry.dispose();if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m.map)m.map.dispose();m.dispose();});}});}
@@ -1212,10 +1246,11 @@ function renderEdit(){
   const ul=$id('editList');ul.textContent='';let n=0;const sort=editMode==='sort';
   $id('editTitle').textContent=sort?'編輯排序・點名稱可改名':'刪除播放清單';
   ALBUMS.forEach((d,i)=>{
-    if(!sort&&!d.yt)return;n++;
+    const fixed=d.def||!d.yt;   // built-in albums can be reordered but not renamed or deleted
+    if(!sort&&fixed)return;n++;
     const li=document.createElement('li'),inp=document.createElement('input'),c=document.createElement('span');
-    inp.value=d.t;inp.maxLength=60;inp.setAttribute('aria-label','清單名稱');c.className='cnt';c.textContent=d.yt?d.yt.ids.length+' 首':'內建';
-    if(!d.yt){inp.readOnly=true;li.className='ro';}
+    inp.value=d.t;inp.maxLength=60;inp.setAttribute('aria-label','清單名稱');c.className='cnt';c.textContent=d.def?(d.yt.ids.length?d.yt.ids.length+' 首・內建':'內建'):d.yt?d.yt.ids.length+' 首':'內建';
+    if(fixed){inp.readOnly=true;li.className='ro';}
     inp.addEventListener('change',()=>{const v=inp.value.trim();if(!v){inp.value=d.t;return;}if(!canEdit()){inp.value=d.t;return;}
       const idx=ALBUMS.indexOf(d);renameAlbum(idx,v);const s=saved.find(x=>x.list===d.yt.list);if(s){s.title=v;LS.set('mt1.lists',saved);}say('已更新名稱。',2500);});
     if(sort){
@@ -1231,7 +1266,7 @@ function renderEdit(){
     }
     ul.appendChild(li);});
   $id('editEmpty').hidden=n>0;$id('editEmpty').textContent=sort?'還沒有專輯。':'還沒有加入播放清單。';
-  const rb=$id('resetBtn');rb.hidden=sort;const has=ALBUMS.some(d=>d.yt);rb.disabled=!has;rb.style.opacity=has?'':'.5';
+  const rb=$id('resetBtn');rb.hidden=sort;const has=ALBUMS.some(d=>d.yt&&!d.def);rb.disabled=!has;rb.style.opacity=has?'':'.5';
 }
 let resetT=0;
 function resetBtnState(sure){const b=$id('resetBtn');b.classList.toggle('sure',sure);b.textContent=sure?'再按一次確認':'回復預設';clearTimeout(resetT);if(sure)resetT=setTimeout(()=>resetBtnState(false),4000);}
@@ -1250,7 +1285,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){setMenu(false);setP
 $id('resetBtn').addEventListener('click',()=>{
   if(!$id('resetBtn').classList.contains('sure')){resetBtnState(true);return;}
   if(!canEdit()){resetBtnState(false);return;}
-  for(let i=ALBUMS.length-1;i>=0;i--)if(ALBUMS[i].yt)removeAlbumAt(i);
+  for(let i=ALBUMS.length-1;i>=0;i--)if(ALBUMS[i].yt&&!ALBUMS[i].def)removeAlbumAt(i);
   saved=[];LS.set('mt1.lists',saved);resetBtnState(false);renderEdit();say('已回復預設專輯。',3000);
 });
 

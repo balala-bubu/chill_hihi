@@ -13,6 +13,7 @@ const YTA={p:null,ready:false,failed:false,waiters:[],plErr:0,plWatch:false,soun
   this.call('stopVideo');
   return {ids,title:vd?vd.title:'',author:vd?vd.author:''};
  },
+ nTracks(){return this.cur.yt.ids.length||(this.call('getPlaylist')||[]).length;},   // a default list may be played before its track list has been read
  start(alb){
   this.cur=alb;this.sound=false;this.finished=false;this.pausedAt=null;this.inf={i:0,n:alb.yt.ids.length,title:''};
   this.whenReady(12000).then(()=>{this.call('mute');this.call('setVolume',this.vol);this.call('loadPlaylist',{listType:'playlist',list:alb.yt.list,index:0,startSeconds:0});})
@@ -33,12 +34,12 @@ const YTA={p:null,ready:false,failed:false,waiters:[],plErr:0,plWatch:false,soun
   if(s===1&&!this.sound){this.sound=true;if(Au.vol>0){this.call('unMute');this.call('setVolume',Au.vol*10);}}
    if(s===2&&this.pausedAt===null)this.pausedAt=this.time();
    if(s===1)this.pausedAt=null;
-  if(s===0){const i=this.call('getPlaylistIndex');if(typeof i==='number'&&i>=this.cur.yt.ids.length-1)this.finish();}
+  if(s===0){const i=this.call('getPlaylistIndex');if(typeof i==='number'&&i>=this.nTracks()-1)this.finish();}
  },
  onError(c){
   if(this.plWatch){this.plErr=c;return;}
   if(!this.cur)return;const i=this.call('getPlaylistIndex');
-  if(typeof i==='number'&&i>=this.cur.yt.ids.length-1)this.finish();else this.call('nextVideo');
+  if(typeof i==='number'&&i>=this.nTracks()-1)this.finish();else this.call('nextVideo');
  },
  finish(){if(this.finished)return;this.finished=true;Au.playing=false;window.__ytEnd&&window.__ytEnd();}
 };
