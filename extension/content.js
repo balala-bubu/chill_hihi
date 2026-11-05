@@ -9,7 +9,7 @@
   const ID = Math.random().toString(36).slice(2);
   const st = chrome.storage.local;
   let cfg = {...DEF}, host = null, frame = null, grip = null, port = null, mounted = false, mountT = 0, playerOrigin = '';
-  let ign = true, inRect = false;
+  let ign = true, inRect = false, helloT = 0, gotHello = false;
 
   const get = keys => new Promise(r => st.get(keys, r));
   const set = o => new Promise(r => st.set(o, r));
@@ -73,7 +73,7 @@
   /* ---- mount / unmount ---- */
   async function mount() {
     if (mounted || !cfg.enabled || !playerUrl()) return;
-    mounted = true;
+    mounted = true; gotHello = false;
     host = document.createElement('chillhihi-widget');
     const root = host.attachShadow({mode: 'closed'});
     frame = document.createElement('iframe');
@@ -90,10 +90,15 @@
       frame.contentWindow.postMessage({chp: 'port'}, playerOrigin, [ch.port2]);
     });
     frame.src = playerUrl();
+    // no answer from the player page: say why in plain words instead of showing nothing
+    helloT = setTimeout(() => { if (!mounted || gotHello || !root) return; const n = document.createElement('div');
+      n.textContent = '播放器沒有載入：這個網站可能擋住了嵌入，或 GitHub Pages 還沒更新（網址：' + (cfg.url || '') + '）。';
+      n.style.cssText = 'position:absolute;left:0;right:0;bottom:0;padding:8px;font:12px/1.4 system-ui;color:#fff;background:rgba(40,44,50,.85);border-radius:8px;pointer-events:none;';
+      root.append(n); setTimeout(() => n.remove(), 12000); }, 8000);
   }
   function unmount() {
     if (!mounted) return;
-    mounted = false; inRect = false;
+    mounted = false; inRect = false; clearTimeout(helloT);
     try { port && port.close(); } catch (e) {}
     port = null; host && host.remove(); host = frame = grip = null;
   }
@@ -102,6 +107,7 @@
     const m = e.data || {};
     switch (m.chp) {
       case 'hello': {
+        gotHello = true;
         const d = await get(['ls', 'state']);
         port && port.postMessage({t: 'init', ls: d.ls || {}, state: d.state || null, settings: {dog: cfg.dog, quality: cfg.quality}});
         break;

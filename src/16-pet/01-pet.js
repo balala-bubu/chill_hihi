@@ -191,7 +191,8 @@ if(PET.on){
   }
   const hide=$id('petHide');if(hide)hide.addEventListener('click',()=>PET.bridge&&PET.bridge.hide());
   PET.cur=-1;
-  if(PET.ext&&PET.initState&&PET.initState.list)petRestore(PET.initState);
+  if(PET.ext&&PET.initState&&PET.initState.list&&ALBUMS.some(a=>a.yt&&a.yt.list===PET.initState.list))petRestore(PET.initState);
+  else if(PET.ext){const a=ALBUMS.find(a=>a.yt);if(a)petRestore({list:a.yt.list,index:0,time:0,playing:false,t:0});}   // nothing saved yet: put the first album in, ready to press play
   if(PET.ext)addEventListener('pagehide',()=>petSaveState(true));
   if(new URLSearchParams(location.search).get('dog')==='1'||(PET.wantDog&&!PET.ext))dogToggle();   // the dog is optional: the desktop shell passes dog=1, the extension sends its setting
   window.__pet={PET,pose:DOG_PERCH,handle:petHandle,playAlbum:petPlayAlbum,toggle:petToggle,next:petNext,vol:petVol,get now(){return {cdIn,status,cd:cd&&cd.mode,spin:cd&&cd.spin,dog:!!dog.present};}};
