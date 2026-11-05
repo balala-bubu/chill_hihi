@@ -72,6 +72,11 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 #wardHint{position:fixed;right:calc(8px + env(safe-area-inset-right,0px));top:50%;transform:translateY(-50%);z-index:5;padding:12px 6px;border-radius:13px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 2px 0 rgba(45,48,51,.18);font:500 11px/1.2 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;letter-spacing:.12em;color:var(--mute);cursor:pointer;writing-mode:vertical-rl;transition:opacity .35s,transform .35s}
 #wardHint.gone{opacity:0;pointer-events:none;transform:translate(10px,-50%)}
 #wardHint:focus-visible{outline:2px solid #ee5a2c;outline-offset:2px}
+#wardRecycle{position:fixed;right:max(14px,env(safe-area-inset-right,0px));top:calc(70px + env(safe-area-inset-top,0px));z-index:6;display:flex;flex-direction:column;gap:7px;max-width:min(190px,42vw);padding:10px;border:1px solid var(--line);border-radius:16px;background:var(--glass);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);font:600 12px/1.3 "JetBrains Mono",ui-monospace,"PingFang TC",sans-serif;color:var(--ink)}
+#wardRecycle[hidden]{display:none}
+#wardRecycle .wardRecycleTitle{font-size:11px;color:var(--mute);letter-spacing:.05em;margin-bottom:2px}
+#wardRecycle button{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:34px;padding:6px 11px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.55);color:var(--ink);font:inherit;cursor:pointer}
+#wardRecycle button:hover,#wardRecycle button:focus-visible{background:rgba(238,90,44,.13);outline-color:#ee5a2c}
 #wardTip{position:fixed;left:0;top:0;z-index:6;padding:3px 9px;border-radius:9px;background:rgba(45,48,51,.86);color:#f3f4f5;font:500 11px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;letter-spacing:.04em;pointer-events:none;opacity:0;transition:opacity .12s;white-space:nowrap}
 #wardTip.on{opacity:1}
 #ytbox{position:fixed;left:0;top:0;width:640px;height:512px;opacity:0;pointer-events:none;z-index:-1;overflow:hidden;transform-origin:0 0;background:#000;filter:contrast(1.12) saturate(.82) brightness(.95)}
@@ -85,6 +90,7 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 <button id="shelfHint" type="button" aria-label="展開專輯櫃">專輯櫃 ▾</button>
 <button id="wardHint" type="button" class="gone" aria-label="打開狗狗衣櫃">狗狗衣櫃 ◂</button>
 <div id="wardTip" aria-hidden="true"></div>
+<div id="wardRecycle" hidden aria-label="狗狗裝飾逐件回收"><div class="wardRecycleTitle">已穿戴 · 逐件回收</div><div id="wardRecycleItems"></div></div>
 <div id="addMsg" role="status" aria-live="polite"></div>
 <div id="tools" class="away">
   <button id="moreBtn" class="k3" type="button" aria-label="更多：新增、編輯排序、刪除" aria-haspopup="menu" aria-expanded="false"><i></i><i></i><i></i></button>
@@ -1656,7 +1662,7 @@ function dogPet(){
   else if(Lc.s==='up'){Lc.s='down';Lc.fast=false;}
   Lc.petT=performance.now()/1000;
 }
-addEventListener('pointerdown',e=>{if(e.target&&e.target.tagName==='CANVAS'&&dogHit(e.clientX,e.clientY))dogPet();},{passive:true});
+addEventListener('pointerdown',e=>{if(e.target&&e.target.tagName==='CANVAS'&&!(typeof wPick==='function'&&W.ready&&wPick(e.clientX,e.clientY))&&dogHit(e.clientX,e.clientY))dogPet();},{passive:true});
 const DOGX={AX:{u:new T.Vector3(0,1,0),r:new T.Vector3(1,0,0),f:new T.Vector3(0,0,1)},q:new T.Quaternion(),q2:new T.Quaternion(),v:new T.Vector3(),v2:new T.Vector3(),p:new T.Vector3(),pt:new T.Vector3(),pd:new T.Vector3(),mw:new T.Vector3()};
 /* the pointer projected onto the vertical plane at depth z (where the dog stands) */
 function dogPtrAt(z,out){out.set(dog.ptr.x,dog.ptr.y,.5).unproject(cam);DOGX.pd.copy(out).sub(cam.position).normalize();
@@ -1862,7 +1868,7 @@ loadDog();
 const W={ready:false,items:{},slots:[],slotById:{},byslot:{},worn:{},vis:0,hover:false,pin:false,drag:null,hot:null,doorA:0,restored:false,fly:[],page:{},
   root:new T.Group(),inner:new T.Group(),door:new T.Group(),shelfG:new T.Group(),Wc:3.2,Hc:6.2,tierH:2,key:'',KEY:'chill_hihi.wear',
   nd:new T.Vector2(),ray:new T.Raycaster(),v:new T.Vector3(),
-  hintEl:$id('wardHint'),tipEl:$id('wardTip')};
+  hintEl:$id('wardHint'),tipEl:$id('wardTip'),recycleEl:$id('wardRecycle'),recycleItemsEl:$id('wardRecycleItems'),recycleKey:''};
 W.root.visible=false;W.root.add(W.inner,W.door,W.shelfG);scene.add(W.root);
 const wMat={
   body:new T.MeshPhysicalMaterial({color:0xe4e6e8,roughness:.6,clearcoat:.25,clearcoatRoughness:.5,envMapIntensity:.6}),
@@ -1928,7 +1934,28 @@ async function loadWardrobe(){
     W.ready=true;
   }catch(e){console.warn('wardrobe failed to load',e);}
 }
-function wSave(){const o={};for(const s in W.worn)o[s]=W.worn[s].id;LS.set(W.KEY,o);}
+function wSave(){const o={};for(const s in W.worn)o[s]=W.worn[s].id;LS.set(W.KEY,o);W.recycleKey='';}
+function wRecycle(slot){
+  if(!W.worn[slot])return;
+  wUnequip(slot);
+  Au.click(1.2,.45);buzz(8);
+  wRenderRecycle();
+}
+function wRenderRecycle(){
+  const equipped=W.slots.filter(sl=>!!W.worn[sl.id]);
+  const key=equipped.map(sl=>sl.id+':'+W.worn[sl.id].id).join('|');
+  if(key===W.recycleKey)return;
+  W.recycleKey=key;
+  W.recycleItemsEl.replaceChildren();
+  equipped.forEach(sl=>{
+    const it=W.items[W.worn[sl.id].id];
+    const btn=document.createElement('button');btn.type='button';
+    btn.textContent=(it?it.name:sl.label)+'　↩ 回收';
+    btn.setAttribute('aria-label','回收'+(it?it.name:sl.label));
+    btn.addEventListener('click',()=>wRecycle(sl.id));
+    W.recycleItemsEl.appendChild(btn);
+  });
+}
 function wUnequip(slot,silent){
   const w=W.worn[slot];if(!w)return;
   if(w.sg.parent)w.sg.parent.remove(w.sg);delete W.worn[slot];
@@ -1968,11 +1995,12 @@ function wStartDrag(h,e){
   const gh=new T.Group(),m=new T.Mesh(it.geo,it.mat),sl=W.slotById[it.slot],r=(it.def.display&&it.def.display.rot)||sl.display.rot;
   m.position.set(-it.c[0],-it.c[1],-it.c[2]);m.renderOrder=5;gh.add(m);gh.rotation.set(r[0],r[1],r[2]);gh.scale.setScalar(sl.display.size/it.md*1.05);
   scene.add(gh);it.away=true;W.hot=null;W.tipEl.classList.remove('on');
-  W.drag={id:h.id,it,gh,armed:false,was:false,over:false};
+  W.drag={id:h.id,it,gh,armed:false,was:false,over:false,startX:e.clientX,startY:e.clientY,wasWorn:h.src==='worn',moved:false};
   Au.click(1.2,.5);cvs.style.cursor='grabbing';wDragMove(e);
 }
 function wDragMove(e){
   const d=W.drag;setNDC(e);
+  if(Math.hypot(e.clientX-d.startX,e.clientY-d.startY)>8)d.moved=true;
   const p=planeHit(3.2);if(p)d.gh.position.set(p.x,p.y,3.2);
   const q=planeHit(0);d.over=!!q&&q.x>W.root.position.x-W.Wc/2;   // pointer is over the cabinet: let go = put away
   const a=wAnchor(d.it.slot);
@@ -1982,14 +2010,17 @@ function wDragMove(e){
 }
 function wEndDrag(){
   const d=W.drag;if(!d)return;W.drag=null;cvs.style.cursor='default';
-  if(d.armed){scene.remove(d.gh);wEquip(d.id);}
+  if(d.wasWorn&&!d.moved){
+    scene.remove(d.gh);d.it.away=false;d.it.pop=.0001;
+    Au.click(1.2,.45);buzz(8);wRenderRecycle();
+  }else if(d.armed){scene.remove(d.gh);wEquip(d.id);}
   else W.fly.push({gh:d.gh,it:d.it,t:0,from:d.gh.position.clone(),s0:d.gh.scale.x});
 }
 cvs.addEventListener('pointerdown',e=>{
   if(!W.ready||e.button>0)return;
   const h=wPick(e.clientX,e.clientY);if(!h)return;
   if(W.vis<.5&&h.src!=='worn')return;   // with the cabinet closed only what the dog wears can be grabbed (the cabinet then slides in by itself)
-  e.stopImmediatePropagation();try{cvs.setPointerCapture(e.pointerId);}catch(_){}
+  e.stopImmediatePropagation();e.stopPropagation();try{cvs.setPointerCapture(e.pointerId);}catch(_){}
   wStartDrag(h,e);
 },{capture:true});
 cvs.addEventListener('pointermove',e=>{if(W.drag){e.stopImmediatePropagation();wDragMove(e);}},{capture:true});
@@ -2026,6 +2057,8 @@ function wardFrame(dt,time){
   const want=can&&(W.hover||W.pin||!!W.drag)&&(!pd||W.pin)?1:0;
   W.vis+=(want-W.vis)*(1-Math.exp(-dt*(want>W.vis?7:5)));if(Math.abs(want-W.vis)<.003)W.vis=want;
   W.hintEl.classList.toggle('gone',!can||W.vis>.3);
+  W.recycleEl.hidden=!can||W.vis<.8||!Object.keys(W.worn).length;
+  if(!W.recycleEl.hidden)wRenderRecycle();
   wLayout();
   const open=ease.io2(clamp(W.vis,0,1));
   W.root.visible=W.vis>.002;
@@ -2121,7 +2154,7 @@ function frame(){
   renderer.render(scene,cam);requestAnimationFrame(frame);
 }
 tween(1.1,k=>{pOff.intro=lerp(-.9,0,k);},ease.out5);
-window.__mt={ward:W,wardEquip:wEquip,dog,dogToggle,dogPet,cam,albums,player,BAY,L,ALBUMS,get cd(){return cd;},get state(){return state;},get status(){return status;},get lidOpen(){return lidOpen;},get cdIn(){return cdIn;},get busy(){return busy;},rem,hpState,tv,hole,eng,grab,get zeroG(){return zeroG;},remoteFx,tvSummon,tvDismiss,seekPlug,plugOut,hpSpawn,stretchRatio,FLOOR:()=>FLOOR_Y,get shelfVis(){return shelfVis;},get fps(){return fpsAvg;},get sx(){return sx;},get sxTarget(){return sxTarget;},keys,YTA,addFromUrl,get N(){return N;},renderEdit};
+window.__mt={ward:W,wardEquip:wEquip,wardRecycle:wRecycle,dog,dogToggle,dogPet,cam,albums,player,BAY,L,ALBUMS,get cd(){return cd;},get state(){return state;},get status(){return status;},get lidOpen(){return lidOpen;},get cdIn(){return cdIn;},get busy(){return busy;},rem,hpState,tv,hole,eng,grab,get zeroG(){return zeroG;},remoteFx,tvSummon,tvDismiss,seekPlug,plugOut,hpSpawn,stretchRatio,FLOOR:()=>FLOOR_Y,get shelfVis(){return shelfVis;},get fps(){return fpsAvg;},get sx(){return sx;},get sxTarget(){return sxTarget;},keys,YTA,addFromUrl,get N(){return N;},renderEdit};
 requestAnimationFrame(frame);
 })();
 </script>
