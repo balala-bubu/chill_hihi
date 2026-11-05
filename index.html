@@ -1351,10 +1351,23 @@ function hpWear(){
   upright.normalize();
   const forward=new V3().crossVectors(across,upright).normalize();
   upright.crossVectors(forward,across).normalize();
+  // Ear roots sit INSIDE the head silhouette, not at the outer surface.
+  // Allow room for the skull, both floppy ears and the thick cushion rings.
+  const fitScale=clamp((span+5.2)/2.5,4.5,9.5);
+  const centre=a.clone().add(b).multiplyScalar(.5);
+  // The brow lies toward the face; cups belong farther back at the ears.
+  const brow=wBone('Brow_group');
+  if(brow){
+    const face=head.worldToLocal(brow.getWorldPosition(new V3())).sub(centre);
+    face.addScaledVector(across,-face.dot(across)).addScaledVector(upright,-face.dot(upright));
+    if(face.lengthSq()>.01)centre.addScaledVector(face.normalize(),-2.4);
+  }
+  // Move the ear pads down toward the hanging outer ears, not into the crown.
+  centre.addScaledVector(upright,-2.0);
   h.worn=true;head.add(hpRoot);hpRoot.traverse(o=>o.layers.enable(1));
-  hpRoot.position.copy(a).add(b).multiplyScalar(.5).addScaledVector(upright,.15);
+  hpRoot.position.copy(centre);
   hpRoot.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(across,upright,forward));
-  hpRoot.scale.setScalar(clamp(span/2.5,3.8,7));
+  hpRoot.scale.setScalar(fitScale);
   h.dragNear=0;h.grab=false;Body.setVelocity(h.body,{x:0,y:0});Body.setAngularVelocity(h.body,0);
   W.recycleKey='';Au.snap();buzz(10);return true;
 }
