@@ -363,13 +363,14 @@ function iconTex(kind,col){return mkTex(128,128,(x,w)=>{x.fillStyle=col||'#3a3d4
   if(kind==='play'){x.beginPath();x.moveTo(c-18,c-26);x.lineTo(c+28,c);x.lineTo(c-18,c+26);x.fill();}
   else if(kind==='pause'){x.fillRect(c-26,c-26,16,52);x.fillRect(c+10,c-26,16,52);}
   else if(kind==='stop'){x.fillRect(c-24,c-24,48,48);}
+  else if(kind==='next'){x.beginPath();x.moveTo(c-30,c-25);x.lineTo(c+10,c);x.lineTo(c-30,c+25);x.fill();x.fillRect(c+17,c-26,10,52);}
   else if(kind==='minus'){x.fillRect(c-28,c-6,56,12);}
   else{x.fillRect(c-28,c-6,56,12);x.fillRect(c-6,c-28,12,56);}});}
-const keyDefs=['play','stop','minus','plus'];const keys=[],keyIcons=[],keyMeshes=[],keyMats=[],keyGlow=[0,0,0,0];
-keyDefs.forEach((k,i)=>{const g=new T.Group();g.position.set(-1.2+i*.8,-1.85,FZ-.02);g.userData.z0=FZ-.02;
-  const sock=new T.Mesh(new T.PlaneGeometry(.8,.68),new T.MeshBasicMaterial({color:0x6d7176,toneMapped:false}));sock.position.set(g.position.x,g.position.y,FZ+.008);player.add(sock);   // dark socket the key sinks into
-  const m=new T.Mesh(rrBox(.72,.6,.26,.14,.05),keyMats[i]=M.key.clone());m.position.z=.12;m.castShadow=true;m.userData.key=i;g.add(m);
-  const ic=new T.Mesh(new T.PlaneGeometry(.34,.34),new T.MeshBasicMaterial({map:iconTex(k),transparent:true,toneMapped:false}));ic.position.z=.255;ic.userData.key=i;g.add(ic);
+const keyDefs=['play','stop','next','minus','plus'];const keys=[],keyIcons=[],keyMeshes=[],keyMats=[],keyGlow=[0,0,0,0,0];
+keyDefs.forEach((k,i)=>{const g=new T.Group();g.position.set(-1.28+i*.64,-1.85,FZ-.02);g.userData.z0=FZ-.02;
+  const sock=new T.Mesh(new T.PlaneGeometry(.64,.68),new T.MeshBasicMaterial({color:0x6d7176,toneMapped:false}));sock.position.set(g.position.x,g.position.y,FZ+.008);player.add(sock);   // dark socket the key sinks into
+  const m=new T.Mesh(rrBox(.57,.6,.26,.12,.05),keyMats[i]=M.key.clone());m.position.z=.12;m.castShadow=true;m.userData.key=i;g.add(m);
+  const ic=new T.Mesh(new T.PlaneGeometry(.30,.30),new T.MeshBasicMaterial({map:iconTex(k),transparent:true,toneMapped:false}));ic.position.z=.255;ic.userData.key=i;g.add(ic);
   player.add(g);keys.push(g);keyIcons.push(ic);keyMeshes.push(m,ic);});
 const tex={play:iconTex('play'),pause:iconTex('pause','#ee5a2c')};   // pause icon turns accent-orange while playing
 
@@ -504,7 +505,7 @@ const PORT=new T.Vector3(1.25,-.76,0).applyMatrix4(hp.matrix);
 
 
 /* ---------- YouTube playback (IFrame API, same approach as wvs_hitster) ---------- */
-const YTA={p:null,ready:false,failed:false,waiters:[],plErr:0,plWatch:false,sound:false,cur:null,finished:false,vol:60,infoT:0,inf:{i:0,n:0,title:''},
+const YTA={p:null,ready:false,failed:false,waiters:[],plErr:0,plWatch:false,sound:false,cur:null,finished:false,vol:60,infoT:0,pausedAt:null,inf:{i:0,n:0,title:''},
  whenReady(ms){return this.ready?Promise.resolve():new Promise((res,rej)=>{const t=setTimeout(()=>rej(new Error(this.failed?'YouTube 播放器載入失敗，請檢查網路或關閉廣告封鎖外掛。':'YouTube 播放器還在載入，請稍後再試。')),ms||10000);this.waiters.push(()=>{clearTimeout(t);res();});});},
  call(fn,...a){try{return this.p&&this.p[fn]?this.p[fn](...a):undefined;}catch(e){console.warn(e);}},
  async readList(id){
@@ -519,17 +520,25 @@ const YTA={p:null,ready:false,failed:false,waiters:[],plErr:0,plWatch:false,soun
   return {ids,title:vd?vd.title:'',author:vd?vd.author:''};
  },
  start(alb){
-  this.cur=alb;this.sound=false;this.finished=false;this.inf={i:0,n:alb.yt.ids.length,title:''};
+  this.cur=alb;this.sound=false;this.finished=false;this.pausedAt=null;this.inf={i:0,n:alb.yt.ids.length,title:''};
   this.whenReady(12000).then(()=>{this.call('mute');this.call('setVolume',this.vol);this.call('loadPlaylist',{listType:'playlist',list:alb.yt.list,index:0,startSeconds:0});})
    .catch(e=>{window.__ytFail&&window.__ytFail(e.message);});
  },
  setVol(v){this.vol=v*10;if(this.sound){this.call('setVolume',this.vol);this.call(v>0?'unMute':'mute');}},
- time(){const t=this.call('getCurrentTime');return typeof t==='number'&&isFinite(t)?t:0;},
+ time(){const t=this.call('getCurrentTime');return typeof t==='number'&&isFinite(t)&&t>=0?t:(this.pausedAt??0);},
+  pause(){this.pausedAt=this.time();this.call('pauseVideo');},
+  resume(){if(this.pausedAt!==null){const t=this.time();if(Math.abs(t-this.pausedAt)>1)this.call('seekTo',this.pausedAt,true);}this.call('playVideo');this.pausedAt=null;},
+  next(){if(!this.cur)return;const idx=this.call('getPlaylistIndex'),n=this.cur.yt.ids.length;if(n<1)return;
+    const next=typeof idx==='number'&&idx>=0?(idx+1)%n:0;
+    this.pausedAt=null;this.finished=false;this.call('playVideoAt',next);this.call('playVideo');
+    this.inf.i=next;this.inf.title='';this.infoT=0;},
  tick(dt){if(!this.cur)return;this.infoT-=dt;if(this.infoT>0)return;this.infoT=.5;const d=this.call('getVideoData'),i=this.call('getPlaylistIndex');
   this.inf={i:typeof i==='number'&&i>=0?i:0,n:this.cur.yt.ids.length,title:d&&d.title||''};},
  onState(s){
   if(!this.cur)return;
   if(s===1&&!this.sound){this.sound=true;if(Au.vol>0){this.call('unMute');this.call('setVolume',Au.vol*10);}}
+   if(s===2&&this.pausedAt===null)this.pausedAt=this.time();
+   if(s===1)this.pausedAt=null;
   if(s===0){const i=this.call('getPlaylistIndex');if(typeof i==='number'&&i>=this.cur.yt.ids.length-1)this.finish();}
  },
  onError(c){
@@ -548,7 +557,7 @@ window.onYouTubeIframeAPIReady=()=>{
 {const s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';s.async=true;s.onerror=()=>{YTA.failed=true;};document.head.appendChild(s);}
 
 /* ---------- audio: synthesized album loops + sound effects ---------- */
-const Au={ctx:null,vol:6,playing:false,elapsed:0,step:0,timer:0,alb:null,
+const Au={ctx:null,vol:6,playing:false,elapsed:0,step:0,timer:0,alb:null,pauseLead:0,
  ensure(){
   if(!this.ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return false;
    const c=this.ctx=new C();
@@ -586,10 +595,16 @@ const Au={ctx:null,vol:6,playing:false,elapsed:0,step:0,timer:0,alb:null,
   if(s===15)this.bar++;
  },
  tick(){const c=this.ctx;while(this.next<c.currentTime+.16){this.sched(this.step,this.next);this.next+=60/this.alb.bpm/4;this.step=(this.step+1)%16;}},
- start(alb){if(alb.yt){this.ensure();this.alb=alb;this.elapsed=0;this.playing=true;YTA.start(alb);return;}if(!this.ensure())return;this.alb=alb;this.step=0;this.bar=0;this.elapsed=0;this.rand=rng(alb.seed*7+3);this.resume();},
- resume(){if(this.alb&&this.alb.yt){this.playing=true;YTA.call('playVideo');return;}if(!this.ctx)return;const n=this.ctx.currentTime;this.next=n+.06;this.playing=true;this.bus.gain.cancelScheduledValues(n);this.bus.gain.setTargetAtTime(1,n,.02);clearInterval(this.timer);this.timer=setInterval(()=>this.tick(),25);},
- pause(){if(this.alb&&this.alb.yt){if(this.playing){this.playing=false;YTA.call('pauseVideo');}return;}if(!this.ctx||!this.playing)return;this.playing=false;clearInterval(this.timer);this.bus.gain.setTargetAtTime(0,this.ctx.currentTime,.03);},
- stop(){if(this.alb&&this.alb.yt){this.playing=false;this.elapsed=0;YTA.cur=null;YTA.call('stopVideo');return;}this.pause();this.step=0;this.bar=0;this.elapsed=0;},
+ start(alb){if(alb.yt){this.ensure();this.alb=alb;this.elapsed=0;this.playing=true;YTA.start(alb);return;}if(!this.ensure())return;this.alb=alb;this.step=0;this.bar=0;this.elapsed=0;this.rand=rng(alb.seed*7+3);this.pauseLead=0;this.resume();},
+ resume(){if(this.alb&&this.alb.yt){this.playing=true;YTA.resume();return;}if(!this.ctx)return;const n=this.ctx.currentTime;this.next=n+Math.max(.035,this.pauseLead||.06);this.pauseLead=0;this.playing=true;this.bus.gain.cancelScheduledValues(n);this.bus.gain.setTargetAtTime(1,n,.02);clearInterval(this.timer);this.timer=setInterval(()=>this.tick(),25);},
+ pause(){if(this.alb&&this.alb.yt){if(this.playing){this.playing=false;YTA.pause();this.elapsed=YTA.pausedAt??this.elapsed;}return;}if(!this.ctx||!this.playing)return;this.playing=false;clearInterval(this.timer);const n=this.ctx.currentTime;this.pauseLead=Math.max(.035,this.next-n);this.bus.gain.setTargetAtTime(0,n,.03);},
+ stop(){if(this.alb&&this.alb.yt){this.playing=false;this.elapsed=0;YTA.cur=null;YTA.pausedAt=null;YTA.call('stopVideo');return;}this.pause();this.step=0;this.bar=0;this.pauseLead=0;this.elapsed=0;},
+ skipNext(){if(!this.alb)return;if(this.alb.yt){YTA.next();this.elapsed=0;this.playing=true;return;}
+   /* A synthesized album has four musical phrases, so skip to the next phrase. */
+   if(!this.ensure())return;this.bar=(this.bar+1)%4;this.step=0;
+   const phrase=60/this.alb.bpm*4;this.elapsed=(Math.floor(this.elapsed/phrase)+1)*phrase;
+   if(this.playing){this.next=this.ctx.currentTime+.06;this.bus.gain.setTargetAtTime(1,this.ctx.currentTime,.02);}
+ },
  /* sound effects */
  click(p,g){if(!this.ensure())return;const t=this.ctx.currentTime;this.tone(2300*(p||1),t,.012,'square',.09*(g||1),this.sfx,.001,.03);this.hit(t,.025,4200,.22*(g||1),'highpass',this.sfx);},
  snap(){if(!this.ensure())return;const t=this.ctx.currentTime;this.tone(1500,t,.01,'square',.12,this.sfx,.001,.04);this.hit(t,.04,3200,.4,'bandpass',this.sfx);this.tone(170,t,.05,'sine',.4,this.sfx,.002,.1);},
@@ -827,7 +842,9 @@ function press(i){
   }else if(i===1){
     if(status==='playing'||status==='paused'){Au.stop();status='stopped';}
     else if(status==='stopped')ejectCD();
-  }else{const v0=Au.vol;Au.setVol(clamp(Au.vol+(i===3?1:-1),0,10));volT=1.4;updateLeds();if(Au.vol!==v0)ledFlash[clamp(i===3?Au.vol-1:Au.vol,0,9)]=1;}
+  }else if(i===2){
+    if(cd&&(status==='playing'||status==='paused')){Au.skipNext();status='playing';}
+  }else{const v0=Au.vol;Au.setVol(clamp(Au.vol+(i===4?1:-1),0,10));volT=1.4;updateLeds();if(Au.vol!==v0)ledFlash[clamp(i===4?Au.vol-1:Au.vol,0,9)]=1;}
 }
 
 /* ---------- album flow ---------- */
@@ -2199,7 +2216,7 @@ function frame(){
   placeAlbums(time);
   updateCD(dt);
   physFrame(dt,time);
-  if(Au.alb&&Au.alb.yt&&(status==='playing'||status==='paused'))Au.elapsed=YTA.time();else if(Au.playing)Au.elapsed+=dt;
+  if(Au.alb&&Au.alb.yt&&(status==='playing'||status==='paused'))Au.elapsed=status==='paused'&&YTA.pausedAt!==null?YTA.pausedAt:YTA.time();else if(Au.playing)Au.elapsed+=dt;
   YTA.tick(dt);
   if(volT>0)volT-=dt;
   try{dogFrame(dt,time);}catch(e){if(!dog.err){dog.err=1;console.warn('dog',e);}}
