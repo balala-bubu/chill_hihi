@@ -133,7 +133,7 @@ tools/                     build.py（組 index.html）、build_wardrobe.py、va
 
 遙控器的狗狗鍵叫出狗之後，右邊會滑出衣櫃，把帽子、眼鏡、項圈拖到狗身上就會穿上，拖回衣櫃就收起來；穿了什麼會記在瀏覽器裡。
 
-- 飾品模型和貼圖放 `models/wardrobe/`，新增流程見 `.claude/skills/wardrobe-accessory-import/SKILL.md`（丟 `.dae` 進 `inbox/`，執行 `python3 tools/build_wardrobe.py`）。
+- 飾品模型和貼圖放 `models/wardrobe/`（一件飾品可以有多個材質、多張貼圖，例如生日蛋糕帽 `head_l`），新增流程見 `.claude/skills/wardrobe-accessory-import/SKILL.md`（丟 `.dae` 進 `inbox/`，執行 `python3 tools/build_wardrobe.py`）。
 - 單件飾品的大小與位置調 `models/wardrobe/src/<id>/item.json` 的 `fit`，不要動 `slots.json`，免得影響其他物品。
 - **帽子和耳機一次只能戴一個**：戴耳機時帽子自動收回衣櫃，戴帽子時耳機自動摘下。眼鏡、項圈可以和耳機同時戴。
 

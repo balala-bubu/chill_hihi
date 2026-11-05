@@ -56,12 +56,19 @@ async function loadWardrobe(){
     await Promise.all(man.items.map(async def=>{
       try{
         const m=await fetch(base+def.mesh).then(r=>{if(!r.ok)throw new Error(def.mesh+' '+r.status);return r.json();});
-        const tex=await new Promise((res,rej)=>tl.load(base+def.tex,res,undefined,rej));
-        tex.colorSpace=T.SRGBColorSpace;tex.wrapS=wrap(m.tex.wrapS);tex.wrapT=wrap(m.tex.wrapT);
-        if(m.tex.filter==='nearest'){tex.magFilter=tex.minFilter=T.NearestFilter;tex.generateMipmaps=false;}   // the little pixel textures stay crisp
+        // single-texture item: one material. multi-material item (m.texs + m.groups, def.texs = same order): one material per texture, triangles split by geometry groups.
+        const multi=Array.isArray(m.texs)&&Array.isArray(m.groups)&&Array.isArray(def.texs)&&def.texs.length===m.texs.length&&m.texs.length>1,
+          tds=multi?m.texs:[m.tex],files=multi?def.texs:[def.tex];
+        const mats=await Promise.all(tds.map(async(td,i)=>{
+          const tex=await new Promise((res,rej)=>tl.load(base+files[i],res,undefined,rej));
+          tex.colorSpace=T.SRGBColorSpace;tex.wrapS=wrap(td.wrapS);tex.wrapT=wrap(td.wrapT);
+          if(td.filter==='nearest'){tex.magFilter=tex.minFilter=T.NearestFilter;tex.generateMipmaps=false;}   // the little pixel textures stay crisp
+          const a=!!td.alpha;
+          return new T.MeshStandardMaterial({map:tex,roughness:.85,metalness:0,side:T.DoubleSide,envMapIntensity:.55,transparent:a,depthWrite:!a,alphaTest:a?.02:0});}));
         const g=new T.BufferGeometry();
         g.setAttribute('position',new T.Float32BufferAttribute(m.pos,3));g.setAttribute('normal',new T.Float32BufferAttribute(m.nor,3));g.setAttribute('uv',new T.Float32BufferAttribute(m.uv,2));g.setIndex(m.idx);
-        const al=!!m.tex.alpha,mat=new T.MeshStandardMaterial({map:tex,roughness:.85,metalness:0,side:T.DoubleSide,envMapIntensity:.55,transparent:al,depthWrite:!al,alphaTest:al?.02:0});
+        if(multi)m.groups.forEach(x=>g.addGroup(x.start,x.count,x.mat));
+        const al=tds.some(t=>!!t.alpha),mat=multi?mats:mats[0];
         const [a,b]=m.bbox,c=[0,1,2].map(i=>(a[i]+b[i])/2),md=Math.max(b[0]-a[0],b[1]-a[1],b[2]-a[2]);
         W.items[def.id]={def,id:def.id,slot:def.slot,name:def.name||def.id,geo:g,mat,alpha:al,c,md,hv:0,pop:1,away:false,inWindow:false,holder:null,proxy:null};
       }catch(e){console.warn('wardrobe item '+def.id+' failed',e);}

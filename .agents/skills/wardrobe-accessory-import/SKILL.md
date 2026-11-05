@@ -5,7 +5,7 @@ description: 快速匯入 chill_hihi 狗狗衣櫃 3D 飾品（帽子、眼鏡、
 
 # 新增飾品
 
-1. `mkdir -p models/wardrobe/inbox`（倉庫裡沒有這個資料夾），把 `.dae` 和它使用的貼圖（檔名必須和 `.dae` 裡引用的一致）一起放進去。
+1. `mkdir -p models/wardrobe/inbox`（倉庫裡沒有這個資料夾），把 `.dae` 和它使用的**所有**貼圖（檔名必須和 `.dae` 裡引用的一致）一起放進去。一個 `.dae` 可以有多個材質、多張貼圖（例如 `head_l`：`Head_l.png` 加 `s_Head_l.png`）：`id` 取自三角形最多的主貼圖，轉檔後主貼圖是 `items/<id>.png`，其餘是 `items/<id>.1.png`…，網格的 `groups` 記錄哪些三角形用哪張貼圖。
 2. 執行 `python3 tools/build_wardrobe.py`：自動搬到 `src/<id>/`（`id` 取自貼圖檔名小寫）、轉成 `items/<id>.json`＋`.png`、建立 `src/<id>/item.json`、更新 `manifest.json`。部位依 id 猜（含 `glass`→眼鏡、`coller`/`collar`→項圈、`head`/`hat`/`cap`→帽子），猜不到會留空，要手動填。
 3. 修改 `models/wardrobe/src/<id>/item.json`：`slot`（hat / glasses / collar）、`name`、`fit`（scale / pos / rot），**再執行一次**步驟 2 讓 `manifest.json` 更新。
 4. 執行 `python3 tools/validate_wardrobe.py`，要看到 `Wardrobe OK`。

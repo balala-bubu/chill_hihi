@@ -90,6 +90,24 @@
       "tex": "items/head_e.png"
     },
     {
+      "id": "head_l",
+      "slot": "hat",
+      "name": "帽子 L",
+      "mesh": "items/head_l.json",
+      "tex": "items/head_l.png",
+      "texs": [
+        "items/head_l.png",
+        "items/head_l.1.png"
+      ],
+      "fit": {
+        "pos": [
+          0,
+          0.18,
+          0
+        ]
+      }
+    },
+    {
       "id": "glass_c",
       "slot": "glasses",
       "name": "眼鏡 C",

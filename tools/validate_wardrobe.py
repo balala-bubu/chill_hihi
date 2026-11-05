@@ -71,6 +71,31 @@ for item in items:
         for field in ("pos", "nor", "uv", "idx"):
             check(isinstance(model.get(field), list) and len(model[field]) > 0,
                   f"{iid}: missing geometry {field}")
+        # Multi-material items: mesh.texs / mesh.groups must agree with manifest texs and cover idx exactly.
+        if "texs" in model or "groups" in model or "texs" in item:
+            mtexs, groups, itexs = model.get("texs"), model.get("groups"), item.get("texs")
+            check(isinstance(mtexs, list) and len(mtexs) > 1, f"{iid}: mesh.texs must list 2+ textures")
+            check(isinstance(itexs, list) and isinstance(mtexs, list) and len(itexs) == len(mtexs),
+                  f"{iid}: manifest texs and mesh.texs differ in length; regenerate")
+            check(isinstance(itexs, list) and itexs[:1] == [item.get("tex")], f"{iid}: texs[0] must equal tex")
+            for rel in itexs if isinstance(itexs, list) else []:
+                check(isinstance(rel, str) and bool(rel) and not Path(rel).is_absolute() and ".." not in Path(rel).parts,
+                      f"{iid}: unsafe or empty texs entry")
+                if isinstance(rel, str) and rel:
+                    check((ROOT / rel).is_file(), f"{iid}: missing texs {rel}")
+            idx = model.get("idx") if isinstance(model.get("idx"), list) else []
+            if isinstance(groups, list) and groups and isinstance(mtexs, list):
+                pos, ok = 0, True
+                for g in groups:
+                    ok = ok and isinstance(g, dict) and g.get("start") == pos and isinstance(g.get("count"), int) \
+                        and g["count"] > 0 and g["count"] % 3 == 0 and isinstance(g.get("mat"), int) \
+                        and 0 <= g["mat"] < len(mtexs)
+                    if not ok:
+                        break
+                    pos += g["count"]
+                check(ok and pos == len(idx), f"{iid}: mesh.groups must be contiguous, triangle-aligned and cover idx")
+            else:
+                check(False, f"{iid}: mesh.groups missing for multi-material item")
     fit = item.get("fit") or {}
     if "pos" in fit:
         vector(fit["pos"], 3, f"{iid}: fit.pos")
