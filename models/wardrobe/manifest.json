@@ -96,7 +96,7 @@
       "mesh": "items/glass_c.json",
       "tex": "items/glass_c.png",
       "fit": {
-        "scale": 1.3,
+        "scale": 1.95,
         "pos": [
           0,
           0.2,
