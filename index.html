@@ -1967,6 +1967,8 @@ const W={ready:false,items:{},slots:[],slotById:{},byslot:{},worn:{},vis:0,hover
   nd:new T.Vector2(),ray:new T.Raycaster(),v:new T.Vector3(),
   hintEl:$id('wardHint'),tipEl:$id('wardTip'),pagesEl:$id('wardPages'),nav:{},recycleEl:$id('wardRecycle'),recycleItemsEl:$id('wardRecycleItems'),recycleKey:''};
 W.root.visible=false;W.root.add(W.inner,W.door,W.shelfG);scene.add(W.root);
+W.fitCheckPending=new URLSearchParams(location.search).get('wardrobeFitCheck')==='1';
+W.fitCheckActive=false;
 const wMat={
   body:new T.MeshPhysicalMaterial({color:0xe4e6e8,roughness:.6,clearcoat:.25,clearcoatRoughness:.5,envMapIntensity:.6}),
   back:new T.MeshStandardMaterial({color:0xd8dbdf,roughness:.82}),
@@ -2175,6 +2177,18 @@ function wardFrame(dt,time){
   if(!W.ready)return;
   const can=dog.ready&&dog.present&&!dog.leaving;
   if(!W.restored&&dog.ready){W.restored=true;const o=LS.get(W.KEY,{});for(const s in o)if(W.items[o[s]]&&W.items[o[s]].slot===s)wEquip(o[s],true);}
+  /* Opt-in visual regression scene: ?wardrobeFitCheck=1. Never changes saved wear preferences. */
+  if(W.fitCheckPending && dog.ready && W.ready){
+    if(!dog.present)dogToggle();
+    if(dog.present&&!dog.leaving){
+      for(const slot of ['glasses','collar']){
+        const it=(W.byslot[slot]||[])[0];
+        if(it)wEquip(it.id,true);
+      }
+      W.fitCheckPending=false;
+      W.fitCheckActive=true;
+    }
+  }
   if(!can&&W.drag){W.drag.armed=false;wEndDrag();}
   const want=can&&(W.hover||W.pin||!!W.drag)&&(!pd||W.pin)?1:0;
   W.vis+=(want-W.vis)*(1-Math.exp(-dt*(want>W.vis?7:5)));if(Math.abs(want-W.vis)<.003)W.vis=want;
