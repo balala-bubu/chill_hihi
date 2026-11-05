@@ -37,7 +37,7 @@ const Au={ctx:null,vol:6,playing:false,elapsed:0,step:0,timer:0,alb:null,pauseLe
   if(s===15)this.bar++;
  },
  tick(){const c=this.ctx;while(this.next<c.currentTime+.16){this.sched(this.step,this.next);this.next+=60/this.alb.bpm/4;this.step=(this.step+1)%16;}},
- start(alb){if(alb.yt){this.ensure();this.alb=alb;this.elapsed=0;this.playing=true;YTA.start(alb);return;}if(!this.ensure())return;this.alb=alb;this.step=0;this.bar=0;this.elapsed=0;this.rand=rng(alb.seed*7+3);this.pauseLead=0;this.resume();},
+ start(alb,index,t){if(alb.yt){this.ensure();this.alb=alb;this.elapsed=0;this.playing=true;YTA.start(alb,index,t);return;}if(!this.ensure())return;this.alb=alb;this.step=0;this.bar=0;this.elapsed=0;this.rand=rng(alb.seed*7+3);this.pauseLead=0;this.resume();},
  resume(){if(this.alb&&this.alb.yt){this.playing=true;YTA.resume();return;}if(!this.ctx)return;const n=this.ctx.currentTime;this.next=n+Math.max(.035,this.pauseLead||.06);this.pauseLead=0;this.playing=true;this.bus.gain.cancelScheduledValues(n);this.bus.gain.setTargetAtTime(1,n,.02);clearInterval(this.timer);this.timer=setInterval(()=>this.tick(),25);},
  pause(){if(this.alb&&this.alb.yt){if(this.playing){this.playing=false;YTA.pause();this.elapsed=YTA.pausedAt??this.elapsed;}return;}if(!this.ctx||!this.playing)return;this.playing=false;clearInterval(this.timer);const n=this.ctx.currentTime;this.pauseLead=Math.max(.035,this.next-n);this.bus.gain.setTargetAtTime(0,n,.03);},
  stop(){if(this.alb&&this.alb.yt){this.playing=false;this.elapsed=0;YTA.cur=null;YTA.pausedAt=null;YTA.call('stopVideo');return;}this.pause();this.step=0;this.bar=0;this.pauseLead=0;this.elapsed=0;},

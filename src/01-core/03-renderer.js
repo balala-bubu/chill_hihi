@@ -1,8 +1,8 @@
 /* ---------- renderer ---------- */
 const stage=document.getElementById('stage');
 let renderer;
-try{renderer=new T.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});}catch(e){document.getElementById('err').hidden=false;return;}
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+try{renderer=new T.WebGLRenderer({antialias:true,alpha:true,powerPreference:PET.on?'low-power':'high-performance'});}catch(e){document.getElementById('err').hidden=false;return;}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,PET.on?PET.dpr:2));
 renderer.outputColorSpace=T.SRGBColorSpace;
 renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
@@ -13,7 +13,7 @@ let dogOverlayRenderer=null;
 const dogOverlayCam=new T.PerspectiveCamera(32,1,.1,200);
 try{
   dogOverlayRenderer=new T.WebGLRenderer({antialias:true,alpha:true,powerPreference:'low-power'});
-  dogOverlayRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  dogOverlayRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1,PET.on?PET.dpr:2));
   dogOverlayRenderer.outputColorSpace=renderer.outputColorSpace;
   dogOverlayRenderer.toneMapping=renderer.toneMapping;
   dogOverlayRenderer.toneMappingExposure=renderer.toneMappingExposure;
@@ -23,10 +23,10 @@ try{
   overlay.setAttribute('aria-hidden','true');
   document.body.appendChild(overlay);
 }catch(e){dogOverlayRenderer=null;console.warn('Dog foreground renderer unavailable',e);}
-const scene=new T.Scene();scene.background=new T.Color(0xd9dbde);
+const scene=new T.Scene();scene.background=PET.on&&!PET.card?null:new T.Color(0xd9dbde);   // desktop pet without the card: transparent, the desktop shows through
 const FOV=32,TANH=Math.tan(FOV/2*Math.PI/180);
 const cam=new T.PerspectiveCamera(FOV,1,.1,200);
-const baseD=()=>Math.max(18.3,8.6/((innerWidth/innerHeight)*2*TANH));
+const baseD=()=>PET.mini?Math.max(PET.miniD,3.4/((innerWidth/innerHeight)*TANH)):PET.on?Math.max(PET.fullD,3/((innerWidth/innerHeight)*TANH)):Math.max(18.3,8.6/((innerWidth/innerHeight)*2*TANH));   // mini: closer, so the dog fills a small window
 
 /* studio reflections */
 const pm=new T.PMREMGenerator(renderer);
@@ -42,7 +42,7 @@ soft(3,12,14,2,-5,2.3);soft(18,2.4,-2,12,4,2.4);   // edge strips: thin bright l
 scene.environment=pm.fromScene(envS,.04).texture;
 
 const sun=new T.DirectionalLight(0xfff4e8,1.25);
-sun.position.set(-6,10,14);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+sun.position.set(-6,10,14);sun.castShadow=!PET.on||PET.shadow;sun.shadow.mapSize.set(PET.on?1024:2048,PET.on?1024:2048);
 Object.assign(sun.shadow.camera,{left:-13,right:13,top:13,bottom:-13,near:1,far:50});
 sun.shadow.bias=-.0004;sun.shadow.normalBias=.03;
 const fill=new T.DirectionalLight(0xdbe6ff,.4);fill.position.set(9,-3,12);   // cool fill from the opposite side: warm/cool split on the bevels

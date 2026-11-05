@@ -1,0 +1,49 @@
+{
+  "name": "chill-hihi-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "chill_hihi 桌面小寵物（macOS）：透明置頂視窗的 CD 播放器與狗狗",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --mac",
+    "postinstall": "node scripts/vendor.js"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0",
+    "three": "0.152.2",
+    "matter-js": "0.20.0"
+  },
+  "build": {
+    "appId": "io.github.balala-bubu.chillhihi",
+    "productName": "chill_hihi",
+    "files": [
+      "main.js",
+      "preload.js",
+      "assets/**",
+      "vendor/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../index.html",
+        "to": "web/index.html"
+      },
+      {
+        "from": "../models",
+        "to": "web/models",
+        "filter": [
+          "**/*",
+          "!wardrobe/src/**",
+          "!**/.DS_Store"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        "dmg"
+      ]
+    }
+  }
+}

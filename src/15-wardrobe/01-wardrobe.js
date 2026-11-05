@@ -274,6 +274,7 @@ function wardFrame(dt,time){
 loadWardrobe();
 
 function frame(){
+  if(PET.on)PET.lastRender=performance.now();
   const rawDt=clock.getDelta(),dt=Math.min(.05,rawDt),time=clock.elapsedTime;fpsAvg+=(1/Math.max(rawDt,.001)-fpsAvg)*.1;
   stepTweens(dt);
   {const hov=Math.sin(time*1.1)*.05+Math.sin(time*2.3)*.012,shk=shakeT>0?Math.sin(time*55)*.06*(shakeT/.9):0;
@@ -289,13 +290,14 @@ function frame(){
    BAY.y=player.position.y+BAYY;JACK.y=player.position.y-2.42;}
   if(!camLock){
     const near=cd&&cd.mode==='drag'&&cd.committed&&lidOpen&&!cdIn&&Math.hypot(cd.pos.x-BAY.x,cd.pos.y-BAY.y)<(zoomed?4.4:3.7)&&cd.pos.y<(zoomed?.4:-.3);
-    zoomed=!!near;rig.td=zoomed?L.d*.58:L.d;rig.tx=0;rig.ty=zoomed?BAY.y*.9:0;
+    zoomed=!!near;rig.td=zoomed?L.d*.58:L.d;rig.tx=0;rig.ty=zoomed?BAY.y*.9:(PET.mini?FLOOR_Y+PET.miniUp:0);
   }
   const kc=1-Math.exp(-dt*3.4),kp=1-Math.exp(-dt*3);
   rig.x+=(rig.tx-rig.x)*kc;rig.y+=(rig.ty-rig.y)*kc;rig.d+=(rig.td-rig.d)*kc;rig.px+=(rig.ptx-rig.px)*kp;rig.py+=(rig.pty-rig.py)*kp;
   cam.position.set(rig.x+rig.px*.35,rig.y+rig.py*.22+rig.d*TILT_UP,rig.d);
   if(camShake>.003){cam.position.x+=(Math.random()-.5)*camShake*.3;cam.position.y+=(Math.random()-.5)*camShake*.3;camShake*=Math.exp(-dt*5);}
   cam.lookAt(rig.x,rig.y-rig.d*TILT_DN,0);cam.updateMatrixWorld();
+  if(!PET.mini){   // mini desktop pet: no shelf, albums, player or physics to update
   shelfStep(dt);
   {const w=shelfWant();shelfVis+=(w-shelfVis)*(1-Math.exp(-dt*(w>shelfVis?7:4.5)));if(Math.abs(w-shelfVis)<.003)shelfVis=w;
    shelfOff=(1-ease.io2(clamp(shelfVis,0,1)))*(L.top-L.shelfB+1.4);
@@ -319,21 +321,24 @@ function frame(){
   placeAlbums(time);
   updateCD(dt);
   physFrame(dt,time);
+  }
   if(Au.alb&&Au.alb.yt&&(status==='playing'||status==='paused'))Au.elapsed=status==='paused'&&YTA.pausedAt!==null?YTA.pausedAt:YTA.time();else if(Au.playing)Au.elapsed+=dt;
   YTA.tick(dt);
   if(volT>0)volT-=dt;
   try{dogFrame(dt,time);}catch(e){if(!dog.err){dog.err=1;console.warn('dog',e);}}
   try{wardFrame(dt,time);}catch(e){if(!W.err){W.err=1;console.warn('wardrobe',e);}}
-  drawDisplay();syncKeys();updateFx(dt,time);
+  if(PET.on)petFrame(dt,time);
+  if(!PET.mini){drawDisplay();syncKeys();updateFx(dt,time);}
   renderer.render(scene,cam);
   if(dogOverlayRenderer&&dog.ready&&dog.present&&!dog.leaving&&tv.mode==='video'&&tv.pw>.02&&tv.b){
     if(!dog.overlayLights){scene.traverse(o=>{if(o.isLight)o.layers.enable(1);});dog.overlayLights=true;}
     dogOverlayCam.copy(cam);dogOverlayCam.layers.set(1);
     const bg=scene.background;scene.background=null;
-    try{dogOverlayRenderer.render(scene,dogOverlayCam);}
+    try{dogOverlayRenderer.render(scene,dogOverlayCam);PET.ovFrame=true;}
     catch(e){if(!dog.overlayError){dog.overlayError=true;console.warn('Dog foreground render failed',e);}dogOverlayRenderer.domElement.style.display='none';}
     finally{scene.background=bg;}
   }
-  requestAnimationFrame(frame);
+  if(PET.on)petAfterRender();
+  nextFrame();
 }
 tween(1.1,k=>{pOff.intro=lerp(-.9,0,k);},ease.out5);
