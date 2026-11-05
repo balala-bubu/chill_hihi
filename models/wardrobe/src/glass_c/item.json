@@ -1,12 +1,1 @@
-{
-  "slot": "glasses",
-  "name": "眼鏡 C",
-  "fit": {
-    "scale": 1.95,
-    "pos": [
-      0,
-      0.2,
-      0.65
-    ]
-  }
-}
+{"slot":"glasses","name":"眼鏡 C","fit":{"scale":2.15,"pos":[0,-0.05,-0.4]}}
