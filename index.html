@@ -1968,8 +1968,10 @@ dog.g.updateMatrixWorld(true);
   dogAdd('tailA','u',Math.sin(dog.wag)*wa);dogAdd('tailB','u',Math.sin(dog.wag-.7)*wa*1.1);dogAdd('tailC','u',Math.sin(dog.wag-1.4)*wa*1.2);
   dog.earT-=dt;if(dog.earT<=0){dog.earT=2+Math.random()*4;if(Math.random()<.5)dog.earL=.6;else dog.earR=.6;}
   dog.earL*=Math.exp(-dt*6);dog.earR*=Math.exp(-dt*6);
-  // Headphone pads gently fold the ears down; removal lets the springs recover.
-  dog.earWear+=(Number(hpState.worn)-dog.earWear)*(1-Math.exp(-dt*(hpState.worn?7:5)));
+  // Headphones fully fold the ears; glasses gently lower them over the temples.
+  // Use a shared target so wearing both never doubles the rotation.
+  const earWearTarget=Math.max(Number(hpState.worn),W.worn.glasses?.82:0);
+  dog.earWear+=(earWearTarget-dog.earWear)*(1-Math.exp(-dt*(earWearTarget>dog.earWear?7:5)));
   /* ears are damped springs: they lift back with speed and bounce on every stride, the tips lag behind the base */
   {const spd01=Math.min(1,Math.abs(vx)/7),bn=Math.sin(dog.gait+1.2)*dog.move,E=dog.ear||(dog.ear={L:{a:0,av:0,b:0,bv:0,f:0,fv:0},R:{a:0,av:0,b:0,bv:0,f:0,fv:0}});
    const step=(e,ph,kick,sgn)=>{const n=Math.max(1,Math.ceil(dt/.012)),h2=dt/n;
