@@ -920,7 +920,10 @@ cvs.addEventListener('pointerdown',e=>{
   pd={x:e.clientX,y:e.clientY,lx:e.clientX,moved:false,kind:'bg',album:-1};
   try{cvs.setPointerCapture(e.pointerId);}catch(_){}
   const o=h&&h.object;
-  if(PHYS&&o&&o.userData.phys&&state!=='album'&&state!=='albumOpen'&&state!=='opening'&&startPhysGrab(h)){pd.kind='phys';cvs.style.cursor='grabbing';return;}
+  if(PHYS&&o&&o.userData.phys&&state!=='album'&&state!=='albumOpen'&&state!=='opening'){
+    const wasWorn=o.userData.phys==='hp'&&hpState.worn;
+    if(startPhysGrab(h)){pd.kind='phys';cvs.style.cursor='grabbing';if(wasWorn)e.stopPropagation();return;}
+  }
   if(busy)return;
   if(o&&o.userData.cd){grabCD(e);pd.kind='cd';}
   else if(o&&o.userData.key!==undefined){pd.kind='key';press(o.userData.key);}
@@ -1206,7 +1209,7 @@ function spawnRemote(){
 /* the cable has no length limit: it starts with NR0 nodes and the segment next to the plug pays out more cable whenever the line goes taut (payOut), so stretching can never pull the plug out */
 const NR0=22,NMAX=140,SEG=.28;
 const HOV_K=Math.pow(2*Math.PI*.75/1000,2),HOV_C=.0008;   // headphones float on a soft spring (0.75 Hz); air drag already supplies most of the damping
-const hpState={s:'none',body:null,org:{x:0,y:0},att:{x:0,y:0},scale:1,rope:[],cons:[],segC:[],hov:{x:0,y:0},pin:null,drive:null,seek:0,plugAmt:0,aim:0,flash:0,grab:false};
+const hpState={s:'none',body:null,org:{x:0,y:0},att:{x:0,y:0},scale:1,rope:[],cons:[],segC:[],hov:{x:0,y:0},pin:null,drive:null,seek:0,plugAmt:0,aim:0,flash:0,grab:false,worn:false};
 const endB=()=>hpState.rope[hpState.rope.length-1];   // the plug end of the cable
 const newRopeNode=()=>Bodies.circle(0,0,5,{density:.006,frictionAir:.05,friction:.4,restitution:0,collisionFilter:{category:CAT.rope,mask:CAT.floor|CAT.tv|CAT.rem}});
 const hpRoot=new T.Group();hpRoot.visible=false;scene.add(hpRoot);
@@ -1263,13 +1266,29 @@ function hpPlace(ox,oy,vx,vy,spin){   // put the headphones' origin at world (ox
   h.rope.forEach((b,i)=>{Body.setPosition(b,{x:a.x+dir.x*i*SEG*PXU*.6,y:a.y+dir.y*i*SEG*PXU*.6});Body.setVelocity(b,v);});
 }
 function hpSpawn(){   // headphones swoop in from above the screen, cable whipping behind, and settle into a float beside the player
-  if(!PHYS)return;if(hpState.s==='none')hpBuild();
+  if(!PHYS)return;if(hpState.worn)hpUnwear();if(hpState.s==='none')hpBuild();
   const h=hpState,s=h.scale,hoverY=FLOOR_Y+2.5*s;
   const targetX=-(1.8+1.7*s+.25),y0=L.half+1.6,t=.9;
   const x0=clamp(targetX-3.2*t,-(L.hw-1.6),-(1.8+1.7*s));
   hpPlace(x0,y0,(targetX-x0)/t,-4,.012);
   h.hov={x:mxp(targetX)-h.org.x,y:myp(hoverY)-h.org.y};
   hpRoot.visible=true;cableMesh.visible=true;plug2.visible=true;hpState.s='free';
+}
+function hpWear(){
+  const h=hpState,sl=W.slotById.hat,b=sl&&wBone(sl.bone);
+  if(!h.body||!dog.ready||!dog.present||dog.leaving||!b)return false;
+  h.worn=true;b.add(hpRoot);
+  hpRoot.position.set(sl.worn.pos[0],sl.worn.pos[1]+1.8,sl.worn.pos[2]);
+  hpRoot.rotation.set(0,0,0);hpRoot.scale.setScalar(sl.worn.scale*.88);
+  h.grab=false;Body.setVelocity(h.body,{x:0,y:0});Body.setAngularVelocity(h.body,0);
+  W.recycleKey='';Au.snap();buzz(10);return true;
+}
+function hpUnwear(){
+  const h=hpState;if(!h.worn)return;
+  scene.attach(hpRoot);h.worn=false;hpRoot.scale.setScalar(h.scale);
+  const p=hpRoot.position,b=h.body;
+  if(b){Body.setAngle(b,0);Body.setPosition(b,{x:mxp(p.x)-h.org.x,y:myp(p.y)-h.org.y});Body.setVelocity(b,{x:0,y:0});Body.setAngularVelocity(b,0);}
+  hpRoot.rotation.set(0,0,0);hpRest();W.recycleKey='';
 }
 function hpRest(){   // let go of the headphones: they glide a little further the way they were thrown, then float where they stop
   const h=hpState,b=h.body,s=h.scale,mx=mxp(Math.max(.5,L.hw-1.95*s));
@@ -1323,12 +1342,19 @@ if(PHYS)Events.on(eng,'beforeUpdate',()=>{
   const h=hpState;
   if(h.body&&h.s!=='none'){   // the headphones float: their own weight is cancelled and a soft spring holds them at a hover spot that bobs a little
     const b=h.body,m=b.mass;
+    if(h.worn){
+      hpRoot.updateWorldMatrix(true,false);const p=hpRoot.getWorldPosition(new T.Vector3());
+      Body.setAngle(b,0);Body.setPosition(b,{x:mxp(p.x)-h.org.x,y:myp(p.y)-h.org.y});
+      Body.setVelocity(b,{x:0,y:0});Body.setAngularVelocity(b,0);
+      const port=hp.localToWorld(new T.Vector3(1.25,-.76,0));
+      h.cons[0].pointA.x=mxp(port.x)-b.position.x;h.cons[0].pointA.y=myp(port.y)-b.position.y;
+    }
     if(h.grab){h.hov.x=b.position.x;h.hov.y=b.position.y;}   // being held: the hover spot just follows the hand
-    else{
+    else if(!h.worn){
       let ex=b.position.x-(h.hov.x+Math.sin(tt*.8)*9),ey=b.position.y-(h.hov.y+Math.sin(tt*1.3+1)*13);const ed=Math.hypot(ex,ey);if(ed>220){ex*=220/ed;ey*=220/ed;}   // spring pull is capped so the entrance stays gentle
       Body.applyForce(b,b.position,{x:-m*(HOV_K*ex+HOV_C*b.velocity.x/DT_MS),y:-m*(HOV_K*ey+HOV_C*b.velocity.y/DT_MS)});}
-    Body.applyForce(b,b.position,{x:0,y:-m*g});
-    const w=b.angularVelocity/DT_MS,W0=h.grab?.0018:.0032;b.torque=-b.inertia*(W0*W0*wrapA(b.angle-(h.grab?0:.05*Math.sin(tt*.9)))+2*.7*W0*w);   // keeps them upright, with a slow sway
+    if(!h.worn)Body.applyForce(b,b.position,{x:0,y:-m*g});
+    const w=b.angularVelocity/DT_MS,W0=h.grab?.0018:.0032;if(!h.worn)b.torque=-b.inertia*(W0*W0*wrapA(b.angle-(h.grab?0:.05*Math.sin(tt*.9)))+2*.7*W0*w);   // keeps them upright, with a slow sway
   }
   if(h.drive&&h.s==='seek'){const e=endB();if(h.drive.follow){h.drive.x=JACK.x;h.drive.y=JACK.y;}
     const dx=mxp(h.drive.x)-e.position.x,dy=myp(h.drive.y)-e.position.y,d=Math.hypot(dx,dy)||1,sp=Math.min(h.drive.sp,d*.06+.5);
@@ -1343,11 +1369,11 @@ function dynBodies(){const a=[];if(rem.body)a.push(rem.body);if(hpState.body)a.p
 const grab={c:null,kind:null,body:null,z:.5,btn:-1,startX:0,startY:0};
 function startPhysGrab(hit){
   const o=hit.object,kind=o.userData.phys;let body=null,stiff=.2;
-  if(kind==='rem'){body=rem.body;stiff=.22;}else if(kind==='hp'){body=hpState.body;stiff=.13;hpState.grab=true;}
+  if(kind==='rem'){body=rem.body;stiff=.22;}else if(kind==='hp'){if(hpState.worn)hpUnwear();body=hpState.body;stiff=.13;hpState.grab=true;}
   else if(kind==='plug'){body=endB();stiff=.3;if(hpState.s==='seek'){hpState.drive=null;hpState.s='free';hpState.seek=0;}}
   else if(kind==='tv'){body=tv.b;stiff=.07;}
   if(!body)return false;
-  grab.kind=kind;grab.body=body;grab.z=hit.point.z;grab.btn=kind==='rem'&&o.userData.rbtn!==undefined?o.userData.rbtn:-1;
+  grab.kind=kind;grab.body=body;grab.z=hit.point.z;grab.pointer=null;grab.btn=kind==='rem'&&o.userData.rbtn!==undefined?o.userData.rbtn:-1;
   const px=mxp(hit.point.x),py=myp(hit.point.y),dx=px-body.position.x,dy=py-body.position.y,ca=Math.cos(-body.angle),sa=Math.sin(-body.angle);
   grab.c=Constraint.create({pointA:{x:px,y:py},bodyB:body,pointB:{x:dx*ca-dy*sa,y:dx*sa+dy*ca},stiffness:stiff,damping:.18,length:0});
   Composite.add(wld,grab.c);
@@ -1355,12 +1381,20 @@ function startPhysGrab(hit){
   if(kind==='tv'&&tv.state==='on')tvPoke();
   return true;
 }
-function moveGrab(e){if(!grab.c)return;setNDC(e);const h=planeHit(grab.z);if(h){grab.c.pointA.x=mxp(h.x);grab.c.pointA.y=myp(h.y);}}
+function moveGrab(e){if(!grab.c)return;grab.pointer={x:e.clientX,y:e.clientY};setNDC(e);const h=planeHit(grab.z);if(h){grab.c.pointA.x=mxp(h.x);grab.c.pointA.y=myp(h.y);}}
 function endPhysGrab(moved){
   if(!grab.c)return;Composite.remove(wld,grab.c);grab.c=null;
   const k=grab.kind,btn=grab.btn;grab.kind=null;hpState.grab=false;
   if(k==='rem'&&btn>=0){if(!moved){remPressAnim(btn);remoteFx(btn);}else remRelease(btn);}
-  if(k==='hp')hpRest();
+  if(k==='hp'){
+    const p=grab.pointer;
+    if(moved&&p&&dog.ready&&dog.present&&!dog.leaving){
+      const a=wAnchor('hat');
+      if(dogHit(p.x,p.y)||(a&&Math.hypot(p.x-a.x,p.y-a.y)<115)){
+        if(!hpWear())hpRest();
+      }else hpRest();
+    }else hpRest();
+  }
   if(k==='plug'&&!moved&&hpState.s==='plugged')plugOut();   // the plug only comes out when it is actively clicked (dragging, pulling or a long cable never unplugs it)
   else if(k==='plug'&&hpState.s==='free'){const e=endB();if(Math.hypot(e.position.x/PXU-JACK.x,-e.position.y/PXU-JACK.y)<1.1)seekPlug();}
   grab.body=null;
@@ -1540,7 +1574,7 @@ function syncCable(dt){
   const h=hpState,r=h.rope,n=r.length,last=n-1,ns=last*3+1;
   const aimT=h.s==='plugged'?1:(h.s==='seek'?(()=>{const e=r[last],d=Math.hypot(e.position.x/PXU-JACK.x,-e.position.y/PXU-JACK.y);return _smooth(clamp((1.5-d)/1.3,0,1));})():0);
   h.aim+=(aimT-h.aim)*(1-Math.exp(-dt*9));
-  const zEnd=lerp(lerp(.52,FZ+PLUG_LEN+.3,h.aim),FZ+PLUG_LEN-.1,h.plugAmt),pz=hpRoot.position.z+PORT.z*h.scale;   // pz: depth of the boot on the (turned) cup, so the cable visibly comes out of it
+  const zEnd=lerp(lerp(.52,FZ+PLUG_LEN+.3,h.aim),FZ+PLUG_LEN-.1,h.plugAmt),pz=h.worn?hp.localToWorld(new T.Vector3(1.25,-.76,0)).z:hpRoot.position.z+PORT.z*h.scale;   // pz: depth of the boot on the (turned) cup, so the cable visibly comes out of it
   for(let i=0;i<n;i++){const b=r[i];cp[i].x=b.position.x/PXU;cp[i].y=-b.position.y/PXU;
     const base=lerp(.34,.52,i/last),w=_smooth(clamp((i-(n-8))/7,0,1));cp[i].z=lerp(pz,base+(zEnd-base)*w,_smooth(clamp(i/5,0,1)));}
   let m=0;
@@ -1570,8 +1604,8 @@ function physFrame(dt,time){
   /* headphones + cable */
   if(hpState.s!=='none'){const h=hpState,b=h.body,ca=Math.cos(b.angle),sa=Math.sin(b.angle);
     const ox=b.position.x+(h.org.x*ca-h.org.y*sa),oy=b.position.y+(h.org.x*sa+h.org.y*ca);
-    hpRoot.position.set(ox/PXU,-oy/PXU,.3);hpRoot.rotation.z=-b.angle;
-    placeBlob(blobHp,ox/PXU,.3,3.1*h.scale,1.0*h.scale,-oy/PXU-.58*h.scale-FLOOR_Y);
+    if(!h.worn){hpRoot.position.set(ox/PXU,-oy/PXU,.3);hpRoot.rotation.z=-b.angle;}
+    if(!h.worn)placeBlob(blobHp,ox/PXU,.3,3.1*h.scale,1.0*h.scale,-oy/PXU-.58*h.scale-FLOOR_Y);else blobHp.visible=false;
     syncCable(dt);}
   /* TV */
   if(tv.b&&tv.state==='on'&&tv.landed&&!(grab.kind==="tv")&&Math.abs(tv.b.angle)>.01&&Math.abs(tv.b.angle)<1.1)Body.setAngularVelocity(tv.b,tv.b.angularVelocity-tv.b.angle*.0025);   // a set that's been dropped settles upright
@@ -1936,6 +1970,7 @@ async function loadWardrobe(){
 }
 function wSave(){const o={};for(const s in W.worn)o[s]=W.worn[s].id;LS.set(W.KEY,o);W.recycleKey='';}
 function wRecycle(slot){
+  if(slot==='headphones'){hpUnwear();Au.click(1.2,.45);buzz(8);wRenderRecycle();return;}
   if(!W.worn[slot])return;
   wUnequip(slot);
   Au.click(1.2,.45);buzz(8);
@@ -1943,10 +1978,11 @@ function wRecycle(slot){
 }
 function wRenderRecycle(){
   const equipped=W.slots.filter(sl=>!!W.worn[sl.id]);
-  const key=equipped.map(sl=>sl.id+':'+W.worn[sl.id].id).join('|');
+  const key=equipped.map(sl=>sl.id+':'+W.worn[sl.id].id).join('|')+(hpState.worn?'|headphones':'');
   if(key===W.recycleKey)return;
   W.recycleKey=key;
   W.recycleItemsEl.replaceChildren();
+  if(hpState.worn){const btn=document.createElement('button');btn.type='button';btn.textContent='現有耳機　↩ 取下';btn.addEventListener('click',()=>wRecycle('headphones'));W.recycleItemsEl.appendChild(btn);}
   equipped.forEach(sl=>{
     const it=W.items[W.worn[sl.id].id];
     const btn=document.createElement('button');btn.type='button';
@@ -2057,7 +2093,7 @@ function wardFrame(dt,time){
   const want=can&&(W.hover||W.pin||!!W.drag)&&(!pd||W.pin)?1:0;
   W.vis+=(want-W.vis)*(1-Math.exp(-dt*(want>W.vis?7:5)));if(Math.abs(want-W.vis)<.003)W.vis=want;
   W.hintEl.classList.toggle('gone',!can||W.vis>.3);
-  W.recycleEl.hidden=!can||W.vis<.8||!Object.keys(W.worn).length;
+  W.recycleEl.hidden=!can||W.vis<.8||(!Object.keys(W.worn).length&&!hpState.worn);
   if(!W.recycleEl.hidden)wRenderRecycle();
   wLayout();
   const open=ease.io2(clamp(W.vis,0,1));
