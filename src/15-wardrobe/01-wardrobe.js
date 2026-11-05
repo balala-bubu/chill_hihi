@@ -2,7 +2,7 @@
    models/wardrobe/manifest.json (written by tools/build_wardrobe.py) lists the slots (which bone each kind of item hangs on, and where) and the items.
    While the dog is around, an open boutique display shelf slides in from the right edge; each slot has one shelf.
    Drag an item onto the dog to put it on, drag a worn item back to the cabinet to put it away. What the dog wears is remembered. */
-const W={ready:false,items:{},slots:[],slotById:{},byslot:{},worn:{},vis:0,hover:false,pin:false,drag:null,hot:null,restored:false,fly:[],sc:{},sd:null,glow:0,thumbs:{},PER:3,cell:1,ledZ:0,
+const W={ready:false,items:{},slots:[],slotById:{},byslot:{},worn:{},vis:0,hover:false,pin:false,drag:null,hot:null,restored:false,fly:[],sc:{},sd:null,glow:0,thumbs:{},PER:3,cell:1,ledZ:0,rowS:[0],rowH:[2],
   root:new T.Group(),inner:new T.Group(),shelfG:new T.Group(),Wc:3.2,Hc:6.2,tierH:2,key:'',KEY:'chill_hihi.wear',
   nd:new T.Vector2(),ray:new T.Raycaster(),v:new T.Vector3(),
   hintEl:$id('wardHint'),tipEl:$id('wardTip'),recycleEl:$id('wardRecycle'),recycleItemsEl:$id('wardRecycleItems'),recycleKey:''};
@@ -31,11 +31,12 @@ function wLabel(txt){   // engraved into the back panel: dark text with a light 
 if(document.fonts&&document.fonts.load)document.fonts.load('600 50px "JetBrains Mono"').then(()=>{W.key='';}).catch(()=>{});   // redraw the labels once the font is in
 function wClear(g){while(g.children.length){const c=g.children[g.children.length-1];g.remove(c);if(c.geometry)c.geometry.dispose();if(c.material&&c.material.userData.own){if(c.material.map)c.material.map.dispose();c.material.dispose();}}}
 const wSc=id=>W.sc[id]||(W.sc[id]={x:0,t:0,v:0,wl:false,wf:0,wt:0});   // scroll state of a shelf: position, target, velocity, wheel bookkeeping (in items; the left-most visible item)
-const wTierTop=i=>W.Hc/2-.15-W.tierH*i,wLedgeTop=i=>wTierTop(i+1)+.05;   // y (cabinet space) of the top of tier i, and of the top of the ledge it stands on
+const wTierTop=i=>W.Hc/2-.15-W.rowS[i],wLedgeTop=i=>wTierTop(i+1)+.05;   // y (cabinet space) of the top of tier i, and of the top of the ledge it stands on. rows can differ in height (slot.rowH, default 1): rowS = distance from the top of the opening to the top of each row
 function wTierAt(q){   // which shelf is under a point on the z=0 plane (-1 outside the cabinet's opening)
   const rx=W.root.position.x,ry=W.root.position.y,F=.15;
   if(q.x<rx-W.Wc/2+F||q.x>rx+W.Wc/2-F||q.y>ry+W.Hc/2-F||q.y<ry-W.Hc/2+F)return -1;
-  return clamp(Math.floor((W.Hc/2-F-(q.y-ry))/W.tierH),0,W.slots.length-1);
+  const d=W.Hc/2-F-(q.y-ry);for(let i=W.slots.length-1;i>0;i--)if(d>=W.rowS[i])return i;
+  return 0;
 }
 function wReveal(it){   // scroll the item's shelf so the item can be seen where it is about to come back to
   const list=W.byslot[it.slot]||[],i=list.indexOf(it);if(i<0||list.length<=W.PER)return;
@@ -48,7 +49,7 @@ function wLayout(){
     Hc0=clamp(yTop-yBot,4.1,7.0),key=Wc.toFixed(2)+'/'+Hc0.toFixed(2);
   if(key===W.key)return;
   const Hc=Hc0,D=.9,F=.15,n=W.slots.length,iw=Wc-2*F,ih=Hc-2*F,bz=-D/2+.14;
-  W.key=key;W.Wc=Wc;W.Hc=Hc;W.tierH=ih/n;W.yc=yTop-Hc/2;W.cell=(Wc-.5)/W.PER;
+  W.key=key;W.Wc=Wc;W.Hc=Hc;{const wt=W.slots.map(s=>s.rowH||1),u=ih/wt.reduce((a,b)=>a+b,0);W.rowH=wt.map(w=>w*u);W.rowS=[0];W.rowH.forEach(h=>W.rowS.push(W.rowS[W.rowS.length-1]+h));W.tierH=u;}W.yc=yTop-Hc/2;W.cell=(Wc-.5)/W.PER;
   wClear(W.inner);W.thumbs={};
   const I=W.inner,add=(g,m,x,y,z,ro)=>{const o=new T.Mesh(g,m);o.position.set(x,y,z);if(ro)o.renderOrder=ro;I.add(o);return o;};
   /* soft drop shadow on the wall behind: lifts the cabinet off the wall like the shelf's own shade */
@@ -65,8 +66,7 @@ function wLayout(){
   {const bw=256,bh=Math.round(bw*ih/iw),
      t=mkTex(bw,bh,(x,w,h)=>{
        const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,'#bcc0c5');g.addColorStop(1,'#a9adb3');x.fillStyle=g;x.fillRect(0,0,w,h);
-       const th=h/n;
-       for(let i=0;i<n;i++){const y0=i*th,gg=x.createLinearGradient(0,y0,0,y0+th*.38);gg.addColorStop(0,'rgba(48,54,64,.34)');gg.addColorStop(1,'rgba(48,54,64,0)');x.fillStyle=gg;x.fillRect(0,y0,w,th*.38);}
+       for(let i=0;i<n;i++){const y0=h*W.rowS[i]/ih,th=h*W.rowH[i]/ih,gg=x.createLinearGradient(0,y0,0,y0+th*.38);gg.addColorStop(0,'rgba(48,54,64,.34)');gg.addColorStop(1,'rgba(48,54,64,0)');x.fillStyle=gg;x.fillRect(0,y0,w,th*.38);}
        const sg=x.createLinearGradient(0,0,w,0);sg.addColorStop(0,'rgba(48,54,64,.28)');sg.addColorStop(.1,'rgba(48,54,64,0)');sg.addColorStop(.9,'rgba(48,54,64,0)');sg.addColorStop(1,'rgba(48,54,64,.28)');x.fillStyle=sg;x.fillRect(0,0,w,h);}),
      m=new T.MeshStandardMaterial({map:t,roughness:.95});m.userData.own=true;
    add(new T.PlaneGeometry(iw,ih),m,0,0,bz);}
@@ -209,8 +209,8 @@ function wScrollMove(e){
   setNDC(e);const q=planeHit(0);if(!q)return;
   const qx=q.x,qy=q.y;
   if(s.id){
-    const cy=W.root.position.y+wTierTop(s.si)-W.tierH/2;
-    if(qx<W.root.position.x-W.Wc/2+.2||Math.abs(qy-cy)>W.tierH*.62){W.sd=null;cvs.style.cursor='default';wStartDrag({id:s.id,src:'shelf'},e);return;}
+    const cy=W.root.position.y+wTierTop(s.si)-W.rowH[s.si]/2;
+    if(qx<W.root.position.x-W.Wc/2+.2||Math.abs(qy-cy)>W.rowH[s.si]*.62){W.sd=null;cvs.style.cursor='default';wStartDrag({id:s.id,src:'shelf'},e);return;}
   }
   s.scrolling=true;cvs.style.cursor='grabbing';
   const max=Math.max(0,(W.byslot[s.slot]||[]).length-W.PER);
@@ -227,6 +227,7 @@ cvs.addEventListener('pointerdown',e=>{
   if(!W.ready||e.button>0)return;
   const h=wPick(e.clientX,e.clientY);
   if(h&&W.vis<.5&&h.src!=='worn')return;   // with the cabinet closed only what the dog wears can be grabbed (the cabinet then slides in by itself)
+  if(h&&h.src==='shelf'&&toyIs(h.id)){e.stopImmediatePropagation();e.stopPropagation();toySelect(h.id);return;}   // the toy row: a tap picks the toy (or puts it back), nothing is dragged
   /* a press on a shelf that has more items than fit: dragging along the row scrolls it (the album shelf's own feel) */
   if(W.vis>.8&&shelfVis<.3&&(!h||h.src==='shelf')){
     setNDC(e);const q=planeHit(0),si=q?wTierAt(q):-1;
@@ -237,7 +238,7 @@ cvs.addEventListener('pointerdown',e=>{
         e.stopImmediatePropagation();e.stopPropagation();try{cvs.setPointerCapture(e.pointerId);}catch(_){}
         return;}}
   }
-  if(!h)return;
+  if(!h){if(toyPlace(e)){e.stopImmediatePropagation();e.stopPropagation();}return;}   // a toy is picked and this is empty space: use it here
   e.stopImmediatePropagation();e.stopPropagation();try{cvs.setPointerCapture(e.pointerId);}catch(_){}
   wStartDrag(h,e);
 },{capture:true});
@@ -257,7 +258,7 @@ cvs.addEventListener('pointercancel',e=>{
 cvs.addEventListener('pointermove',e=>{
   if(W.drag||W.sd||!W.ready||W.vis<.8||pd){if(!W.drag&&W.hot){W.hot=null;W.tipEl.classList.remove('on');}return;}
   const h=wPick(e.clientX,e.clientY);W.hot=h?h.id:null;
-  if(h){cvs.style.cursor='grab';W.tipEl.textContent=W.items[h.id].name;{const tw=W.tipEl.offsetWidth||90,tx=e.clientX+14+tw>innerWidth-8?e.clientX-14-tw:e.clientX+14;W.tipEl.style.transform='translate3d('+Math.round(tx)+'px,'+Math.round(e.clientY+16)+'px,0)';}W.tipEl.classList.add('on');}
+  if(h){cvs.style.cursor=toyIs(h.id)?'pointer':'grab';W.tipEl.textContent=W.items[h.id].name;{const tw=W.tipEl.offsetWidth||90,tx=e.clientX+14+tw>innerWidth-8?e.clientX-14-tw:e.clientX+14;W.tipEl.style.transform='translate3d('+Math.round(tx)+'px,'+Math.round(e.clientY+16)+'px,0)';}W.tipEl.classList.add('on');}
   else{W.tipEl.classList.remove('on');
     if(shelfVis<.3){setNDC(e);const q=planeHit(0),si=q?wTierAt(q):-1;if(si>=0&&(W.byslot[W.slots[si].id]||[]).length>W.PER)cvs.style.cursor='grab';}}
 });
@@ -317,9 +318,9 @@ function wardFrame(dt,time){
       const x=(i-sc.x-off)*cell,k=scrolls?clamp((Math.abs(x)-cell*1.05)/(cell*.5),0,1):0,e=1-k*k*(3-2*k);
       const h=it.holder,sh=it.sh,vis=e>.01&&!it.away;
       h.visible=vis;if(sh)sh.visible=vis;it.inWindow=e>.45&&!it.away;
-      it.hv+=((W.hot===it.id?1:0)-it.hv)*(1-Math.exp(-dt*12));if(it.pop<1)it.pop=Math.min(1,it.pop+dt/.35);
+      it.hv+=(((W.hot===it.id||TOY.sel===it.id)?1:0)-it.hv)*(1-Math.exp(-dt*12));if(it.pop<1)it.pop=Math.min(1,it.pop+dt/.35);
       const pop=it.pop<1?(1-Math.pow(1-it.pop,3))*(1+.25*Math.sin(it.pop*Math.PI)):1;
-      const r=(it.def.display&&it.def.display.rot)||sl.display.rot,size=Math.min(sl.display.size,cell*.85),
+      const r=(it.def.display&&it.def.display.rot)||sl.display.rot,size=Math.min(sl.display.size,cell*.85,W.rowH[si]-.35),
         yc=Math.max(ledTop+.2+size*.5,(ledTop+tierTop-.65)/2)+Math.sin(time*1.3+i*1.7)*.035;
       h.position.set(x,yc,.02);
       h.rotation.set(r[0],r[1]+Math.sin(time*.8+i*2.1)*(.3+.35*it.hv),r[2]);
@@ -402,6 +403,7 @@ function frame(){
   if(volT>0)volT-=dt;
   try{dogFrame(dt,time);}catch(e){if(!dog.err){dog.err=1;console.warn('dog',e);}}
   try{wardFrame(dt,time);}catch(e){if(!W.err){W.err=1;console.warn('wardrobe',e);}}
+  try{toyFrame(dt,time);}catch(e){if(!TOY.err){TOY.err=1;console.warn('toys',e);}}
   if(PET.on)petFrame(dt,time);
   if(!PET.mini){drawDisplay();syncKeys();updateFx(dt,time);}
   renderer.render(scene,cam);

@@ -38,6 +38,12 @@ check(slots == source.get("slots", []), "Generated manifest slots differ from sl
 
 for slot in slots:
     sid = str(slot.get("id"))
+    display = slot.get("display", {})
+    check(isinstance(display.get("size"), (int, float)) and display["size"] > 0,
+          f"{sid}: invalid display size")
+    vector(display.get("rot"), 3, f"{sid}: display.rot must have 3 finite numbers")
+    if slot.get("tool"):   # a tool row (e.g. the apple): picked on the shelf, never worn, so no bone / worn checks
+        continue
     check(bool(slot.get("bone")), f"{sid}: missing bone")
     worn = slot.get("worn", {})
     vector(worn.get("pos"), 3, f"{sid}: worn.pos must have 3 finite numbers")
@@ -46,10 +52,6 @@ for slot in slots:
           f"{sid}: worn.rot must have 3 or 4 finite numbers")
     check(isinstance(worn.get("scale"), (int, float)) and 0 < worn["scale"] < 1000,
           f"{sid}: invalid worn.scale")
-    display = slot.get("display", {})
-    check(isinstance(display.get("size"), (int, float)) and display["size"] > 0,
-          f"{sid}: invalid display size")
-    vector(display.get("rot"), 3, f"{sid}: display.rot must have 3 finite numbers")
 
 for item in items:
     iid = str(item.get("id"))
