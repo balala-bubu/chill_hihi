@@ -14,9 +14,9 @@ const YTA={p:null,ready:false,failed:false,waiters:[],plErr:0,plWatch:false,soun
   return {ids,title:vd?vd.title:'',author:vd?vd.author:''};
  },
  nTracks(){return this.cur.yt.ids.length||(this.call('getPlaylist')||[]).length;},   // a default list may be played before its track list has been read
- start(alb,index,t){
-  this.cur=alb;this.sound=false;this.finished=false;this.pausedAt=null;this.inf={i:0,n:alb.yt.ids.length,title:''};
-  this.whenReady(12000).then(()=>{this.call('mute');this.call('setVolume',this.vol);this.call('loadPlaylist',{listType:'playlist',list:alb.yt.list,index:index||0,startSeconds:t||0});})
+ start(alb,index,t,cue){
+  this.cur=alb;this.sound=false;this.finished=false;this.pausedAt=cue?(t||0):null;this.inf={i:0,n:alb.yt.ids.length,title:''};
+  this.whenReady(12000).then(()=>{this.call('mute');this.call('setVolume',this.vol);this.call(cue?'cuePlaylist':'loadPlaylist',{listType:'playlist',list:alb.yt.list,index:index||0,startSeconds:t||0});})
    .catch(e=>{window.__ytFail&&window.__ytFail(e.message);});
  },
  setVol(v){this.vol=v*10;if(this.sound){this.call('setVolume',this.vol);this.call(v>0?'unMute':'mute');}},

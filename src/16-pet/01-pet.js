@@ -141,7 +141,8 @@ function petSaveState(force){
 function petRestore(st){
   const ai=ALBUMS.findIndex(a=>a.yt&&a.yt.list===st.list);if(ai<0)return;
   cd=makeCD(ai);cd.mode='in';cdIn=true;lidOpen=false;state='home';
-  Au.ensure();Au.start(ALBUMS[ai],st.index||0,st.time||0);status='playing';
+  const live=st.playing&&Date.now()-st.t<90000;   // changing page: carry on playing. Reopened later (browser restart, closed the player): the CD is back in, paused where it stopped
+  Au.ensure();Au.start(ALBUMS[ai],st.index||0,st.time||0,!live);status=live?'playing':'paused';
 }
 
 /* ---------- commands from the desktop shell ---------- */
@@ -190,8 +191,8 @@ if(PET.on){
   }
   const hide=$id('petHide');if(hide)hide.addEventListener('click',()=>PET.bridge&&PET.bridge.hide());
   PET.cur=-1;
-  if(PET.ext&&PET.initState&&PET.initState.playing&&Date.now()-PET.initState.t<90000)petRestore(PET.initState);
+  if(PET.ext&&PET.initState&&PET.initState.list)petRestore(PET.initState);
   if(PET.ext)addEventListener('pagehide',()=>petSaveState(true));
-  if(new URLSearchParams(location.search).get('dog')==='1'||PET.wantDog)dogToggle();   // the dog is optional: the desktop shell passes dog=1, the extension sends its setting
-  window.__pet={PET,pose:DOG_PERCH,handle:petHandle,playAlbum:petPlayAlbum,toggle:petToggle,next:petNext,vol:petVol};
+  if(new URLSearchParams(location.search).get('dog')==='1'||(PET.wantDog&&!PET.ext))dogToggle();   // the dog is optional: the desktop shell passes dog=1, the extension sends its setting
+  window.__pet={PET,pose:DOG_PERCH,handle:petHandle,playAlbum:petPlayAlbum,toggle:petToggle,next:petNext,vol:petVol,get now(){return {cdIn,status,cd:cd&&cd.mode,spin:cd&&cd.spin,dog:!!dog.present};}};
 }
