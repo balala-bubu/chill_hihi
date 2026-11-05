@@ -445,7 +445,7 @@ function buildAlbum(d,i){
   const cedge=new T.MeshStandardMaterial({color:new T.Color(d.c[0]),roughness:.5});   // cover edge takes the artwork's colour so the cover reads as one sheet
   const cover=new T.Mesh(new T.BoxGeometry(1.5,1.5,COV_T),[cedge,cedge,cedge,cedge,cm,new T.MeshStandardMaterial({color:0xcfd2d5,roughness:.7})]);
   cover.position.x=.75;cover.castShadow=true;cover.userData.album=i;piv.add(cover);
-  albums.push({g,d,piv,k:0,open:0,sel:false,mag:0,dock:false,born:1,meshes:[bodyM,cover]});albumMeshes.push(bodyM,cover);
+  albums.push({g,d,piv,k:0,open:0,sel:false,mag:0,dock:false,born:1,hv:0,tx:0,ty:0,meshes:[bodyM,cover]});albumMeshes.push(bodyM,cover);
 }
 ALBUMS.forEach((d,i)=>buildAlbum(d,i));
 
@@ -665,7 +665,6 @@ const rig={x:0,y:0,d:18.3,tx:0,ty:0,td:18.3,px:0,py:0,ptx:0,pty:0};
 let state='home',sel=-1,cd=null,cdIn=false,cdAlbum=-1,lidOpen=false,busy=false,camLock=false,zoomed=false,status='empty',volT=0,hpScale=1;
 let sx=3,sxTarget=3,sxVel=0,shelfDrag=false;
 let hoverKey=-1,hintT=0,wasArmed=false,bayKick=0;
-const SHELF_GAIN=.9;                                  // shelf follows the pointer at this fraction of its speed (1 = glued to the finger; .5 felt dead)
 let shelfVis=0,shelfOff=0,topHover=false,shelfPin=false;   // shelf is hidden by default; slides down when the pointer visits the top edge
 const _tv=new T.Vector3(),toolsEl=document.getElementById('tools'),popEl=document.getElementById('pop');
 let toolsOver=false;
@@ -683,6 +682,26 @@ function shelfWant(){
 }
 const SEL={x:0,y:.5,z:5,s:1.8};
 const V3=T.Vector3;
+
+/* ---------- shelf feel ----------
+   Slot space: slot i sits at slotX(i-sx) on the shelf (the centred album gets a little extra room), slotD is its inverse.
+   Dragging works in slot space: whatever album is under the pointer when you press stays under the pointer (no dead zone, no gain),
+   the pointer->shelf mapping runs once per frame (not once per mouse event, so event timing can't make it stutter) and is eased very lightly.
+   Letting go keeps the velocity; a critically damped spring settles the shelf into a slot, so a flick glides instead of snapping.
+   Hover is also computed in slot space (not from a ray hit on an album), so an album lifting toward the pointer can't flicker its own hover at its edges. */
+const SLOT_W=1.42,SLOT_X=.22,SLOT_T=SLOT_W+SLOT_X;
+const slotX=d=>{const a=Math.abs(d);return d*SLOT_W+Math.sign(d)*Math.min(a,1)*SLOT_X;};
+const slotD=x=>{const a=Math.abs(x);return a<=SLOT_T?x/SLOT_T:Math.sign(x)*(a-SLOT_X)/SLOT_W;};
+const SH={spring:13,follow:38,flickMax:14,flickLead:.2,wheelPx:110,wheelIdle:140,    // spring stiffness, drag smoothing rate, max release speed (slots/s), how far ahead a flick aims (s), wheel px per album, ms of quiet before the wheel settles
+  hvLift:.12,hvForward:.5,hvScale:.07,hvTurn:.5,hvTilt:.2,hvTiltX:.15,hvPush:.3,hvSigma:.8};   // hover: lift, forward, scale, how much the turned album faces the camera, tilt toward the pointer (about Y / about X), push on neighbours, push reach
+const shPtr={x:0,y:0,ok:false};                       // last mouse position over the canvas (touch has no hover)
+const shHov={u:0,w:0,wx:0,wy:0};                      // slot coordinate under the pointer (eased), how strongly the pointer is "on" the shelf (0..1), pointer on the shelf plane
+let wheelT=0,wheelLive=false,wheelFrom=0;
+const sRay=new T.Raycaster(),sNdc=new T.Vector2(),sPlane=new T.Plane(new V3(0,0,1),0),sHit=new V3();
+function shelfWorld(cx,cy){   // screen -> point on the shelf plane (z=0). own raycaster, so the shared pointer ray used by picking is never disturbed
+  sNdc.set(cx/innerWidth*2-1,-(cy/innerHeight)*2+1);sRay.setFromCamera(sNdc,cam);return sRay.ray.intersectPlane(sPlane,sHit)?sHit:null;}
+const hoverBell=dd=>{const h=clamp(1-Math.abs(dd)/.9,0,1);return h*h*(3-2*h);};   // 1 under the pointer, fading to 0 one slot away
+const hoverPush=i=>{const dd=i-shHov.u;return shHov.w*dd*Math.exp(-dd*dd/(2*SH.hvSigma*SH.hvSigma))*SH.hvPush;};   // neighbours make room: pushed away from the pointer, nothing right under it
 var physOn=false;
 function layout(){
   const a=innerWidth/innerHeight;L.d=baseD();L.half=L.d*TANH;L.hw=L.half*a;
@@ -789,12 +808,48 @@ function collide(c,vel,bounce){
 function cdLevel(c){let z=.58;if(overBody(c.pos))z=HOVER;if(c.pos.y>L.shelfB-CDR-.35&&shelfVis>.2)z=Math.max(z,1.0);return z;}
 
 /* ---------- albums on the shelf ---------- */
+/* one step of shelf motion per frame: drag follow / spring + wheel settle, then the pointer's hover on the shelf */
+function shelfStep(dt){
+  if(shelfDrag&&pd&&pd.kind==='shelf'){
+    const w=shelfWorld(pd.cx,pd.cy);
+    if(w){
+      let t=pd.u0-slotD(w.x);                                   // the slot coordinate grabbed at pointerdown stays under the pointer
+      if(t<0)t*=.35;else if(t>N-1)t=N-1+(t-(N-1))*.35;          // past either end it gives, like a rubber band
+      t=clamp(t,-.9,N-.1);
+      const p0=sx;sx+=(t-sx)*(1-Math.exp(-dt*SH.follow));       // ~25ms of easing: filters event-timing jitter and still feels glued
+      sxVel=lerp(sxVel,(sx-p0)/Math.max(dt,.001),1-Math.exp(-dt*25));
+    }
+  }else{
+    if(wheelLive&&performance.now()-wheelT>SH.wheelIdle){      // the wheel has been quiet: settle on an album (a tiny scroll still moves one)
+      const mv=sxTarget-wheelFrom;let s=Math.round(sxTarget);
+      if(s===Math.round(wheelFrom)&&Math.abs(mv)>.12)s+=Math.sign(mv);
+      sxTarget=clamp(s,0,N-1);wheelLive=false;}
+    const w=SH.spring,d=sx-sxTarget,e=Math.exp(-w*dt),c=sxVel+w*d;   // critically damped spring, keeps the velocity the drag left behind
+    sx=sxTarget+(d+c*dt)*e;sxVel=(sxVel-w*c*dt)*e;
+    if(Math.abs(sx-sxTarget)<.0005&&Math.abs(sxVel)<.01){sx=sxTarget;sxVel=0;}
+    sx=clamp(sx,-.9,N-.1);
+  }
+  /* hover: where the pointer is along the shelf, in slot space */
+  let want=0,uRaw=shHov.u;
+  if(shPtr.ok&&(state==='home'||state==='stage')&&shelfVis>.6&&(!pd||pd.kind==='shelf')&&!(cd&&cd.mode==='drag')&&!toolsHold()){
+    const w=shelfWorld(shPtr.x,shPtr.y);
+    if(w){shHov.wx=w.x;shHov.wy=w.y;uRaw=sx+slotD(w.x);
+      if(w.y>L.shelfB-.1&&w.y<L.shelfB+2.1)want=shelfDrag?.55:1;}}   // only while the pointer is in the band the albums stand in
+  shHov.w+=(want-shHov.w)*(1-Math.exp(-dt*(want>shHov.w?10:7)));if(shHov.w<.002&&!want)shHov.w=0;
+  if(shHov.w<.03)shHov.u=uRaw;else shHov.u+=(uRaw-shHov.u)*(1-Math.exp(-dt*18));   // no sweep from a stale spot when the pointer arrives
+  const kt=1-Math.exp(-dt*12);
+  albums.forEach((a,i)=>{
+    a.hv=shHov.w>0?hoverBell(i-shHov.u)*shHov.w:0;
+    /* tilt toward the pointer: normalised pointer offset from the album's centre, eased */
+    const nx=a.hv>.01?clamp((shHov.wx-a.g.position.x)/.8,-1,1):0,ny=a.hv>.01?clamp((shHov.wy-a.g.position.y)/.8,-1,1):0;
+    a.tx+=(nx-a.tx)*kt;a.ty+=(ny-a.ty)*kt;});
+}
 function placeAlbums(time){
   albums.forEach((a,i)=>{
-    const d=i-sx,ad=Math.abs(d),f=clamp(1-ad,0,1),k=a.k;
-    const x0=d*1.42+Math.sign(d)*Math.min(ad,1)*.22,s0=1+.16*f,y0=L.shelfB+.75*s0+shelfOff,z0=.3*f,r0=1.05-.14*f;
+    const d=i-sx,ad=Math.abs(d),f=clamp(1-ad,0,1),k=a.k,hv=a.hv*(1-k);
+    const x0=slotX(d)+hoverPush(i)*(1-k),s0=(1+.16*f)*(1+SH.hvScale*hv),y0=L.shelfB+.75*s0+shelfOff+SH.hvLift*hv,z0=.3*f+SH.hvForward*hv,r0=(1.05-.14*f)*(1-SH.hvTurn*hv);
     a.g.position.set(lerp(x0,SEL.x,k),lerp(y0,SEL.y+Math.sin(time*1.3)*.05*k,k),lerp(z0,SEL.z,k)+Math.sin(k*Math.PI)*1.6);
-    a.g.scale.setScalar(lerp(s0,SEL.s,k)*Math.max(.001,a.born));a.g.rotation.y=lerp(r0,0,k);a.g.rotation.z=Math.sin(k*Math.PI)*-.08;
+    a.g.scale.setScalar(lerp(s0,SEL.s,k)*Math.max(.001,a.born));a.g.rotation.y=lerp(r0,0,k)+a.tx*SH.hvTilt*hv;a.g.rotation.x=-a.ty*SH.hvTiltX*hv;a.g.rotation.z=Math.sin(k*Math.PI)*-.08;
     a.piv.rotation.y=-2.5*a.open;
     const m=a.mag;
     if(m>.001&&cd&&cd.ai===i){const e=ease.io3(m),P=a.g.position;P.x=lerp(P.x,cd.pos.x,e);P.y=lerp(P.y,cd.pos.y,e);P.z=lerp(P.z,.8,e);
@@ -996,34 +1051,33 @@ cvs.addEventListener('pointerdown',e=>{
   else if(o&&o.userData.album!==undefined){
     pd.album=o.userData.album;
     if(state==='album'&&pd.album===sel)pd.kind='selTap';
-    else if((state==='home'||state==='stage')&&shelfVis>.6){pd.kind='shelf';sxVel=0;shelfDrag=false;pd.lt=0;}
+    else if((state==='home'||state==='stage')&&shelfVis>.6)shelfGrab(e);
     else pd.kind='bg';
   }
   else if(o&&isPlayerObj(o)&&!onShelf()){pd.kind='player';const g0=planeHit(FZ);if(g0){pd.h0=g0.clone();pd.ux0=pDrag.tx;pd.uy0=pDrag.ty;}}
-  else{const g=planeHit(0);if(g&&g.y>L.shelfB-.2&&shelfVis>.6&&(state==='home'||state==='stage')){pd.kind='shelf';sxVel=0;shelfDrag=false;pd.lt=0;}}
+  else{const g=planeHit(0);if(g&&g.y>L.shelfB-.2&&shelfVis>.6&&(state==='home'||state==='stage'))shelfGrab(e);}
 });
+/* pressing the shelf: remember which slot coordinate is under the pointer and stop any glide, so a tap catches a moving shelf */
+function shelfGrab(e){
+  const w=shelfWorld(e.clientX,e.clientY);
+  pd.kind='shelf';pd.cx=e.clientX;pd.cy=e.clientY;pd.u0=w?sx+slotD(w.x):sx;
+  sxVel=0;sxTarget=clamp(Math.round(sx),0,N-1);wheelLive=false;shelfDrag=false;}
 /* The shelf stays tucked away until the pointer visits the top edge of the screen (with hysteresis so it doesn't flicker). */
 function trackTop(e){if(e.pointerType==='touch')return;const f=e.clientY/innerHeight;if(f<.13)topHover=true;else if(f>.3)topHover=false;}
-cvs.addEventListener('pointerleave',()=>{hoverKey=-1;if(!pd)topHover=false;});
+cvs.addEventListener('pointerleave',()=>{hoverKey=-1;shPtr.ok=false;if(!pd)topHover=false;});
 cvs.addEventListener('pointermove',e=>{
   setNDC(e);rig.ptx=ndc.x;rig.pty=ndc.y;trackTop(e);
+  shPtr.x=e.clientX;shPtr.y=e.clientY;shPtr.ok=e.pointerType!=='touch';   // the shelf reads these once per frame (shelfStep)
+  if(pd&&pd.kind==='shelf'){pd.cx=e.clientX;pd.cy=e.clientY;}
   if(!pd){
     const h=pick(),o=h&&h.object;let cur='default';hoverKey=-1;
     if(o&&o.userData.phys)cur=o.userData.rbtn!==undefined?'pointer':'grab';else if(o&&!busy){if(o.userData.cd)cur='grab';else if(o.userData.key!==undefined){cur='pointer';hoverKey=o.userData.key;}else if(o.userData.album!==undefined)cur=(state==='home'||state==='album'?'pointer':'default');else if(isPlayerObj(o))cur='grab';}
     cvs.style.cursor=cur;return;
   }
-  if(Math.hypot(e.clientX-pd.x,e.clientY-pd.y)>(pd.kind==='shelf'?8:pd.kind==='phys'?8:6))pd.moved=true;
+  if(Math.hypot(e.clientX-pd.x,e.clientY-pd.y)>(pd.kind==='shelf'?(e.pointerType==='touch'?8:4):pd.kind==='phys'?8:6))pd.moved=true;
   if(pd.kind==='phys'){moveGrab(e);return;}
-  /* shelf scrolling feel: 12px dead zone, drag moves the albums at about half pointer speed, flick adds at most one slot */
-  if(pd.kind==='shelf'&&pd.moved){
-    if(!shelfDrag){shelfDrag=true;pd.lx=e.clientX;pd.lt=performance.now();pd.sx0=sx;}
-    else{
-      const now=performance.now(),dtm=Math.max(8,now-pd.lt);pd.lt=now;
-      const pxU=innerHeight/(2*L.d*TANH);let dsx=-(e.clientX-pd.lx)/(pxU*1.42)*SHELF_GAIN;
-      if((sx<0&&dsx<0)||(sx>N-1&&dsx>0))dsx*=.3;                  // past either end the shelf pulls back like a rubber band instead of hitting a wall
-      sx=clamp(sx+dsx,-.7,N-.3);sxVel=lerp(sxVel,dsx/(dtm/1000),.3);
-    }
-  }
+  /* shelf drag: just start it. the albums are moved in shelfStep, once per frame, from the latest pointer position */
+  if(pd.kind==='shelf'&&pd.moved&&!shelfDrag){shelfDrag=true;cvs.style.cursor='grabbing';}
   pd.lx=e.clientX;
   /* drag the player around: pure translation (no tilt, no flip). The click that opens the lid only fires when the pointer didn't move. */
   if(pd.kind==='player'&&pd.moved&&pd.h0&&!busy&&(state==='home'||state==='stage')){
@@ -1043,10 +1097,9 @@ function up(){
   else if(p.kind==='shelf'){
     if(!p.moved&&p.album>=0)selectAlbum(p.album);
     else if(shelfDrag){
-      /* where to settle: the nearest slot, nudged by a real flick, but one swipe never lands more than one slot beyond what the finger itself covered */
-      const v=performance.now()-p.lt>90?0:sxVel,flick=Math.abs(v)>1.2?clamp(v*.12,-.8,.8):0;
-      const s0=Math.round(p.sx0),lim=Math.max(1,Math.ceil(Math.abs(sx-p.sx0)-.25));
-      sxTarget=clamp(clamp(Math.round(sx+flick),s0-lim,s0+lim),0,N-1);}
+      /* let go: the spring keeps the speed the drag had and settles on the slot a flick would reach (sxVel has already decayed to ~0 if the pointer rested before release) */
+      sxVel=clamp(sxVel,-SH.flickMax,SH.flickMax);
+      sxTarget=clamp(Math.round(sx+clamp(sxVel*SH.flickLead,-1.6,1.6)),0,N-1);}
     shelfDrag=false;
   }
   else if(p.kind==='selTap'&&!p.moved)openAlbum();
@@ -1056,12 +1109,12 @@ function up(){
   cvs.style.cursor='default';
 }
 cvs.addEventListener('pointerup',up);cvs.addEventListener('pointercancel',up);
-/* wheel / trackpad: collect scroll distance, then step ONE album per ~70px of travel with a cooldown, so trackpad inertia can't spin the shelf */
-let wheelAcc=0,wheelT=0,wheelMove=0;
+/* wheel / trackpad: continuous. the target follows every tick (about SH.wheelPx of travel = one album, the spring eases toward it), and once the wheel has been
+   quiet for a moment shelfStep settles it on an album. trackpad inertia scrolls smoothly and ends on a slot instead of spinning past it or stepping in jerks */
 cvs.addEventListener('wheel',e=>{if(state!=='home'&&state!=='stage')return;e.preventDefault();if(shelfVis<.6)return;
-  const d0=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY,d=e.deltaMode===1?d0*16:d0,now=performance.now();
-  if(now-wheelT>200)wheelAcc=0;wheelT=now;wheelAcc+=d;
-  if(Math.abs(wheelAcc)>=70&&now-wheelMove>320){sxTarget=clamp(Math.round(sxTarget+Math.sign(wheelAcc)),0,N-1);wheelAcc=0;wheelMove=now;}
+  const d0=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY,d=e.deltaMode===1?d0*16:e.deltaMode===2?d0*innerHeight:d0;
+  if(!wheelLive){wheelLive=true;wheelFrom=sxTarget;}
+  sxTarget=clamp(sxTarget+d/SH.wheelPx,-.35,N-.65);wheelT=performance.now();
 },{passive:false});
 
 
@@ -2297,17 +2350,18 @@ function frame(){
   cam.position.set(rig.x+rig.px*.35,rig.y+rig.py*.22+rig.d*TILT_UP,rig.d);
   if(camShake>.003){cam.position.x+=(Math.random()-.5)*camShake*.3;cam.position.y+=(Math.random()-.5)*camShake*.3;camShake*=Math.exp(-dt*5);}
   cam.lookAt(rig.x,rig.y-rig.d*TILT_DN,0);cam.updateMatrixWorld();
-  if(!shelfDrag)sx+=(sxTarget-sx)*(1-Math.exp(-dt*8));
+  shelfStep(dt);
   {const w=shelfWant();shelfVis+=(w-shelfVis)*(1-Math.exp(-dt*(w>shelfVis?7:4.5)));if(Math.abs(w-shelfVis)<.003)shelfVis=w;
    shelfOff=(1-ease.io2(clamp(shelfVis,0,1)))*(L.top-L.shelfB+1.4);
    shelf.position.y=L.shelfB-.07+shelfOff;shelfBack.position.y=L.shelfB-.07+BACK_H/2+shelfOff;shelfShade.position.y=L.shelfB-.14-SHADE_H/2+shelfOff;shelf.visible=shelfBack.visible=shelfShade.visible=shelfVis>.002;
    shelfHint.classList.toggle('gone',shelfVis>.3);
    /* the ⋯ button is one more slot after the last album, standing on the shelf: project that slot (same spacing formula as placeAlbums) to the screen.
       if the slot has scrolled off the right edge it parks at the edge, so it can always be reached */
-   {const d=albums.length-sx,ad=Math.abs(d),f=clamp(1-ad,0,1),s0=1+.16*f,x0=d*1.42+Math.sign(d)*Math.min(ad,1)*.22;
+   {const d=albums.length-sx,ad=Math.abs(d),f=clamp(1-ad,0,1),s0=1+.16*f,x0=slotX(d)+hoverPush(albums.length);
     const v=_tv.set(x0,L.shelfB+.75*s0+shelfOff,0).project(cam);
     const cx=clamp((v.x+1)/2*innerWidth,39,innerWidth-39),cy=(1-v.y)/2*innerHeight;
-    toolsEl.style.transform='translate3d('+Math.round(cx-23)+'px,'+Math.round(cy-23)+'px,0)';
+    const dpr=Math.min(window.devicePixelRatio||1,2),q=n=>Math.round(n*dpr)/dpr;   // snap to device pixels, not whole CSS pixels: half the stepping on retina, still crisp at rest
+    toolsEl.style.transform='translate3d('+q(cx-23)+'px,'+q(cy-23)+'px,0)';
     toolsEl.classList.toggle('flip',cx+23+190>innerWidth);
     const u=_tv.set(0,L.shelfB-.14+shelfOff,-.5).project(cam);   // under the plank (its lowest visible line)
     popEl.style.transform='translate3d(0,'+Math.round((1-u.y)/2*innerHeight+16)+'px,0)';
