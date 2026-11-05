@@ -1917,8 +1917,9 @@ function wEndDrag(){
   else W.fly.push({gh:d.gh,it:d.it,t:0,from:d.gh.position.clone(),s0:d.gh.scale.x});
 }
 cvs.addEventListener('pointerdown',e=>{
-  if(!W.ready||W.vis<.5||e.button>0)return;
+  if(!W.ready||e.button>0)return;
   const h=wPick(e.clientX,e.clientY);if(!h)return;
+  if(W.vis<.5&&h.src!=='worn')return;   // with the cabinet closed only what the dog wears can be grabbed (the cabinet then slides in by itself)
   e.stopImmediatePropagation();try{cvs.setPointerCapture(e.pointerId);}catch(_){}
   wStartDrag(h,e);
 },{capture:true});
