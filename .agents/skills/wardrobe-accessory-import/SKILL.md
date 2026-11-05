@@ -37,3 +37,12 @@ Avoid reading all of `index.html`, all meshes, texture bytes, or the entire dog 
 - No broken models, missing textures, duplicate ids, or invalid slot references.
 - Accessory can be selected using arrows and dragged to the dog, removed independently, and equipped state persists after reload.
 - Browser visuals are checked from multiple directions and dog poses, or explicitly marked **not visually verified**.
+
+## Screenshot-based sizing correction (2026-11-05)
+- User verified the cyan **collar is correctly fitted**; preserve collar configuration exactly when fixing glasses.
+- User explicitly corrected a mistaken diagnosis: **the 3D glasses are too small overall**, NOT too large. Do not reduce `glass_c` scale for this case.
+- Current trial fit for `glass_c`: `fit.scale = 1.3`, `fit.pos = [0, 0.2, 0.65]`. This is pending in-browser visual validation.
+- Evaluate width/height (lens coverage over each eye) separately from depth (avoid intersections with eyes and nose); do not assume scaling alone prevents clipping.
+- Update BOTH source `models/wardrobe/src/glass_c/item.json` and generated runtime `models/wardrobe/manifest.json` (regenerate using `tools/build_wardrobe.py` if available); the site loads only the manifest. Compare the effective fit fields before declaring the change visible.
+- For every new accessory, first assess actual screenshot fit and state whether the problem is **too small**, **too large**, **position**, or **rotation**, then adjust per-item `fit` before modifying shared slot defaults.
+- Preserve unrelated components and user changes: branch from latest main, no force push, inspect file-only diff before requesting merge. A passing static check does not replace visual proof.

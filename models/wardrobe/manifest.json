@@ -94,7 +94,15 @@
       "slot": "glasses",
       "name": "眼鏡 C",
       "mesh": "items/glass_c.json",
-      "tex": "items/glass_c.png"
+      "tex": "items/glass_c.png",
+      "fit": {
+        "scale": 1.3,
+        "pos": [
+          0,
+          0.2,
+          0.65
+        ]
+      }
     },
     {
       "id": "coller_d",
