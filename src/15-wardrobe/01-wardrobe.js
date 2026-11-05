@@ -2,27 +2,44 @@
    models/wardrobe/manifest.json (written by tools/build_wardrobe.py) lists the slots (which bone each kind of item hangs on, and where) and the items.
    While the dog is around, an open boutique display shelf slides in from the right edge; each slot has one shelf.
    Drag an item onto the dog to put it on, drag a worn item back to the cabinet to put it away. What the dog wears is remembered. */
-const W={ready:false,items:{},slots:[],slotById:{},byslot:{},worn:{},vis:0,hover:false,pin:false,drag:null,hot:null,doorA:0,restored:false,fly:[],page:{},
-  root:new T.Group(),inner:new T.Group(),door:new T.Group(),shelfG:new T.Group(),Wc:3.2,Hc:6.2,tierH:2,key:'',KEY:'chill_hihi.wear',
+const W={ready:false,items:{},slots:[],slotById:{},byslot:{},worn:{},vis:0,hover:false,pin:false,drag:null,hot:null,restored:false,fly:[],sc:{},sd:null,glow:0,thumbs:{},PER:3,cell:1,ledZ:0,
+  root:new T.Group(),inner:new T.Group(),shelfG:new T.Group(),Wc:3.2,Hc:6.2,tierH:2,key:'',KEY:'chill_hihi.wear',
   nd:new T.Vector2(),ray:new T.Raycaster(),v:new T.Vector3(),
-  hintEl:$id('wardHint'),tipEl:$id('wardTip'),pagesEl:$id('wardPages'),nav:{},recycleEl:$id('wardRecycle'),recycleItemsEl:$id('wardRecycleItems'),recycleKey:''};
-W.root.visible=false;W.root.add(W.inner,W.door,W.shelfG);scene.add(W.root);
+  hintEl:$id('wardHint'),tipEl:$id('wardTip'),recycleEl:$id('wardRecycle'),recycleItemsEl:$id('wardRecycleItems'),recycleKey:''};
+W.root.visible=false;W.root.add(W.inner,W.shelfG);scene.add(W.root);
+/* the cabinet speaks the album shelf's language: same plank material, same soft gradient shadows, rounded frame. orange appears only once (the rim, see wardFrame) */
 const wMat={
   body:new T.MeshPhysicalMaterial({color:0xe4e6e8,roughness:.6,clearcoat:.25,clearcoatRoughness:.5,envMapIntensity:.6}),
-  back:new T.MeshStandardMaterial({color:0xd8dbdf,roughness:.82}),
-  trim:new T.MeshStandardMaterial({color:0xabb1b8,metalness:.7,roughness:.28}),
-  accent:new T.MeshStandardMaterial({color:0xe9ab76,metalness:.48,roughness:.32}),
-  mirror:new T.MeshStandardMaterial({color:0xf2f4f6,metalness:1,roughness:.05,envMapIntensity:1.5}),
-  glint:new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.13,depthWrite:false,toneMapped:false}),
-  metal:new T.MeshStandardMaterial({color:0x9ea3a8,metalness:.9,roughness:.3,envMapIntensity:1})};
+  ledge:new T.MeshPhysicalMaterial({color:0xeceef0,roughness:.5,clearcoat:.4,clearcoatRoughness:.35,envMapIntensity:.8}),
+  track:new T.MeshBasicMaterial({color:0x8b9198,transparent:true,opacity:.28,depthWrite:false,toneMapped:false}),
+  thumb:new T.MeshBasicMaterial({color:0x5b6168,transparent:true,opacity:.7,depthWrite:false,toneMapped:false}),
+  rim:new T.MeshBasicMaterial({color:0xee5a2c,transparent:true,opacity:0,depthWrite:false,toneMapped:false}),
+  soft:new T.MeshBasicMaterial({map:mkTex(64,64,(x,w,h)=>{const g=x.createRadialGradient(w/2,h/2,0,w/2,h/2,w/2);g.addColorStop(0,'rgba(58,64,74,.5)');g.addColorStop(.5,'rgba(58,64,74,.2)');g.addColorStop(1,'rgba(58,64,74,0)');x.fillStyle=g;x.fillRect(0,0,w,h);}),transparent:true,depthWrite:false,toneMapped:false})};   // contact shadow under each item
+const wSoftGeo=new T.PlaneGeometry(1,1);wSoftGeo.rotateX(-Math.PI/2);
 const wBox=(w,h,d,x,y,z,m,par)=>{const o=new T.Mesh(new T.BoxGeometry(w,h,d),m);o.position.set(x,y,z);par.add(o);return o;};
 const wSetRot=(o,r)=>{if(!r)return;if(r.length===4)o.quaternion.fromArray(r);else o.rotation.set(r[0],r[1],r[2]);};
 const wBone=n=>(dog.bones[n]&&dog.bones[n].o)||dog.g.getObjectByName(n);
-function wLabel(txt){
-  const c=document.createElement('canvas');c.width=192;c.height=56;const x=c.getContext('2d');
-  x.font='700 40px "JetBrains Mono",ui-monospace,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';x.fillStyle='#8a9097';x.textBaseline='middle';x.fillText(txt,8,30);
-  const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;
-  return new T.Mesh(new T.PlaneGeometry(1.2,.35),new T.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,toneMapped:false}));
+function wLabel(txt){   // engraved into the back panel: dark text with a light edge just below it, drawn large so it stays sharp
+  const t=mkTex(512,128,(x,w,h)=>{
+    x.font='600 50px "JetBrains Mono",ui-monospace,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';x.textBaseline='middle';
+    if('letterSpacing' in x)x.letterSpacing='5px';
+    x.fillStyle='rgba(255,255,255,.65)';x.fillText(txt,10,h/2+3);
+    x.fillStyle='rgba(66,72,82,.5)';x.fillText(txt,10,h/2);});
+  const m=new T.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,toneMapped:false});m.userData.own=true;
+  return new T.Mesh(new T.PlaneGeometry(1.6,.4),m);
+}
+if(document.fonts&&document.fonts.load)document.fonts.load('600 50px "JetBrains Mono"').then(()=>{W.key='';}).catch(()=>{});   // redraw the labels once the font is in
+function wClear(g){while(g.children.length){const c=g.children[g.children.length-1];g.remove(c);if(c.geometry)c.geometry.dispose();if(c.material&&c.material.userData.own){if(c.material.map)c.material.map.dispose();c.material.dispose();}}}
+const wSc=id=>W.sc[id]||(W.sc[id]={x:0,t:0,v:0,wl:false,wf:0,wt:0});   // scroll state of a shelf: position, target, velocity, wheel bookkeeping (in items; the left-most visible item)
+const wTierTop=i=>W.Hc/2-.15-W.tierH*i,wLedgeTop=i=>wTierTop(i+1)+.05;   // y (cabinet space) of the top of tier i, and of the top of the ledge it stands on
+function wTierAt(q){   // which shelf is under a point on the z=0 plane (-1 outside the cabinet's opening)
+  const rx=W.root.position.x,ry=W.root.position.y,F=.15;
+  if(q.x<rx-W.Wc/2+F||q.x>rx+W.Wc/2-F||q.y>ry+W.Hc/2-F||q.y<ry-W.Hc/2+F)return -1;
+  return clamp(Math.floor((W.Hc/2-F-(q.y-ry))/W.tierH),0,W.slots.length-1);
+}
+function wReveal(it){   // scroll the item's shelf so the item can be seen where it is about to come back to
+  const list=W.byslot[it.slot]||[],i=list.indexOf(it);if(i<0||list.length<=W.PER)return;
+  const sc=wSc(it.slot);if(i<sc.t-.01||i>sc.t+W.PER-1+.01)sc.t=clamp(i-1,0,list.length-W.PER);
 }
 /* the cabinet is rebuilt only when the screen size changes its dimensions */
 function wLayout(){
@@ -30,22 +47,45 @@ function wLayout(){
   const Wc=clamp(L.hw*.42,2.7,3.7),tn=TILT_UP+TILT_DN,yTop=L.d*(TILT_UP+(TANH-tn)/(1+tn*TANH))-.35,yBot=FLOOR_Y+1.8,
     Hc0=clamp(yTop-yBot,4.1,7.0),key=Wc.toFixed(2)+'/'+Hc0.toFixed(2);
   if(key===W.key)return;
-  W.key=key;W.Wc=Wc;const Hc=W.Hc=Hc0,D=.9,tH=W.tierH=(Hc-.28)/W.slots.length;W.yc=yTop-Hc/2;
-  [W.inner,W.door].forEach(g=>{while(g.children.length){const c=g.children.pop();if(c.geometry)c.geometry.dispose();}});
-  const I=W.inner;
-  wBox(Wc,Hc,.1,0,0,-D/2+.05,wMat.back,I);
-  wBox(.14,Hc,D,-(Wc/2-.07),0,0,wMat.body,I);wBox(.14,Hc,D,Wc/2-.07,0,0,wMat.body,I);
-  wBox(Wc,.14,D,0,Hc/2-.07,0,wMat.body,I);wBox(Wc,.14,D,0,-(Hc/2-.07),0,wMat.body,I);
-  for(let i=1;i<W.slots.length;i++)wBox(Wc-.28,.07,D*.92,0,Hc/2-.14-tH*i,.02,wMat.body,I);
-  W.slots.forEach((s,i)=>{const l=wLabel(s.label);l.position.set(-Wc/2+.82,Hc/2-.14-tH*i-.24,-D/2+.112);I.add(l);});
-  /* Open showroom frame: soft backing, slim metal trims, warm display ledges; no swinging door or glass blocker. */
-  wBox(Wc-.12,.035,.09,0,Hc/2-.20,.48,wMat.trim,I);
-  wBox(Wc-.12,.035,.09,0,-Hc/2+.18,.48,wMat.trim,I);
-  for(let i=0;i<W.slots.length;i++){
-    const y=Hc/2-.14-tH*(i+1);
-    if(i<W.slots.length-1)wBox(Wc-.35,.025,.1,0,y+.035,.42,wMat.accent,I);
-    wBox(Wc-.42,.035,.22,0,y+tH*.34,-.25,wMat.trim,I);
-  }
+  const Hc=Hc0,D=.9,F=.15,n=W.slots.length,iw=Wc-2*F,ih=Hc-2*F,bz=-D/2+.14;
+  W.key=key;W.Wc=Wc;W.Hc=Hc;W.tierH=ih/n;W.yc=yTop-Hc/2;W.cell=(Wc-.5)/W.PER;
+  wClear(W.inner);W.thumbs={};
+  const I=W.inner,add=(g,m,x,y,z,ro)=>{const o=new T.Mesh(g,m);o.position.set(x,y,z);if(ro)o.renderOrder=ro;I.add(o);return o;};
+  /* soft drop shadow on the wall behind: lifts the cabinet off the wall like the shelf's own shade */
+  {const sw=Wc+1.5,sh=Hc+1.5,cw=160,ch=Math.round(cw*sh/sw),k=cw/sw,
+     t=mkTex(cw,ch,(x,w,h)=>{x.shadowColor='rgba(40,46,56,.5)';x.shadowBlur=16;x.shadowOffsetX=3000;x.shadowOffsetY=4;x.fillStyle='#000';   // the shape itself is drawn far off-canvas, only its shadow lands here
+       const rw=Wc*k,rh=Hc*k,rx=(w-rw)/2-3000,ry=(h-rh)/2-2,r=.26*k;x.beginPath();if(x.roundRect)x.roundRect(rx,ry,rw,rh,r);else x.rect(rx,ry,rw,rh);x.fill();}),
+     m=new T.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,toneMapped:false});m.userData.own=true;
+   add(new T.PlaneGeometry(sw,sh),m,0,-.1,-D/2-.05,-1);}
+  /* rounded frame */
+  {const fo=rrShape(Wc-.06,Hc-.06,.22);fo.holes.push(rrShape(iw+.06,ih+.06,.14));
+   const fg=new T.ExtrudeGeometry(fo,{depth:D-.06,bevelEnabled:true,bevelThickness:.03,bevelSize:.03,bevelSegments:3,curveSegments:10});fg.translate(0,0,-(D-.06)/2);
+   add(fg,wMat.body,0,0,0);}
+  /* back panel: darker than the frame so the items read against it, with a soft shade under every ledge and along the side walls */
+  {const bw=256,bh=Math.round(bw*ih/iw),
+     t=mkTex(bw,bh,(x,w,h)=>{
+       const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,'#bcc0c5');g.addColorStop(1,'#a9adb3');x.fillStyle=g;x.fillRect(0,0,w,h);
+       const th=h/n;
+       for(let i=0;i<n;i++){const y0=i*th,gg=x.createLinearGradient(0,y0,0,y0+th*.38);gg.addColorStop(0,'rgba(48,54,64,.34)');gg.addColorStop(1,'rgba(48,54,64,0)');x.fillStyle=gg;x.fillRect(0,y0,w,th*.38);}
+       const sg=x.createLinearGradient(0,0,w,0);sg.addColorStop(0,'rgba(48,54,64,.28)');sg.addColorStop(.1,'rgba(48,54,64,0)');sg.addColorStop(.9,'rgba(48,54,64,0)');sg.addColorStop(1,'rgba(48,54,64,.28)');x.fillStyle=sg;x.fillRect(0,0,w,h);}),
+     m=new T.MeshStandardMaterial({map:t,roughness:.95});m.userData.own=true;
+   add(new T.PlaneGeometry(iw,ih),m,0,0,bz);}
+  /* ledges: rounded front edge, one under every shelf (the last one sits on the frame's bottom bar) */
+  const ledD=D*.78,lg=new T.ExtrudeGeometry(rrShape(ledD,.1,.04),{depth:iw,bevelEnabled:false,curveSegments:8});lg.rotateY(Math.PI/2);lg.translate(-iw/2,0,0);
+  W.ledZ=bz+ledD/2;
+  for(let i=0;i<n;i++)add(lg,wMat.ledge,0,wTierTop(i+1),W.ledZ);
+  /* shelf names (engraved) and, on shelves that scroll, a thin position bar on the same line */
+  W.slots.forEach((s,i)=>{
+    const ly=wTierTop(i)-.42,l=wLabel(s.label);l.position.set(-iw/2+1,ly,bz+.004);I.add(l);
+    const N=(W.byslot[s.id]||[]).length;
+    if(N>W.PER){
+      const tl=Math.min(.8,iw*.3),thl=tl*W.PER/N,x0=iw/2-.22-tl;
+      add(new T.PlaneGeometry(tl,.03),wMat.track,x0+tl/2,ly,bz+.006,2);
+      W.thumbs[s.id]={m:add(new T.PlaneGeometry(thl,.05),wMat.thumb,x0+thl/2,ly,bz+.008,3),x0,tl,thl};
+    }
+  });
+  /* rim: an orange outline just inside the opening, off until a worn item is carried over the cabinet */
+  {const ro=rrShape(iw,ih,.12);ro.holes.push(rrShape(iw-.13,ih-.13,.06));add(new T.ShapeGeometry(ro,10),wMat.rim,0,0,bz+.01,4);}
 }
 async function loadWardrobe(){
   try{
@@ -78,28 +118,9 @@ async function loadWardrobe(){
     Object.values(W.items).forEach(it=>{
       const h=new T.Group(),m=new T.Mesh(it.geo,it.mat);m.position.set(-it.c[0],-it.c[1],-it.c[2]);m.renderOrder=it.alpha?4:0;h.add(m);
       const p=new T.Mesh(sph,hide);p.scale.setScalar(it.md*.62);p.userData.ward={id:it.id,src:'shelf'};h.add(p);   // generous invisible hit area (the glasses are thin)
-      it.holder=h;it.proxy=p;W.shelfG.add(h);});
-    wBuildNav();W.ready=true;
+      it.holder=h;it.proxy=p;W.shelfG.add(h);const sh=new T.Mesh(wSoftGeo,wMat.soft);sh.renderOrder=3;W.shelfG.add(sh);it.sh=sh;});
+    W.ready=true;
   }catch(e){console.warn('wardrobe failed to load',e);}
-}
-function wBuildNav(){
-  W.pagesEl.replaceChildren();W.nav={};
-  W.slots.forEach(sl=>{
-    const bar=document.createElement('div');bar.className='wardNav';
-    const prev=document.createElement('button'),next=document.createElement('button'),count=document.createElement('span');
-    prev.type=next.type='button';prev.textContent='‹';next.textContent='›';
-    prev.setAttribute('aria-label',sl.label+'上一組物品');next.setAttribute('aria-label',sl.label+'下一組物品');
-    const step=dir=>{const max=Math.max(0,Math.ceil((W.byslot[sl.id]||[]).length/3)-1);W.page[sl.id]=clamp((W.page[sl.id]||0)+dir,0,max);wNavSync();Au.click(1.1,.35);};
-    prev.addEventListener('click',()=>step(-1));next.addEventListener('click',()=>step(1));
-    bar.append(prev,count,next);W.pagesEl.append(bar);W.nav[sl.id]={bar,prev,next,count};
-  });wNavSync();
-}
-function wNavSync(){
-  W.slots.forEach(sl=>{const n=W.nav[sl.id];if(!n)return;
-    const total=Math.max(1,Math.ceil((W.byslot[sl.id]||[]).length/3)),pg=clamp(W.page[sl.id]||0,0,total-1);
-    n.count.textContent=(pg+1)+' / '+total;n.prev.disabled=pg===0;n.next.disabled=pg>=total-1;
-    n.bar.hidden=total<=1;
-  });
 }
 function wSave(){const o={};for(const s in W.worn)o[s]=W.worn[s].id;LS.set(W.KEY,o);W.recycleKey='';}
 function wRecycle(slot){
@@ -115,20 +136,14 @@ function wRenderRecycle(){
   if(key===W.recycleKey)return;
   W.recycleKey=key;
   W.recycleItemsEl.replaceChildren();
-  if(hpState.worn){const btn=document.createElement('button');btn.type='button';btn.textContent='現有耳機　↩ 取下';btn.addEventListener('click',()=>wRecycle('headphones'));W.recycleItemsEl.appendChild(btn);}
-  equipped.forEach(sl=>{
-    const it=W.items[W.worn[sl.id].id];
-    const btn=document.createElement('button');btn.type='button';
-    btn.textContent=(it?it.name:sl.label)+'　↩ 回收';
-    btn.setAttribute('aria-label','回收'+(it?it.name:sl.label));
-    btn.addEventListener('click',()=>wRecycle(sl.id));
-    W.recycleItemsEl.appendChild(btn);
-  });
+  const add=(name,fn)=>{const btn=document.createElement('button'),a=document.createElement('span'),b=document.createElement('span');btn.type='button';a.textContent=name;b.className='t';b.textContent='取下';btn.append(a,b);btn.setAttribute('aria-label','取下'+name);btn.addEventListener('click',fn);W.recycleItemsEl.appendChild(btn);};
+  if(hpState.worn)add('耳機',()=>wRecycle('headphones'));
+  equipped.forEach(sl=>{const it=W.items[W.worn[sl.id].id];add(it?it.name:sl.label,()=>wRecycle(sl.id));});
 }
 function wUnequip(slot,silent){
   const w=W.worn[slot];if(!w)return;
   if(w.sg.parent)w.sg.parent.remove(w.sg);delete W.worn[slot];
-  const it=W.items[w.id];if(it&&!silent){it.away=false;it.pop=.0001;}
+  const it=W.items[w.id];if(it&&!silent){it.away=false;it.pop=.0001;wReveal(it);}
   wSave();
 }
 function wEquip(id,quiet){
@@ -181,27 +196,70 @@ function wDragMove(e){
 function wEndDrag(){
   const d=W.drag;if(!d)return;W.drag=null;cvs.style.cursor='default';
   if(d.wasWorn&&!d.moved){
-    scene.remove(d.gh);d.it.away=false;d.it.pop=.0001;
+    scene.remove(d.gh);d.it.away=false;d.it.pop=.0001;wReveal(d.it);
     Au.click(1.2,.45);buzz(8);wRenderRecycle();
   }else if(d.armed){scene.remove(d.gh);wEquip(d.id);}
-  else W.fly.push({gh:d.gh,it:d.it,t:0,from:d.gh.position.clone(),s0:d.gh.scale.x});
+  else{wReveal(d.it);W.fly.push({gh:d.gh,it:d.it,t:0,from:d.gh.position.clone(),s0:d.gh.scale.x});}
+}
+/* a shelf with more items than fit scrolls like the album shelf: the item (or the shelf behind it) under the pointer at pointerdown stays under the pointer, and letting go
+   keeps the speed and settles on an item. a grabbed item only comes off the shelf when it is pulled out of the cabinet, or up/down away from its shelf */
+function wScrollMove(e){
+  const s=W.sd;
+  if(!s.moved){if(Math.hypot(e.clientX-s.startX,e.clientY-s.startY)<6)return;s.moved=true;}
+  setNDC(e);const q=planeHit(0);if(!q)return;
+  const qx=q.x,qy=q.y;
+  if(s.id){
+    const cy=W.root.position.y+wTierTop(s.si)-W.tierH/2;
+    if(qx<W.root.position.x-W.Wc/2+.2||Math.abs(qy-cy)>W.tierH*.62){W.sd=null;cvs.style.cursor='default';wStartDrag({id:s.id,src:'shelf'},e);return;}
+  }
+  s.scrolling=true;cvs.style.cursor='grabbing';
+  const max=Math.max(0,(W.byslot[s.slot]||[]).length-W.PER);
+  let t=s.u0-(qx-s.qx0)/W.cell;
+  if(t<0)t*=.35;else if(t>max)t=max+(t-max)*.35;   // past either end it gives, like a rubber band
+  s.t=clamp(t,-.9,max+.9);
+}
+function wScrollEnd(){
+  const s=W.sd;W.sd=null;cvs.style.cursor='default';if(!s||!s.scrolling)return;
+  const sc=wSc(s.slot),max=Math.max(0,(W.byslot[s.slot]||[]).length-W.PER),v=clamp(sc.v,-SH.flickMax,SH.flickMax);
+  sc.t=clamp(Math.round(sc.x+clamp(v*SH.flickLead,-1.6,1.6)),0,max);
 }
 cvs.addEventListener('pointerdown',e=>{
   if(!W.ready||e.button>0)return;
-  const h=wPick(e.clientX,e.clientY);if(!h)return;
-  if(W.vis<.5&&h.src!=='worn')return;   // with the cabinet closed only what the dog wears can be grabbed (the cabinet then slides in by itself)
+  const h=wPick(e.clientX,e.clientY);
+  if(h&&W.vis<.5&&h.src!=='worn')return;   // with the cabinet closed only what the dog wears can be grabbed (the cabinet then slides in by itself)
+  /* a press on a shelf that has more items than fit: dragging along the row scrolls it (the album shelf's own feel) */
+  if(W.vis>.8&&shelfVis<.3&&(!h||h.src==='shelf')){
+    setNDC(e);const q=planeHit(0),si=q?wTierAt(q):-1;
+    if(si>=0){const sl=W.slots[si],N=(W.byslot[sl.id]||[]).length;
+      if(N>W.PER){
+        const sc=wSc(sl.id);sc.v=0;sc.wl=false;sc.t=clamp(Math.round(sc.x),0,N-W.PER);   // a tap catches a gliding shelf
+        W.sd={slot:sl.id,si,id:h?h.id:null,startX:e.clientX,startY:e.clientY,qx0:q.x,u0:sc.x,t:sc.x,moved:false,scrolling:false};
+        e.stopImmediatePropagation();e.stopPropagation();try{cvs.setPointerCapture(e.pointerId);}catch(_){}
+        return;}}
+  }
+  if(!h)return;
   e.stopImmediatePropagation();e.stopPropagation();try{cvs.setPointerCapture(e.pointerId);}catch(_){}
   wStartDrag(h,e);
 },{capture:true});
-cvs.addEventListener('pointermove',e=>{if(W.drag){e.stopImmediatePropagation();wDragMove(e);}},{capture:true});
-cvs.addEventListener('pointerup',e=>{if(W.drag){e.stopImmediatePropagation();try{cvs.releasePointerCapture(e.pointerId);}catch(_){}wEndDrag();}},{capture:true});
-cvs.addEventListener('pointercancel',e=>{if(W.drag){e.stopImmediatePropagation();wEndDrag();}},{capture:true});
-/* hover over an item: name tag + grab cursor (this runs after the main handler, which would otherwise reset the cursor) */
 cvs.addEventListener('pointermove',e=>{
-  if(W.drag||!W.ready||W.vis<.8||pd){if(!W.drag&&W.hot){W.hot=null;W.tipEl.classList.remove('on');}return;}
+  if(W.sd){e.stopImmediatePropagation();wScrollMove(e);}
+  else if(W.drag){e.stopImmediatePropagation();wDragMove(e);}
+},{capture:true});
+cvs.addEventListener('pointerup',e=>{
+  if(W.sd){e.stopImmediatePropagation();try{cvs.releasePointerCapture(e.pointerId);}catch(_){}wScrollEnd();}
+  else if(W.drag){e.stopImmediatePropagation();try{cvs.releasePointerCapture(e.pointerId);}catch(_){}wEndDrag();}
+},{capture:true});
+cvs.addEventListener('pointercancel',e=>{
+  if(W.sd){e.stopImmediatePropagation();wScrollEnd();}
+  else if(W.drag){e.stopImmediatePropagation();wEndDrag();}
+},{capture:true});
+/* hover over an item: name tag + grab cursor (this runs after the main handler, which would otherwise reset the cursor). over a shelf that scrolls, the cursor says so */
+cvs.addEventListener('pointermove',e=>{
+  if(W.drag||W.sd||!W.ready||W.vis<.8||pd){if(!W.drag&&W.hot){W.hot=null;W.tipEl.classList.remove('on');}return;}
   const h=wPick(e.clientX,e.clientY);W.hot=h?h.id:null;
-  if(h){cvs.style.cursor='grab';W.tipEl.textContent=W.items[h.id].name;W.tipEl.style.transform='translate3d('+Math.round(e.clientX+14)+'px,'+Math.round(e.clientY+16)+'px,0)';W.tipEl.classList.add('on');}
-  else W.tipEl.classList.remove('on');
+  if(h){cvs.style.cursor='grab';W.tipEl.textContent=W.items[h.id].name;{const tw=W.tipEl.offsetWidth||90,tx=e.clientX+14+tw>innerWidth-8?e.clientX-14-tw:e.clientX+14;W.tipEl.style.transform='translate3d('+Math.round(tx)+'px,'+Math.round(e.clientY+16)+'px,0)';}W.tipEl.classList.add('on');}
+  else{W.tipEl.classList.remove('on');
+    if(shelfVis<.3){setNDC(e);const q=planeHit(0),si=q?wTierAt(q):-1;if(si>=0&&(W.byslot[W.slots[si].id]||[]).length>W.PER)cvs.style.cursor='grab';}}
 });
 /* opening: pointer at the right edge (mouse) or the pill (touch). it stays open while the pointer is over the cabinet */
 addEventListener('pointermove',e=>{
@@ -212,18 +270,21 @@ addEventListener('pointermove',e=>{
 cvs.addEventListener('pointerleave',()=>{if(!W.drag&&!W.pin)W.hover=false;});
 W.hintEl.addEventListener('click',()=>{W.pin=!W.pin;});
 cvs.addEventListener('pointerdown',e=>{if(W.pin&&!W.drag&&e.clientX/innerWidth<1-(W.Wc+.35)/(2*L.hw)-.02)W.pin=false;});
-/* a long shelf row pages with the wheel: three items are in view per slot */
+/* wheel / trackpad over a shelf scrolls it, same feel as the album shelf: the target follows every tick, and once the wheel is quiet it settles on an item */
 cvs.addEventListener('wheel',e=>{
-  if(!W.ready||W.vis<.8||W.drag)return;setNDC(e);const q=planeHit(0);if(!q||q.x<W.root.position.x-W.Wc/2)return;
-  const si=clamp(Math.floor((W.Hc/2-(q.y-W.root.position.y))/W.tierH),0,W.slots.length-1),sl=W.slots[si],n=(W.byslot[sl.id]||[]).length;
-  e.stopImmediatePropagation();e.preventDefault();
-  W.page[sl.id]=clamp((W.page[sl.id]||0)+Math.sign(e.deltaY||e.deltaX),0,Math.max(0,Math.ceil(n/3)-1));wNavSync();
+  if(!W.ready||W.vis<.8||W.drag||W.sd)return;setNDC(e);const q=planeHit(0),si=q?wTierAt(q):-1;if(si<0)return;
+  const sl=W.slots[si],N=(W.byslot[sl.id]||[]).length;
+  e.stopImmediatePropagation();e.preventDefault();if(N<=W.PER)return;
+  const sc=wSc(sl.id),max=N-W.PER,d0=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY,d=e.deltaMode===1?d0*16:e.deltaMode===2?d0*innerHeight:d0;
+  if(!sc.wl){sc.wl=true;sc.wf=sc.t;}
+  sc.t=clamp(sc.t+d/SH.wheelPx,-.35,max+.35);sc.wt=performance.now();
 },{capture:true,passive:false});
 function wardFrame(dt,time){
   if(!W.ready)return;
   const can=dog.ready&&dog.present&&!dog.leaving;
   if(!W.restored&&dog.ready){W.restored=true;const o=LS.get(W.KEY,{});for(const s in o)if(W.items[o[s]]&&W.items[o[s]].slot===s)wEquip(o[s],true);}
   if(!can&&W.drag){W.drag.armed=false;wEndDrag();}
+  if(!can&&W.sd)W.sd=null;
   const want=can&&(W.hover||W.pin||!!W.drag)&&(!pd||W.pin)?1:0;
   W.vis+=(want-W.vis)*(1-Math.exp(-dt*(want>W.vis?7:5)));if(Math.abs(want-W.vis)<.003)W.vis=want;
   W.hintEl.classList.toggle('gone',!can||W.vis>.3);
@@ -233,30 +294,37 @@ function wardFrame(dt,time){
   const open=ease.io2(clamp(W.vis,0,1));
   W.root.visible=W.vis>.002;
   W.root.position.set(lerp(L.hw+W.Wc/2+1.8,L.hw-W.Wc/2-.35,open),W.yc,0);
-  /* Navigation stays aligned with projected shelf centers as camera/viewport changes. */
-  W.slots.forEach((sl,i)=>{
-    const n=W.nav[sl.id];if(!n)return;
-    n.bar.style.display=can&&W.vis>.75&&!n.bar.hidden?'flex':'none';
-    if(n.bar.style.display==='none')return;
-    W.root.updateWorldMatrix(true,false);
-    const p=new T.Vector3(0,W.Hc/2-.14-W.tierH*(i+.5),.55).applyMatrix4(W.root.matrixWorld).project(cam);
-    n.bar.style.left=((p.x+1)*.5*innerWidth)+'px';
-    n.bar.style.top=((1-p.y)*.5*innerHeight-W.tierH*10)+'px';
-    n.bar.style.width=Math.max(105,Math.min(190,W.Wc/L.hw*innerWidth*.32))+'px';
-  });
-  /* shelves: up to three items per slot in view, evenly spread, slowly turning; the one under the pointer lifts a little */
+  /* the one orange moment: the rim lights up while a worn item is carried over the cabinet (let go and it is put away) */
+  W.glow+=((W.drag&&W.drag.wasWorn&&W.drag.over?1:0)-W.glow)*(1-Math.exp(-dt*14));
+  wMat.rim.opacity=.85*W.glow*(.85+.15*Math.sin(time*6));
+  /* shelves: three items in view per shelf, evenly spread, slowly turning, each with a soft shadow on the ledge; the one under the pointer lifts a little.
+     a shelf with more items scrolls (spring + drag, like the album shelf); items at the edges shrink away to show there is more */
+  const per=W.PER,cell=W.cell;
   W.slots.forEach((sl,si)=>{
-    const list=W.byslot[sl.id]||[],per=3,pg=clamp(W.page[sl.id]||0,0,Math.max(0,Math.ceil(list.length/per)-1)),n=Math.min(per,list.length-pg*per),
-      cell=(W.Wc-.5)/Math.max(n,2),yc=W.Hc/2-.14-W.tierH*(si+.5)-.05;
+    const list=W.byslot[sl.id]||[],N=list.length,sc=wSc(sl.id),max=Math.max(0,N-per),scrolls=N>per,s=W.sd;
+    if(scrolls){
+      if(s&&s.slot===sl.id&&s.scrolling){const p0=sc.x;sc.x+=(s.t-sc.x)*(1-Math.exp(-dt*SH.follow));sc.v=lerp(sc.v,(sc.x-p0)/Math.max(dt,.001),1-Math.exp(-dt*25));}
+      else{
+        if(sc.wl&&performance.now()-sc.wt>SH.wheelIdle){const mv=sc.t-sc.wf;let r=Math.round(sc.t);if(r===Math.round(sc.wf)&&Math.abs(mv)>.12)r+=Math.sign(mv);sc.t=clamp(r,0,max);sc.wl=false;}
+        const w=SH.spring,d=sc.x-sc.t,ex=Math.exp(-w*dt),c=sc.v+w*d;sc.x=sc.t+(d+c*dt)*ex;sc.v=(sc.v-w*c*dt)*ex;
+        if(Math.abs(sc.x-sc.t)<.0005&&Math.abs(sc.v)<.01){sc.x=sc.t;sc.v=0;}
+      }
+      sc.x=clamp(sc.x,-.9,max+.9);
+    }else{sc.x=sc.t=sc.v=0;}
+    const th=W.thumbs[sl.id];if(th)th.m.position.x=th.x0+th.thl/2+(max?clamp(sc.x/max,0,1):0)*(th.tl-th.thl);
+    const ledTop=wLedgeTop(si),tierTop=wTierTop(si),off=scrolls?1:(N-1)/2;
     list.forEach((it,i)=>{
-      const wi=i-pg*per,inW=wi>=0&&wi<per;it.inWindow=inW;
-      const h=it.holder;h.visible=inW&&!it.away;if(!h.visible)return;
+      const x=(i-sc.x-off)*cell,k=scrolls?clamp((Math.abs(x)-cell*1.05)/(cell*.5),0,1):0,e=1-k*k*(3-2*k);
+      const h=it.holder,sh=it.sh,vis=e>.01&&!it.away;
+      h.visible=vis;if(sh)sh.visible=vis;it.inWindow=e>.45&&!it.away;
       it.hv+=((W.hot===it.id?1:0)-it.hv)*(1-Math.exp(-dt*12));if(it.pop<1)it.pop=Math.min(1,it.pop+dt/.35);
       const pop=it.pop<1?(1-Math.pow(1-it.pop,3))*(1+.25*Math.sin(it.pop*Math.PI)):1;
-      const r=(it.def.display&&it.def.display.rot)||sl.display.rot,size=Math.min(sl.display.size,cell*.85);
-      h.position.set((wi-(n-1)/2)*cell,yc+Math.sin(time*1.3+i*1.7)*.03,.02);
+      const r=(it.def.display&&it.def.display.rot)||sl.display.rot,size=Math.min(sl.display.size,cell*.85),
+        yc=Math.max(ledTop+.2+size*.5,(ledTop+tierTop-.65)/2)+Math.sin(time*1.3+i*1.7)*.035;
+      h.position.set(x,yc,.02);
       h.rotation.set(r[0],r[1]+Math.sin(time*.8+i*2.1)*(.3+.35*it.hv),r[2]);
-      h.scale.setScalar(Math.max(.001,size/it.md*(1+.12*it.hv)*pop));
+      h.scale.setScalar(Math.max(.001,size/it.md*(1+.12*it.hv)*pop*e));
+      if(sh&&vis){const g=Math.min(yc-size*.5-ledTop,.6),ss=size*(1.2-g*.25)*e*Math.max(.001,pop);sh.position.set(x,ledTop+.008,W.ledZ+.03);sh.scale.set(ss,1,ss*.55);}
     });
   });
   /* worn items pop in */
