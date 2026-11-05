@@ -78,8 +78,11 @@ for item in items:
         check(isinstance(fit["rot"], list) and len(fit["rot"]) in (3, 4),
               f"{iid}: fit.rot")
     if "scale" in fit:
-        check(isinstance(fit["scale"], (int, float)) and fit["scale"] > 0,
-              f"{iid}: fit.scale")
+        scale = fit["scale"]
+        check((isinstance(scale, (int, float)) and math.isfinite(scale) and scale > 0) or
+              (isinstance(scale, list) and len(scale) == 3 and
+               all(isinstance(v, (int, float)) and math.isfinite(v) and v > 0 for v in scale)),
+              f"{iid}: fit.scale must be positive number or [x, y, z]")
 
 if errors:
     print("Wardrobe validation FAILED")
