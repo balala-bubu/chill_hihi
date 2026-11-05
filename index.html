@@ -1345,49 +1345,26 @@ function hpSpawn(){   // headphones swoop in from above the screen, cable whippi
   h.hov={x:mxp(targetX)-h.org.x,y:myp(hoverY)-h.org.y};
   hpRoot.visible=true;cableMesh.visible=true;plug2.visible=true;hpState.s='free';
 }
-/* Fit ear cups to the real ear roots. The Head bone follows head movement. */
+/* The original, correctly facing headset was attached to Brow_group without
+   reconstructing a world-up basis. In this rig brow-local +Y points toward
+   the muzzle and +Z points UP; the headband arc is built along +Y. */
 function hpWear(){
-  const h=hpState,head=wBone('Head'),left=wBone('LearA'),right=wBone('RearA');
-  if(!h.body||!dog.ready||!dog.present||dog.leaving||!head||!left||!right)return false;
-  head.updateWorldMatrix(true,true);
-  const a=head.worldToLocal(left.getWorldPosition(new V3()));
-  const b=head.worldToLocal(right.getWorldPosition(new V3()));
-  const across=new V3().subVectors(b,a),span=across.length();
+  const h=hpState,brow=wBone('Brow_group'),left=wBone('LearA'),right=wBone('RearA');
+  if(!h.body||!dog.ready||!dog.present||dog.leaving||!brow||!left||!right)return false;
+  brow.updateWorldMatrix(true,true);
+  const a=brow.worldToLocal(left.getWorldPosition(new V3()));
+  const b=brow.worldToLocal(right.getWorldPosition(new V3()));
+  const span=a.distanceTo(b);
   if(span<.001)return false;
-  // Swap handedness so the headset is not worn backwards.
-  across.normalize().negate();
-  // Work in head-local space so the band sits on top even when the dog turns.
-  dog.g.updateWorldMatrix(true,false);
-  const origin=dog.g.localToWorld(new V3(0,0,0));
-  const upright=dog.g.localToWorld(new V3(0,1,0)).sub(origin);
-  const qWorld=new T.Quaternion();head.getWorldQuaternion(qWorld);
-  upright.applyQuaternion(qWorld.invert()).addScaledVector(across,-upright.dot(across));
-  if(upright.lengthSq()<.01)upright.set(0,1,0);
-  upright.normalize();
-  const forward=new V3().crossVectors(across,upright).normalize();
-  upright.crossVectors(forward,across).normalize();
-  // Ear roots sit INSIDE the head silhouette, not at the outer surface.
-  // Allow room for the skull, both floppy ears and the thick cushion rings.
+  const mid=a.add(b).multiplyScalar(.5);
   const fitScale=clamp((span+5.2)/2.5,4.5,9.5);
-  const centre=a.clone().add(b).multiplyScalar(.5);
-  // The brow marks the dog's muzzle direction; tilt the top band toward it.
-  const brow=wBone('Brow_group');
-  let bandLean=0;
-  if(brow){
-    const face=head.worldToLocal(brow.getWorldPosition(new V3())).sub(centre);
-    face.addScaledVector(across,-face.dot(across)).addScaledVector(upright,-face.dot(upright));
-    if(face.lengthSq()>.01){
-      face.normalize();bandLean=face.dot(forward)>=0?.32:-.32;
-      centre.addScaledVector(face,-2.4);
-    }
-  }
-  // Move the ear pads down toward the hanging outer ears, not into the crown.
-  centre.addScaledVector(upright,-2.0);
-  h.worn=true;head.add(hpRoot);hpRoot.traverse(o=>o.layers.enable(1));
-  hp.rotation.set(0,0,0); // ear cups face outward; no symmetric 180-degree flip
-  hpSetBandLean((bandLean>=0?1:-1)*1.15); // visibly sweep the crown forward, not the ear cups
-  hpRoot.position.copy(centre);
-  hpRoot.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(across,upright,forward));
+  h.worn=true;brow.add(hpRoot);hpRoot.traverse(o=>o.layers.enable(1));
+  // Keep the original front-facing axis; move the cup centres to the ears
+  // and leave enough clearance between the pads and the skull.
+  hpSetBandLean(0);
+  hp.rotation.set(0,0,0);
+  hpRoot.rotation.set(0,0,0);
+  hpRoot.position.set(mid.x,mid.y+1.8,mid.z+2.7);
   hpRoot.scale.setScalar(fitScale);
   h.dragNear=0;h.grab=false;Body.setVelocity(h.body,{x:0,y:0});Body.setAngularVelocity(h.body,0);
   W.recycleKey='';Au.snap();buzz(10);return true;
