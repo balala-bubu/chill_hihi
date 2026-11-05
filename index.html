@@ -2262,7 +2262,9 @@ async function toyLoad(){
     const parts=JSON.parse(await new Response(stream).text()),bear=new T.Group(),bounds=new T.Box3();
     const skin=await new Promise((yes,no)=>new T.TextureLoader().load('data:image/png;base64,'+texs.skin,yes,undefined,no));
     skin.colorSpace=T.SRGBColorSpace;skin.magFilter=T.NearestFilter;skin.minFilter=T.NearestFilter;skin.generateMipmaps=false;
-    const mats=[new T.MeshStandardMaterial({color:0xd6b17e,roughness:.95,side:T.DoubleSide}),
+    const body=await new Promise((yes,no)=>new T.TextureLoader().load('data:image/png;base64,'+texs.body,yes,undefined,no));
+    body.colorSpace=T.SRGBColorSpace;body.magFilter=T.NearestFilter;body.minFilter=T.NearestFilter;body.generateMipmaps=false;
+    const mats=[new T.MeshStandardMaterial({map:body,roughness:.95,side:T.DoubleSide,transparent:true,alphaTest:.03}),
       new T.MeshStandardMaterial({map:skin,roughness:.92,side:T.DoubleSide,transparent:true,alphaTest:.03})];
     parts.forEach((part,i)=>{
       const g=new T.BufferGeometry();
