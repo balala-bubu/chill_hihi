@@ -50,6 +50,7 @@ cvs.addEventListener('pointerleave',()=>{hoverKey=-1;shPtr.ok=false;if(!pd)topHo
 cvs.addEventListener('pointermove',e=>{
   setNDC(e);rig.ptx=ndc.x;rig.pty=ndc.y;trackTop(e);
   shPtr.x=e.clientX;shPtr.y=e.clientY;shPtr.ok=e.pointerType!=='touch';   // the shelf reads these once per frame (shelfStep)
+  if(!shPtr.armed&&Math.hypot(e.clientX-shPtr.fx,e.clientY-shPtr.fy)>SH.centerMove)shPtr.armed=true;   // moved again since the last hover-centre: it may fire again
   if(pd&&pd.kind==='shelf'){pd.cx=e.clientX;pd.cy=e.clientY;}
   if(!pd){
     const h=pick(),o=h&&h.object;let cur='default';hoverKey=-1;

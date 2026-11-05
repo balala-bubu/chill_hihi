@@ -26,11 +26,15 @@ function shelfStep(dt){
     const w=shelfWorld(shPtr.x,shPtr.y);
     if(w){shHov.wx=w.x;shHov.wy=w.y;uRaw=sx+slotD(w.x);
       if(w.y>L.shelfB-.1&&w.y<L.shelfB+2.1)want=shelfDrag?.55:1;}}   // only while the pointer is in the band the albums stand in
-  /* edge scroll: with the pointer resting in the shelf band near the left / right edge the shelf drifts that way, faster the closer to the edge. leaving the zone settles it on an album (same settle as the wheel) */
-  if(want===1&&!pd){const fx=shPtr.x/innerWidth,z=SH.edgeZone,e=fx<z?-(1-fx/z):fx>1-z?(fx-(1-z))/z:0;
-    if(e){const s=e*e*(3-2*Math.abs(e))*Math.sign(e);   // smooth ramp, sign keeps the direction
-      if(!wheelLive){wheelLive=true;wheelFrom=sxTarget;}
-      sxTarget=clamp(sxTarget+s*SH.edgeSpeed*dt,-.35,N-.65);wheelT=performance.now();}}
+  /* hover to centre: rest the pointer on an album and it slides to the middle. it only fires after the pointer has really moved (so a shelf that scrolls under a still pointer
+     can't chain-scroll itself) and after a short dwell on the same album; once it has fired the pointer has to move again before it can fire again */
+  if(want===1&&!pd&&!wheelLive&&shPtr.armed&&Math.abs(sx-sxTarget)<.6){
+    const idx=Math.round(uRaw);
+    if(idx>=0&&idx<N&&Math.abs(uRaw-idx)<.46){
+      if(idx!==shPtr.dIdx){shPtr.dIdx=idx;shPtr.dT=0;}
+      else if((shPtr.dT+=dt)>=SH.centerDwell){shPtr.armed=false;shPtr.fx=shPtr.x;shPtr.fy=shPtr.y;shPtr.dIdx=-1;if(idx!==Math.round(sxTarget))sxTarget=idx;}
+    }else shPtr.dIdx=-1;}
+  else if(!want)shPtr.dIdx=-1;
   shHov.w+=(want-shHov.w)*(1-Math.exp(-dt*(want>shHov.w?10:7)));if(shHov.w<.002&&!want)shHov.w=0;
   if(shHov.w<.03)shHov.u=uRaw;else shHov.u+=(uRaw-shHov.u)*(1-Math.exp(-dt*18));   // no sweep from a stale spot when the pointer arrives
   const kt=1-Math.exp(-dt*12);

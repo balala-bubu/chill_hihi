@@ -33,9 +33,9 @@ const V3=T.Vector3;
 const SLOT_W=1.42,SLOT_X=.22,SLOT_T=SLOT_W+SLOT_X;
 const slotX=d=>{const a=Math.abs(d);return d*SLOT_W+Math.sign(d)*Math.min(a,1)*SLOT_X;};
 const slotD=x=>{const a=Math.abs(x);return a<=SLOT_T?x/SLOT_T:Math.sign(x)*(a-SLOT_X)/SLOT_W;};
-const SH={edgeZone:.14,edgeSpeed:3.2,spring:13,follow:38,flickMax:14,flickLead:.2,wheelPx:110,wheelIdle:140,    // spring stiffness, drag smoothing rate, max release speed (slots/s), how far ahead a flick aims (s), wheel px per album, ms of quiet before the wheel settles
+const SH={centerDwell:.14,centerMove:10,spring:13,follow:38,flickMax:14,flickLead:.2,wheelPx:110,wheelIdle:140,    // spring stiffness, drag smoothing rate, max release speed (slots/s), how far ahead a flick aims (s), wheel px per album, ms of quiet before the wheel settles
   hvLift:.12,hvForward:.5,hvScale:.07,hvTurn:.5,hvTilt:.2,hvTiltX:.15,hvPush:.3,hvSigma:.8};   // hover: lift, forward, scale, how much the turned album faces the camera, tilt toward the pointer (about Y / about X), push on neighbours, push reach
-const shPtr={x:0,y:0,ok:false};                       // last mouse position over the canvas (touch has no hover)
+const shPtr={x:0,y:0,ok:false,armed:true,fx:0,fy:0,dIdx:-1,dT:0};                     // last mouse position over the canvas (touch has no hover)
 const shHov={u:0,w:0,wx:0,wy:0};                      // slot coordinate under the pointer (eased), how strongly the pointer is "on" the shelf (0..1), pointer on the shelf plane
 let wheelT=0,wheelLive=false,wheelFrom=0;
 const sRay=new T.Raycaster(),sNdc=new T.Vector2(),sPlane=new T.Plane(new V3(0,0,1),0),sHit=new V3();
