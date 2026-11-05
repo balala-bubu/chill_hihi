@@ -1331,13 +1331,30 @@ function hpSpawn(){   // headphones swoop in from above the screen, cable whippi
   h.hov={x:mxp(targetX)-h.org.x,y:myp(hoverY)-h.org.y};
   hpRoot.visible=true;cableMesh.visible=true;plug2.visible=true;hpState.s='free';
 }
-const HP_DOG_WEAR_SCALE=.56;  // Compared with the previous hat-sized fit, headphones shrink to a puppy-sized pair.
+/* Fit ear cups to the real ear roots. The Head bone follows head movement. */
 function hpWear(){
-  const h=hpState,sl=W.slotById.hat,b=sl&&wBone(sl.bone);
-  if(!h.body||!dog.ready||!dog.present||dog.leaving||!b)return false;
-  h.worn=true;b.add(hpRoot);hpRoot.traverse(o=>o.layers.enable(1));
-  hpRoot.position.set(sl.worn.pos[0],sl.worn.pos[1]+1.8,sl.worn.pos[2]);
-  hpRoot.rotation.set(0,0,0);hpRoot.scale.setScalar(sl.worn.scale*HP_DOG_WEAR_SCALE);
+  const h=hpState,head=wBone('Head'),left=wBone('LearA'),right=wBone('RearA');
+  if(!h.body||!dog.ready||!dog.present||dog.leaving||!head||!left||!right)return false;
+  head.updateWorldMatrix(true,true);
+  const a=head.worldToLocal(left.getWorldPosition(new V3()));
+  const b=head.worldToLocal(right.getWorldPosition(new V3()));
+  const across=new V3().subVectors(b,a),span=across.length();
+  if(span<.001)return false;
+  across.normalize();
+  // Work in head-local space so the band sits on top even when the dog turns.
+  dog.g.updateWorldMatrix(true,false);
+  const origin=dog.g.localToWorld(new V3(0,0,0));
+  const upright=dog.g.localToWorld(new V3(0,1,0)).sub(origin);
+  const qWorld=new T.Quaternion();head.getWorldQuaternion(qWorld);
+  upright.applyQuaternion(qWorld.invert()).addScaledVector(across,-upright.dot(across));
+  if(upright.lengthSq()<.01)upright.set(0,1,0);
+  upright.normalize();
+  const forward=new V3().crossVectors(across,upright).normalize();
+  upright.crossVectors(forward,across).normalize();
+  h.worn=true;head.add(hpRoot);hpRoot.traverse(o=>o.layers.enable(1));
+  hpRoot.position.copy(a).add(b).multiplyScalar(.5).addScaledVector(upright,.15);
+  hpRoot.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(across,upright,forward));
+  hpRoot.scale.setScalar(clamp(span/2.5,3.8,7));
   h.dragNear=0;h.grab=false;Body.setVelocity(h.body,{x:0,y:0});Body.setAngularVelocity(h.body,0);
   W.recycleKey='';Au.snap();buzz(10);return true;
 }
@@ -1743,7 +1760,7 @@ function updateFx(dt,time){
 const clock=new T.Clock();let fpsAvg=60;
 /* ---------- dog: a rigged puppy that runs in from the left, watches the pointer, chases a dragged CD and sits in front of the TV ---------- */
 const dog={g:new T.Group(),ready:false,failed:false,present:false,leaving:false,wantShow:false,
-  x:-20,z:2.6,ry:.4,mode:'idle',move:0,gait:0,sit:0,hop:0,hopT:0,lookYaw:0,lookPitch:0,blinkT:2,blink:0,earT:3,earL:0,earR:0,wag:0,fd:1,grab:null,mouthL:null,
+  x:-20,z:2.6,ry:.4,mode:'idle',move:0,gait:0,sit:0,hop:0,hopT:0,lookYaw:0,lookPitch:0,blinkT:2,blink:0,earT:3,earL:0,earR:0,earWear:0,wag:0,fd:1,grab:null,mouthL:null,
   bones:{},acc:{},scale:2.3/53.7,footLift:.75,nextHop:0,ptr:{x:0,y:.05,t:0,cx:0,cy:0},
   lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null};
 dog.g.visible=false;scene.add(dog.g);
@@ -1930,13 +1947,15 @@ dog.g.updateMatrixWorld(true);
   dogAdd('tailA','u',Math.sin(dog.wag)*wa);dogAdd('tailB','u',Math.sin(dog.wag-.7)*wa*1.1);dogAdd('tailC','u',Math.sin(dog.wag-1.4)*wa*1.2);
   dog.earT-=dt;if(dog.earT<=0){dog.earT=2+Math.random()*4;if(Math.random()<.5)dog.earL=.6;else dog.earR=.6;}
   dog.earL*=Math.exp(-dt*6);dog.earR*=Math.exp(-dt*6);
+  // Headphone pads gently fold the ears down; removal lets the springs recover.
+  dog.earWear+=(Number(hpState.worn)-dog.earWear)*(1-Math.exp(-dt*(hpState.worn?7:5)));
   /* ears are damped springs: they lift back with speed and bounce on every stride, the tips lag behind the base */
   {const spd01=Math.min(1,Math.abs(vx)/7),bn=Math.sin(dog.gait+1.2)*dog.move,E=dog.ear||(dog.ear={L:{a:0,av:0,b:0,bv:0,f:0,fv:0},R:{a:0,av:0,b:0,bv:0,f:0,fv:0}});
    const step=(e,ph,kick,sgn)=>{const n=Math.max(1,Math.ceil(dt/.012)),h2=dt/n;
-     const ta=.62*spd01+.55*bn*Math.cos(ph)+Math.sin(time*1.7+ph)*.025,tf=sgn*(.35*spd01+.4*Math.abs(bn)+kick*.7);
+     const ta=.62*spd01+.55*bn*Math.cos(ph)+Math.sin(time*1.7+ph)*.025+dog.earWear*.75,tf=sgn*(.35*spd01+.4*Math.abs(bn)+kick*.7+dog.earWear*.85);
      for(let i=0;i<n;i++){
        e.av+=(150*(ta-e.a)-9*e.av)*h2;e.a+=e.av*h2;
-       e.bv+=(95*(e.a*.9+.35*bn*.5-e.b)-6*e.bv)*h2;e.b+=e.bv*h2;
+       e.bv+=(95*(e.a*.9+.35*bn*.5+dog.earWear*.3-e.b)-6*e.bv)*h2;e.b+=e.bv*h2;
        e.fv+=(130*(tf-e.f)-8*e.fv)*h2;e.f+=e.fv*h2;}};
    step(E.L,0,dog.earL,-1);step(E.R,.6,dog.earR,1);
    dogAdd('LearA','r',E.L.a);dogAdd('LearB','r',E.L.b);dogAdd('LearA','f',E.L.f);dogAdd('LearB','f',E.L.f*.6);
