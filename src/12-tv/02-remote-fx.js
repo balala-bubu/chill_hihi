@@ -12,8 +12,7 @@ function remoteFx(i){
   Au.ensure();
   if(i===0)tvToggle();
   else if(i===1)shakeWorld();
-  else if(i===2){zeroG=!zeroG;eng.gravity.scale=zeroG?G0*.08:G0;remLit(2,zeroG);Au.whoosh();
-    if(zeroG){dynBodies().forEach(b=>Body.setVelocity(b,{x:b.velocity.x,y:b.velocity.y-1.2}));hpState.rope.forEach(b=>Body.setVelocity(b,{x:b.velocity.x,y:b.velocity.y-.8}));}}
+  else if(i===2)btButton();
   else if(i===3){
     dogToggle();
   }
