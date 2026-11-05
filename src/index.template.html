@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MT-1 Disc Player</title>
+<style>
+/* Layout: one full-bleed 3D stage. Frosted grey world, a single player, albums on a shelf above. */
+:root{--bg:#d9dbde;--ink:#2d3033;--mute:#6a7076;--glass:rgba(240,241,243,.72);--line:rgba(45,48,51,.2)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hidden;overscroll-behavior:none}
+#stage{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#stage canvas{display:block;width:100%;height:100%;outline:none}
+#stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 88% 72% at 50% 50%,rgba(255,255,255,0) 58%,rgba(70,78,90,.12) 100%)}
+#err[hidden]{display:none}
+/* tools: the "⋯" button is one more slot at the end of the album row, standing on the shelf: its position is projected from the next free album slot every frame, so it scrolls with the albums */
+#tools{position:fixed;left:0;top:0;width:46px;height:46px;z-index:8;transition:opacity .2s;font:500 12px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
+/* add form + edit panel: right-aligned under the plank (they are too wide to hang off a button that can sit anywhere along the row) */
+#pop{position:fixed;right:max(16px,env(safe-area-inset-right,0px));top:0;z-index:7;display:flex;flex-direction:column;align-items:flex-end;gap:12px;transition:opacity .2s;font:500 12px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
+#tools.away,#pop.away{opacity:0;pointer-events:none;visibility:hidden}
+#addMsg{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:6;max-width:min(88vw,460px);padding:8px 16px;border-radius:18px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);text-align:center;color:var(--ink);text-wrap:balance;pointer-events:none}
+#addMsg:empty{display:none}
+#addForm{display:flex;gap:8px;width:min(calc(100vw - 104px),400px);min-width:0}
+#addForm[hidden]{display:none}
+#addUrl{flex:1;min-width:0;height:42px;padding:0 14px;border-radius:21px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:var(--ink);font:inherit;font-size:13px}
+#addUrl::placeholder{color:var(--mute)}
+#addGo{height:42px;padding:0 18px;border-radius:21px;font:inherit;font-weight:700}
+#editPanel button:focus-visible,#menu button:focus-visible,#moreBtn:focus-visible,#editPanel input:focus-visible{outline:2px solid #ee5a2c;outline-offset:2px}
+#editPanel{box-sizing:border-box;width:min(calc(100vw - 32px),380px);max-height:min(calc(100vh - 230px),420px);overflow:auto;padding:14px;border-radius:20px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);font:500 12px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
+#editPanel[hidden]{display:none}
+#editPanel h2{margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.08em}
+#editList{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:8px}
+#editList li{display:flex;align-items:center;gap:8px;min-width:0}
+#editList input{flex:1;min-width:0;height:36px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.55);color:var(--ink);font:inherit;font-size:13px}
+#editList .cnt{color:var(--mute);white-space:nowrap}
+#editList .del{width:32px;height:32px;border-radius:50%;padding:0;font:inherit;font-size:16px;line-height:1;--lift:3px;flex:none}
+#editEmpty{color:var(--mute);margin:0 0 12px}
+#editEmpty[hidden]{display:none}
+#resetBtn{height:36px;padding:0 16px;border-radius:18px;font:inherit;font-weight:700;--lift:3px}
+#resetBtn.sure{background:linear-gradient(180deg,#ff8658,#ee5a2c 60%,#dc4a1d);--foot:#a8330f;color:#fff}
+#addUrl:focus-visible,#addGo:focus-visible{outline:2px solid #ee5a2c;outline-offset:2px}
+/* raised, tactile buttons: a lit top face sits on a darker "foot"; pressing sinks the face into the foot */
+.k3{--face:#f3f4f6;--foot:#aeb3b9;--lift:4px;position:relative;border:1px solid rgba(255,255,255,.85);background:linear-gradient(180deg,#fbfbfc 0%,var(--face) 55%,#e4e6e9 100%);color:var(--ink);cursor:pointer;
+  box-shadow:0 var(--lift) 0 var(--foot),0 calc(var(--lift) + 5px) 12px rgba(45,48,51,.28),inset 0 1px 0 #fff,inset 0 -2px 3px rgba(45,48,51,.08);
+  transform:translateY(0);transition:transform .09s ease-out,box-shadow .09s ease-out,background .2s;-webkit-tap-highlight-color:transparent}
+.k3:hover{background:linear-gradient(180deg,#fff 0%,#f7f8f9 55%,#e9ebee 100%)}
+.k3:active,.k3.on{transform:translateY(calc(var(--lift) - 1px));box-shadow:0 1px 0 var(--foot),0 3px 5px rgba(45,48,51,.25),inset 0 2px 5px rgba(45,48,51,.22);background:linear-gradient(180deg,#e3e5e8,#eceef0)}
+.k3.dark{--face:#3a3e42;--foot:#14171a;border-color:rgba(255,255,255,.12);background:linear-gradient(180deg,#4a4f54 0%,#2d3033 60%,#25282b 100%);color:#f1f2f3}
+.k3.dark:active{background:linear-gradient(180deg,#26292c,#2d3033)}
+.k3.hot{--foot:#a8330f;border-color:rgba(255,200,180,.6);background:linear-gradient(180deg,#ff8658,#ee5a2c 60%,#dc4a1d);color:#fff}
+.k3:disabled{opacity:.5;cursor:default;transform:none}
+#moreBtn{width:46px;height:46px;border-radius:50%;padding:0;flex:none}
+#moreBtn i{position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px;border-radius:50%;background:currentColor;transition:transform .25s cubic-bezier(.2,.9,.3,1.3),opacity .05s}
+#moreBtn i:nth-child(1){transform:translateX(-9px)}#moreBtn i:nth-child(3){transform:translateX(9px)}
+#moreBtn[aria-expanded="true"]{--lift:1px;transform:translateY(3px);background:linear-gradient(180deg,#26292c,#2d3033);color:#f1f2f3}
+/* open: the three dots slide into the middle and become ONE dot (the outer two vanish once they have landed exactly on it) */
+#moreBtn[aria-expanded="true"] i:nth-child(1),#moreBtn[aria-expanded="true"] i:nth-child(3){transform:translateX(0);opacity:0;transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .01s .24s}
+#moreBtn[aria-expanded="true"] i:nth-child(2){transform:scale(1.35)}
+#tools.flip #menu{left:auto;right:0;transform-origin:calc(100% - 23px) 0}   /* near the screen's right edge the menu opens leftwards */
+#menu{position:absolute;left:0;top:calc(46px + 12px);z-index:2;display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:22px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);transform-origin:23px 0;transition:opacity .18s,transform .22s cubic-bezier(.2,.9,.3,1.25);font:600 13px/1 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+#menu[hidden]{display:flex;opacity:0;transform:scale(.8) translateY(-8px);pointer-events:none;visibility:hidden}
+#menu button{height:40px;min-width:150px;padding:0 18px 0 14px;border-radius:20px;display:flex;align-items:center;gap:10px;font:inherit;--lift:3px}
+#menu button b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(45,48,51,.1);font-size:14px;line-height:1}
+#menu button.danger b{background:rgba(238,90,44,.18);color:#c9411a}
+#addGo{--lift:3px}
+.ord{width:30px;height:30px;border-radius:10px;padding:0;font:inherit;font-size:11px;--lift:3px;flex:none}
+.ord:disabled{opacity:.35}
+#editList li.ro input{background:transparent;border-color:transparent;color:var(--mute)}
+#shelfHint{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:5;height:26px;padding:0 14px;border-radius:13px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 2px 0 rgba(45,48,51,.18);font:500 11px/24px "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;color:var(--mute);cursor:pointer;transition:opacity .35s,transform .35s}
+#shelfHint.gone{opacity:0;pointer-events:none;transform:translate(-50%,-10px)}
+#shelfHint:focus-visible{outline:2px solid #ee5a2c;outline-offset:2px}
+/* open display wardrobe: no doors, direct previous/next controls for each shelf */
+#wardPages{position:fixed;inset:0;z-index:5;pointer-events:none}
+.wardNav{position:absolute;display:flex;align-items:center;justify-content:space-between;gap:5px;transform:translate(-50%,-50%);pointer-events:none}
+.wardNav button{pointer-events:auto;width:29px;height:32px;border-radius:11px;border:1px solid rgba(124,130,140,.42);background:rgba(250,250,251,.94);color:#484d56;box-shadow:0 2px 9px rgba(29,35,45,.12);cursor:pointer;font:700 19px/1 sans-serif;touch-action:manipulation}
+.wardNav button:disabled{opacity:.3;cursor:default}
+.wardNav button:not(:disabled):hover,.wardNav button:not(:disabled):focus-visible{color:#ee5a2c;border-color:#ee5a2c;outline:0}
+.wardNav span{font:600 10px/1.2 "JetBrains Mono",sans-serif;color:#707780;background:rgba(249,250,251,.78);border-radius:6px;padding:3px 5px;white-space:nowrap;min-width:37px;text-align:center}
+/* dog wardrobe: a pill on the right edge for touch screens, and a name tag while hovering an item */
+#wardHint{position:fixed;right:calc(8px + env(safe-area-inset-right,0px));top:50%;transform:translateY(-50%);z-index:5;padding:12px 6px;border-radius:13px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 2px 0 rgba(45,48,51,.18);font:500 11px/1.2 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;letter-spacing:.12em;color:var(--mute);cursor:pointer;writing-mode:vertical-rl;transition:opacity .35s,transform .35s}
+#wardHint.gone{opacity:0;pointer-events:none;transform:translate(10px,-50%)}
+#wardHint:focus-visible{outline:2px solid #ee5a2c;outline-offset:2px}
+#wardRecycle{position:fixed;right:max(14px,env(safe-area-inset-right,0px));top:calc(70px + env(safe-area-inset-top,0px));z-index:6;display:flex;flex-direction:column;gap:7px;max-width:min(190px,42vw);padding:10px;border:1px solid var(--line);border-radius:16px;background:var(--glass);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);font:600 12px/1.3 "JetBrains Mono",ui-monospace,"PingFang TC",sans-serif;color:var(--ink)}
+#wardRecycle[hidden]{display:none}
+#wardRecycle .wardRecycleTitle{font-size:11px;color:var(--mute);letter-spacing:.05em;margin-bottom:2px}
+#wardRecycle button{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:34px;padding:6px 11px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.55);color:var(--ink);font:inherit;cursor:pointer}
+#wardRecycle button:hover,#wardRecycle button:focus-visible{background:rgba(238,90,44,.13);outline-color:#ee5a2c}
+#wardTip{position:fixed;left:0;top:0;z-index:6;padding:3px 9px;border-radius:9px;background:rgba(45,48,51,.86);color:#f3f4f5;font:500 11px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;letter-spacing:.04em;pointer-events:none;opacity:0;transition:opacity .12s;white-space:nowrap}
+#wardTip.on{opacity:1}
+#ytbox{position:fixed;left:0;top:0;width:640px;height:512px;opacity:0;pointer-events:none;z-index:4;overflow:hidden;transform-origin:0 0;border-radius:12px;background:#000;filter:contrast(1.12) saturate(.82) brightness(.95)}
+#ytbox iframe,#ytbox #ytp{position:absolute;left:-135px;top:0;width:910px;height:512px;border:0}
+#err{position:fixed;inset:0;display:grid;place-items:center;padding:24px;font:14px/1.6 "JetBrains Mono",ui-monospace,monospace;color:var(--ink);text-align:center;background:var(--bg)}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<div id="stage"></div>
+<button id="shelfHint" type="button" aria-label="展開專輯櫃">專輯櫃 ▾</button>
+<button id="wardHint" type="button" class="gone" aria-label="打開狗狗衣櫃">狗狗衣櫃 ◂</button>
+<div id="wardTip" aria-hidden="true"></div><div id="wardPages" aria-label="衣櫃物品左右切換"></div>
+<div id="wardRecycle" hidden aria-label="狗狗裝飾逐件回收"><div class="wardRecycleTitle">已穿戴 · 逐件回收</div><div id="wardRecycleItems"></div></div>
+<div id="addMsg" role="status" aria-live="polite"></div>
+<div id="tools" class="away">
+  <button id="moreBtn" class="k3" type="button" aria-label="更多：新增、編輯排序、刪除" aria-haspopup="menu" aria-expanded="false"><i></i><i></i><i></i></button>
+  <div id="menu" role="menu" hidden>
+    <button class="k3" type="button" role="menuitem" data-act="add"><b>＋</b>新增</button>
+    <button class="k3" type="button" role="menuitem" data-act="sort"><b>⇅</b>編輯排序</button>
+    <button class="k3 danger" type="button" role="menuitem" data-act="del"><b>×</b>刪除</button>
+  </div>
+</div>
+<div id="pop" class="away">
+  <form id="addForm" hidden autocomplete="off"><input id="addUrl" type="text" inputmode="url" spellcheck="false" placeholder="貼上 YouTube 播放清單連結" aria-label="YouTube 播放清單連結"><button id="addGo" class="k3 dark" type="submit">加入</button></form>
+  <div id="editPanel" hidden>
+    <h2 id="editTitle">我的播放清單</h2>
+    <p id="editEmpty">還沒有加入播放清單。</p>
+    <ul id="editList"></ul>
+    <button id="resetBtn" class="k3" type="button">回復預設</button>
+  </div>
+</div>
+<div id="ytbox" aria-hidden="true"><div id="ytp"></div></div>
+<div id="err" hidden>這個瀏覽器無法啟動 WebGL，沒辦法顯示 3D 播放器。</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+<script>
+<!-- @@JS@@ -->
+</script>
+
+</html>

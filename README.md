@@ -97,4 +97,49 @@
 
 ## 技術
 
-單一 `index.html`，Three.js 做 3D、matter-js 做 2D 物理，YouTube IFrame API 播放（讀清單的方式參考 [wvs_hitster](https://github.com/balala-bubu/wvs_hitster)，不需要 API key）。內建專輯的音樂是瀏覽器即時合成的。
+`index.html` 是由 `src/` 組出來的單一檔案（見下方「專案結構」），Three.js 做 3D、matter-js 做 2D 物理，YouTube IFrame API 播放（讀清單的方式參考 [wvs_hitster](https://github.com/balala-bubu/wvs_hitster)，不需要 API key）。內建專輯的音樂是瀏覽器即時合成的。
+
+## 專案結構
+
+改程式請改 `src/`，再執行 `python3 tools/build.py` 產生 `index.html`（GitHub Pages 讀的是 `index.html`，兩邊都要一起 commit）。`python3 tools/build.py --check` 可檢查兩者是否一致。
+
+```
+index.html                 build 產物，不要手改
+src/
+  index.template.html      頁面骨架：CSS、HTML、載入 three / matter
+  01-core/                 設定、tween、renderer、共用小工具
+  02-albums/               內建專輯資料與程式繪製的封面
+  03-scene/                背景、材質、播放器、專輯櫃、CD 模型
+  04-headphones-model/     耳機 3D 模型
+  05-youtube/              YouTube IFrame 播放
+  06-audio/                合成音樂與音效
+  07-player-logic/         狀態與版面、顯示、拖放判定、CD 流程、蓋子、插 CD
+  08-input/                滑鼠與鍵盤輸入
+  09-playlist/             貼播放清單變專輯、編輯排序
+  10-world/                地板牆面、遙控器
+  11-headphones-physics/   耳機＋線＋插頭的物理、拖曳
+  12-tv/                   老電視、遙控器特效、撞擊聲、影片貼到螢幕
+  13-frame/                每幀同步、回饋特效、主迴圈
+  14-dog/                  狗狗（骨架、動作、耳機穿戴）
+  15-wardrobe/             狗狗衣櫃（帽子、眼鏡、項圈）
+  16-boot/                 啟動與測試用鉤子 window.__mt
+models/                    狗與衣櫃的模型與貼圖
+tools/                     build.py（組 index.html）、build_wardrobe.py、validate_wardrobe.py
+```
+
+所有檔案共用同一個作用域，資料夾與檔名的編號就是執行順序，新增檔案請依順序編號，不要隨意調換。
+
+## 狗狗衣櫃
+
+遙控器的狗狗鍵叫出狗之後，右邊會滑出衣櫃，把帽子、眼鏡、項圈拖到狗身上就會穿上，拖回衣櫃就收起來；穿了什麼會記在瀏覽器裡。
+
+- 飾品模型和貼圖放 `models/wardrobe/`，新增流程見 `.claude/skills/wardrobe-accessory-import/SKILL.md`（丟 `.dae` 進 `inbox/`，執行 `python3 tools/build_wardrobe.py`）。
+- 單件飾品的大小與位置調 `models/wardrobe/src/<id>/item.json` 的 `fit`，不要動 `slots.json`，免得影響其他物品。
+- **帽子和耳機一次只能戴一個**：戴耳機時帽子自動收回衣櫃，戴帽子時耳機自動摘下。眼鏡、項圈可以和耳機同時戴。
+
+### 狗戴耳機與眼鏡的座標
+
+狗的 `Brow_group` 骨頭（耳機、帽子、眼鏡都掛在這裡）自己的座標是：**+X 左右、+Y 向上、+Z 朝嘴巴**；耳根骨頭 `LearA`／`RearA` 在 x=±7.2、y=2.7、z=-8.5，眼睛在 x=±4、y=-1.1、z=-0.6，頭寬約 ±7。
+
+- 耳機模型本身也是耳罩在 ±X、頭帶弧線在 +Y，所以不需要旋轉，只要縮放到耳根寬度並把耳罩中心放在耳根（`hpWear`）。
+- 眼鏡模型的鏡片面在 +X、鏡腳往 -X、鏡片寬在 Z；槽位 `slots.json` 的旋轉 `[0,-π/2,0]` 把它轉成朝向嘴巴。`glass_c` 的 `fit` 調成鏡片面在眼前約 z=2.5、寬約 ±8、鏡腳長到耳根。
