@@ -1821,7 +1821,8 @@ function dogFrame(dt,time){
     mode=carrying?'bring':'fetch';const goal=carrying?ptA.x:cd.pos.x;
     let a=(goal-dog.x)*dog.fd;if(a<-.3){dog.fd=-dog.fd;a=-a;}
     tz=FLOOR_Z;spd=7.5;tx=(dog.grab||a<=DOG_BITE.stand)?dog.x:clamp(goal-dog.fd*DOG_BITE.stand,-hw+1.1,hw-1.1);}
-  else if(tvOn){mode='tv';tx=tv.b.position.x/PXU-1.3;tz=2.9;spd=5.2;}   // sits left-front of the set so the picture stays visible
+  else if(tvOn){mode='tv';tx=tv.b.position.x/PXU-1.3;tz=2.9;spd=5.2;}
+  else if(toyState.active&&!toyState.drag&&!toyState.held&&toyState.cooldown<=0){mode='toy';tx=clamp(toyState.root.position.x-1.0,-hw+1.1,hw-1.1);tz=toyState.root.position.z;spd=5.4;}   // sits left-front of the set so the picture stays visible
   /* belly-up state machine: down -> lie (as long as it is being petted) -> up (slowly; now and then it flops back) */
   const Lc=dog.lie,nowS=performance.now()/1000;
   if(dog.leaving&&Lc.s!=='none'){Lc.s='none';}
@@ -1865,13 +1866,15 @@ function dogFrame(dt,time){
   let ryT;
   if(Lc.s!=='none'&&Lc.amt>.12){ryT=Lc.ryL;look=DOGX.p;}
   else if(mode==='tv'&&dog.sit>.5){ryT=Math.PI-.4;look=DOGX.v2.set(tv.b.position.x/PXU,-tv.b.position.y/PXU+.3,0);}
-  else if(mode==='fetch'||mode==='bring'){ryT=dog.fd*1.2;if(mode==='fetch')look=DOGX.v2.set(cd.pos.x,cd.pos.y,cd.pos.z);}   // side-on to the camera, head on the CD (fetch) or on the pointer (bring)
+  else if(mode==='fetch'||mode==='bring'){ryT=dog.fd*1.2;if(mode==='fetch')look=DOGX.v2.set(cd.pos.x,cd.pos.y,cd.pos.z);}
+  else if(mode==='toy'){ryT=clamp(Math.atan2(toyState.root.position.x-dog.x,2.6),-1.1,1.1);look=DOGX.v2.copy(toyState.root.position);}   // side-on to the camera, head on the CD (fetch) or on the pointer (bring)
   else if(moving)ryT=vx>0?1.2:-1.2;
   else if(mode==='chase'){ryT=clamp(Math.atan2(cd.pos.x-dog.x,4),-1,1);look=DOGX.v2.set(cd.pos.x,cd.pos.y,.8);}
   else ryT=clamp(Math.atan2(DOGX.p.x-dog.x,4.5),-.95,.95)*.8;
   dog.ry+=angDiff(dog.ry,ryT)*(1-Math.exp(-dt*(moving?10:5)));
   /* 5. hops: when the dragged CD is just above, the dog jumps for it */
   let hopY=0;
+  if(mode==='toy'&&!moving&&dist<.2&&toyState.cooldown<=0){toyState.held=true;toyState.playT=0;toyState.cooldown=7+Math.random()*5;dog.shk=1;Au.click(1.45,.45);}
   if(((mode==='chase'&&cd.pos.y-FLOOR_Y<4.6)||(mode==='bring'&&!dog.grab&&ptA.y>FLOOR_Y+2.4))&&!moving&&performance.now()>dog.nextHop){dog.hopT=.0001;dog.nextHop=performance.now()+900+Math.random()*500;}   // chase: jumps for the dragged CD; bring: jumps to hand over the CD when the pointer is up high
   if(dog.hopT>0){dog.hopT+=dt;const k=dog.hopT/.5;if(k>=1)dog.hopT=0;else hopY=Math.sin(k*Math.PI)*.85;}
   /* 6. place */
@@ -1891,7 +1894,7 @@ dog.g.updateMatrixWorld(true);
   const yawT=clamp(Math.atan2(ddx,ddz),-1.25,1.25),pitT=clamp(Math.atan2(ddy,Math.hypot(ddx,ddz)),-.55,.75);
   const kl=1-Math.exp(-dt*(mode==='chase'?14:9));dog.lookYaw+=(yawT-dog.lookYaw)*kl;dog.lookPitch+=(pitT-dog.lookPitch)*kl;
   const playing=status==='playing',bpm=(Au.alb&&Au.alb.bpm)||90,beat=playing?Math.sin(time*Math.PI*bpm/60):0;
-  const happy=Math.max(playing?.55:0,mode==='chase'||mode==='fetch'||mode==='bring'?1:0,moving?.7:0,eo);
+  const happy=Math.max(playing?.55:0,mode==='chase'||mode==='fetch'||mode==='bring'||mode==='toy'||toyState.held?1:0,moving?.7:0,eo);
   dogAdd('Neck','u',dog.lookYaw*.42*(1-eo));dogAdd('Head','u',dog.lookYaw*.58*(1-eo));
   dogAdd('Neck','r',(-dog.lookPitch*.4+beat*.03)*(1-eo));dogAdd('Head','r',(-dog.lookPitch*.6+beat*.05)*(1-eo));
   if(dog.shk>0){dog.shk=Math.max(0,dog.shk-dt*2.4);const a=Math.sin((1-dog.shk)*22)*dog.shk*.45;dogAdd('Head','u',a);dogAdd('Neck','u',a*.5);dogAdd('LearA','f',a*.7);dogAdd('RearA','f',-a*.7);}   // shakes its head after putting something on
@@ -1968,22 +1971,22 @@ function wLabel(txt){
 function wLayout(){
   /* the cabinet fills the wall from just under the top of the screen down to just above the floor line (heights are those of the wall plane at the resting camera) */
   const Wc=clamp(L.hw*.42,2.7,3.7),tn=TILT_UP+TILT_DN,yTop=L.d*(TILT_UP+(TANH-tn)/(1+tn*TANH))-.35,yBot=FLOOR_Y+1.8,
-    Hc0=clamp(yTop-yBot,3.6,6.6),key=Wc.toFixed(2)+'/'+Hc0.toFixed(2);
+    Hc0=clamp(yTop-yBot,4.1,7.0),key=Wc.toFixed(2)+'/'+Hc0.toFixed(2);
   if(key===W.key)return;
-  W.key=key;W.Wc=Wc;const Hc=W.Hc=Hc0,D=.9,tH=W.tierH=(Hc-.28)/3;W.yc=yTop-Hc/2;
+  W.key=key;W.Wc=Wc;const Hc=W.Hc=Hc0,D=.9,tH=W.tierH=(Hc-.28)/W.slots.length;W.yc=yTop-Hc/2;
   [W.inner,W.door].forEach(g=>{while(g.children.length){const c=g.children.pop();if(c.geometry)c.geometry.dispose();}});
   const I=W.inner;
   wBox(Wc,Hc,.1,0,0,-D/2+.05,wMat.back,I);
   wBox(.14,Hc,D,-(Wc/2-.07),0,0,wMat.body,I);wBox(.14,Hc,D,Wc/2-.07,0,0,wMat.body,I);
   wBox(Wc,.14,D,0,Hc/2-.07,0,wMat.body,I);wBox(Wc,.14,D,0,-(Hc/2-.07),0,wMat.body,I);
-  for(let i=1;i<3;i++)wBox(Wc-.28,.07,D*.92,0,Hc/2-.14-tH*i,.02,wMat.body,I);
+  for(let i=1;i<W.slots.length;i++)wBox(Wc-.28,.07,D*.92,0,Hc/2-.14-tH*i,.02,wMat.body,I);
   W.slots.forEach((s,i)=>{const l=wLabel(s.label);l.position.set(-Wc/2+.82,Hc/2-.14-tH*i-.24,-D/2+.112);I.add(l);});
   /* Open showroom frame: soft backing, slim metal trims, warm display ledges; no swinging door or glass blocker. */
   wBox(Wc-.12,.035,.09,0,Hc/2-.20,.48,wMat.trim,I);
   wBox(Wc-.12,.035,.09,0,-Hc/2+.18,.48,wMat.trim,I);
-  for(let i=0;i<3;i++){
+  for(let i=0;i<W.slots.length;i++){
     const y=Hc/2-.14-tH*(i+1);
-    if(i<2)wBox(Wc-.35,.025,.1,0,y+.035,.42,wMat.accent,I);
+    if(i<W.slots.length-1)wBox(Wc-.35,.025,.1,0,y+.035,.42,wMat.accent,I);
     wBox(Wc-.42,.035,.22,0,y+tH*.34,-.25,wMat.trim,I);
   }
 }
@@ -1991,7 +1994,7 @@ async function loadWardrobe(){
   try{
     const base='models/wardrobe/';
     const man=await fetch(base+'manifest.json').then(r=>{if(!r.ok)throw new Error('manifest '+r.status);return r.json();});
-    W.slots=man.slots;man.slots.forEach(s=>{W.slotById[s.id]=s;W.byslot[s.id]=[];});
+    W.slots=[...man.slots,{id:'toy',label:'玩具',display:{size:1.1,rot:[0,0,0]}}];W.slots.forEach(s=>{W.slotById[s.id]=s;W.byslot[s.id]=[];});
     const tl=new T.TextureLoader(),wrap=s=>s==='mirror'?T.MirroredRepeatWrapping:s==='clamp'?T.ClampToEdgeWrapping:T.RepeatWrapping;
     await Promise.all(man.items.map(async def=>{
       try{
@@ -2012,6 +2015,7 @@ async function loadWardrobe(){
       const h=new T.Group(),m=new T.Mesh(it.geo,it.mat);m.position.set(-it.c[0],-it.c[1],-it.c[2]);m.renderOrder=it.alpha?4:0;h.add(m);
       const p=new T.Mesh(sph,hide);p.scale.setScalar(it.md*.62);p.userData.ward={id:it.id,src:'shelf'};h.add(p);   // generous invisible hit area (the glasses are thin)
       it.holder=h;it.proxy=p;W.shelfG.add(h);});
+    W.byslot.toy=TOY_CATALOG;
     wBuildNav();W.ready=true;
   }catch(e){console.warn('wardrobe failed to load',e);}
 }
@@ -2180,6 +2184,7 @@ function wardFrame(dt,time){
   W.slots.forEach((sl,si)=>{
     const list=W.byslot[sl.id]||[],per=3,pg=clamp(W.page[sl.id]||0,0,Math.max(0,Math.ceil(list.length/per)-1)),n=Math.min(per,list.length-pg*per),
       cell=(W.Wc-.5)/Math.max(n,2),yc=W.Hc/2-.14-W.tierH*(si+.5)-.05;
+    if(sl.id==='toy')return;
     list.forEach((it,i)=>{
       const wi=i-pg*per,inW=wi>=0&&wi<per;it.inWindow=inW;
       const h=it.holder;h.visible=inW&&!it.away;if(!h.visible)return;
@@ -2191,6 +2196,7 @@ function wardFrame(dt,time){
       h.scale.setScalar(Math.max(.001,size/it.md*(1+.12*it.hv)*pop));
     });
   });
+  toyFrame(dt,time,can);
   /* worn items pop in */
   for(const s in W.worn){const w=W.worn[s];if(w.pop<1)w.pop=Math.min(1,w.pop+dt/.35);
     const k=w.pop<1?(1-Math.pow(1-w.pop,3))*(1+.3*Math.sin(w.pop*Math.PI)):1;w.sg.scale.setScalar(Math.max(.001,w.sg.userData.s*k));}
@@ -2209,6 +2215,115 @@ function wardFrame(dt,time){
     d.gh.rotation.y+=Math.sin(time*2.2)*.25*dt;
   }
 }
+
+/* ---------- extensible play-toy shelf ----------
+   Add another {id,name,make} entry in TOY_CATALOG; accessories still use the
+   original wearable manifest. Toys are floor props, never attached to a bone. */
+const toyMat=(color,roughness=.96)=>new T.MeshStandardMaterial({color,roughness,metalness:0});
+const toyFur=toyMat(0xbd915e),toyLight=toyMat(0xe7cba0),toyDark=toyMat(0x302822,.53),toyPink=toyMat(0xb97b79);
+function makeTeddy(){
+  const g=new T.Group(),ball=(parent,mat,x,y,z,rx,ry,rz)=>{
+    const m=new T.Mesh(new T.SphereGeometry(1,18,12),mat);
+    m.position.set(x,y,z);m.scale.set(rx,ry,rz);m.castShadow=true;parent.add(m);return m;};
+  ball(g,toyFur,0,.70,0,.43,.57,.34);
+  ball(g,toyFur,0,1.38,.10,.43,.42,.39);
+  ball(g,toyFur,-.32,1.73,.08,.19,.21,.14);ball(g,toyFur,.32,1.73,.08,.19,.21,.14);
+  ball(g,toyLight,-.32,1.73,.204,.095,.12,.05);ball(g,toyLight,.32,1.73,.204,.095,.12,.05);
+  ball(g,toyFur,-.46,.80,.10,.19,.36,.22).rotation.z=-.3;
+  ball(g,toyFur,.46,.80,.10,.19,.36,.22).rotation.z=.3;
+  ball(g,toyFur,-.26,.24,.19,.23,.27,.32);ball(g,toyFur,.26,.24,.19,.23,.27,.32);
+  ball(g,toyLight,0,.68,.302,.28,.36,.045);
+  ball(g,toyLight,0,1.22,.436,.245,.17,.105);
+  ball(g,toyDark,-.16,1.46,.445,.067,.075,.046);
+  ball(g,toyDark,.16,1.46,.445,.067,.075,.046);
+  ball(g,toyDark,0,1.24,.544,.10,.078,.07);
+  ball(g,toyPink,0,1.10,.455,.07,.027,.014);
+  g.userData.toyId='teddy';return g;
+}
+const TOY_CATALOG=[
+  {id:'teddy',name:'小熊玩偶',make:makeTeddy}
+];
+const toyState={active:false,id:null,root:new T.Group(),preview:new T.Group(),drag:null,held:false,playT:0,cooldown:4,ray:new T.Raycaster(),nd:new T.Vector2(),tipT:0};
+scene.add(toyState.root);W.shelfG.add(toyState.preview);
+function toyPick(cx,cy){
+  if(!W.ready||!dog.present)return null;
+  toyState.nd.set(cx/innerWidth*2-1,-(cy/innerHeight*2-1));
+  toyState.ray.setFromCamera(toyState.nd,cam);
+  if(W.vis>.65){
+    const a=toyState.ray.intersectObjects(toyState.preview.children,true);
+    if(a.length)return {source:'shelf',id:toyState.preview.userData.id};
+  }
+  if(toyState.active&&toyState.root.visible&&toyState.ray.intersectObjects(toyState.root.children,true).length)
+    return {source:'stage',id:toyState.id};
+  return null;
+}
+function toySelect(id){
+  const def=TOY_CATALOG.find(t=>t.id===id);if(!def)return false;
+  toyState.root.clear();toyState.root.add(def.make());toyState.root.scale.setScalar(.65);
+  toyState.id=id;toyState.active=true;toyState.held=false;toyState.cooldown=2;
+  toyState.root.position.set(clamp(dog.x+1.9,-L.hw+1,L.hw-1),FLOOR_Y+.06,1.9);
+  toyState.root.visible=true;Au.click(1.2,.5);return true;
+}
+function toyPutAway(){
+  toyState.active=false;toyState.held=false;toyState.drag=null;toyState.root.clear();
+  toyState.id=null;toyState.root.visible=false;Au.click(1,.4);
+}
+function toyAtPointer(e){
+  /* Ground plane at the dog's depth; never place a toy inside the cabinet. */
+  const v=dogPtrAt(1.9,new T.Vector3());
+  toyState.root.position.set(clamp(v.x,-L.hw+.8,L.hw-.8),FLOOR_Y+.06,1.9);
+}
+cvs.addEventListener('pointerdown',e=>{
+  if(e.button>0||!dog.present||dog.leaving||W.drag)return;
+  const hit=toyPick(e.clientX,e.clientY);if(!hit)return;
+  e.stopImmediatePropagation();e.stopPropagation();
+  if(hit.source==='shelf')toySelect(hit.id);
+  toyState.held=false;toyState.drag={x:e.clientX,y:e.clientY,moved:false,source:hit.source};
+  toyAtPointer(e);try{cvs.setPointerCapture(e.pointerId);}catch(_){}
+  cvs.style.cursor='grabbing';
+},{capture:true});
+cvs.addEventListener('pointermove',e=>{
+  if(!toyState.drag)return;
+  e.stopImmediatePropagation();e.stopPropagation();
+  if(Math.hypot(e.clientX-toyState.drag.x,e.clientY-toyState.drag.y)>6)toyState.drag.moved=true;
+  toyAtPointer(e);
+},{capture:true});
+function toyEnd(e){
+  if(!toyState.drag)return;
+  const v=dogPtrAt(1.9,new T.Vector3());
+  const over= W.vis>.55&&v.x>W.root.position.x-W.Wc/2;
+  toyState.drag=null;cvs.style.cursor='default';
+  if(over)toyPutAway();else toyState.cooldown=1.1;
+  if(e)try{cvs.releasePointerCapture(e.pointerId);}catch(_){}
+}
+cvs.addEventListener('pointerup',e=>{if(toyState.drag){e.stopImmediatePropagation();toyEnd(e);}},{capture:true});
+cvs.addEventListener('pointercancel',e=>{if(toyState.drag){e.stopImmediatePropagation();toyEnd(e);}},{capture:true});
+function toyFrame(dt,time,can){
+  const si=W.slots.findIndex(s=>s.id==='toy');
+  if(si<0)return;
+  const def=TOY_CATALOG[(W.page.toy||0)*3]||TOY_CATALOG[0];
+  if(toyState.preview.userData.id!==def.id){
+    toyState.preview.clear();toyState.preview.add(def.make());toyState.preview.userData.id=def.id;
+  }
+  const y=W.Hc/2-.14-W.tierH*(si+.5);
+  toyState.preview.position.set(0,y-.39,.03);
+  toyState.preview.scale.setScalar(Math.min(.7,W.tierH*.40));
+  toyState.preview.rotation.y=Math.sin(time*.8)*.25;
+  toyState.preview.visible=can&&W.vis>.3;
+  if(!can&&toyState.drag)toyEnd();
+  if(!dog.present&&toyState.active)toyPutAway();
+  if(!toyState.active)return;
+  toyState.cooldown=Math.max(0,toyState.cooldown-dt);
+  if(toyState.held&&!toyState.drag){
+    toyState.playT+=dt;
+    toyState.root.position.set(dog.x+Math.sin(dog.ry)*.76,FLOOR_Y+.1+Math.abs(Math.sin(toyState.playT*4))*.18,dog.z+.55);
+    toyState.root.rotation.z=Math.sin(toyState.playT*7)*.13;
+    if(toyState.playT>2.2){toyState.held=false;toyState.playT=0;}
+  }else if(!toyState.drag){
+    toyState.root.rotation.z*=Math.exp(-dt*5);
+  }
+}
+
 loadWardrobe();
 
 function frame(){
@@ -2265,7 +2380,7 @@ function frame(){
   renderer.render(scene,cam);requestAnimationFrame(frame);
 }
 tween(1.1,k=>{pOff.intro=lerp(-.9,0,k);},ease.out5);
-window.__mt={ward:W,wardEquip:wEquip,wardRecycle:wRecycle,dog,dogToggle,dogPet,cam,albums,player,BAY,L,ALBUMS,get cd(){return cd;},get state(){return state;},get status(){return status;},get lidOpen(){return lidOpen;},get cdIn(){return cdIn;},get busy(){return busy;},rem,hpState,tv,hole,eng,grab,get zeroG(){return zeroG;},remoteFx,tvSummon,tvDismiss,seekPlug,plugOut,hpSpawn,stretchRatio,FLOOR:()=>FLOOR_Y,get shelfVis(){return shelfVis;},get fps(){return fpsAvg;},get sx(){return sx;},get sxTarget(){return sxTarget;},keys,YTA,addFromUrl,get N(){return N;},renderEdit};
+window.__mt={ward:W,wardEquip:wEquip,wardRecycle:wRecycle,dog,dogToggle,dogPet,cam,albums,player,BAY,L,ALBUMS,get cd(){return cd;},get state(){return state;},get status(){return status;},get lidOpen(){return lidOpen;},get cdIn(){return cdIn;},get busy(){return busy;},rem,hpState,tv,hole,eng,grab,get zeroG(){return zeroG;},remoteFx,tvSummon,tvDismiss,seekPlug,plugOut,hpSpawn,stretchRatio,FLOOR:()=>FLOOR_Y,get shelfVis(){return shelfVis;},get fps(){return fpsAvg;},get sx(){return sx;},get sxTarget(){return sxTarget;},toyState,toySelect,toyPutAway,TOY_CATALOG,keys,YTA,addFromUrl,get N(){return N;},renderEdit};
 requestAnimationFrame(frame);
 })();
 </script>
