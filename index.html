@@ -2056,7 +2056,7 @@ function wNavSync(){
     n.bar.hidden=total<=1;
   });
 }
-function wSave(){const o={};for(const s in W.worn)o[s]=W.worn[s].id;LS.set(W.KEY,o);W.recycleKey='';}
+function wSave(){if(W.fitCheckActive){W.recycleKey='';return;}const o={};for(const s in W.worn)o[s]=W.worn[s].id;LS.set(W.KEY,o);W.recycleKey='';}
 function wRecycle(slot){
   if(slot==='headphones'){hpUnwear();Au.click(1.2,.45);buzz(8);wRenderRecycle();return;}
   if(!W.worn[slot])return;
@@ -2181,6 +2181,7 @@ function wardFrame(dt,time){
   if(W.fitCheckPending && dog.ready && W.ready){
     if(!dog.present)dogToggle();
     if(dog.present&&!dog.leaving){
+      W.fitCheckActive=true; // prevent the temporary test outfit from overwriting saved choices
       for(const slot of ['glasses','collar']){
         const it=(W.byslot[slot]||[])[0];
         if(it)wEquip(it.id,true);
