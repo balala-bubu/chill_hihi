@@ -16,6 +16,7 @@ let toolsOver=false;
 /* the shelf stays out while its tools are being used: menu / add form / edit panel open, or the pointer is on them */
 function toolsHold(){return toolsOver||!$id('menu').hidden||!$id('addForm').hidden||!$id('editPanel').hidden;}
 function shelfWant(){
+  if(PET.mini)return 0;   // desktop pet, mini layout: there is no shelf
   if(toolsHold())return 1;
   if(state==='album'||state==='albumOpen'||state==='opening')return 1;
   if(cdAlbum>=0&&albums[cdAlbum]&&albums[cdAlbum].dock)return 1;

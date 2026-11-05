@@ -16,6 +16,7 @@ const bodyWorld=b=>({x:b.position.x/PXU,y:-b.position.y/PXU});
 
 /* ---------- floor, walls, the (static) player body ---------- */
 const floorMesh=new T.Mesh(new T.BoxGeometry(160,12,16),new T.MeshStandardMaterial({color:0xe4e6e8,roughness:.9}));floorMesh.receiveShadow=true;floorMesh.position.z=3.8;scene.add(floorMesh);
+if(PET.on&&!PET.card){floorMesh.material=new T.ShadowMaterial({opacity:.18});floorMesh.visible=PET.shadow;}   // desktop pet: an invisible floor that only shows shadows (and only when shadows are on)
 let floorB=null,wallL=null,wallR=null,playerB=null;
 function buildBounds(){
   FLOOR_Y=PY-PH/2-.8;floorMesh.position.y=FLOOR_Y-6;

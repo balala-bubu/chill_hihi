@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "chill_hihi 懸浮播放器",
+  "version": "0.1.0",
+  "description": "把 chill_hihi 的 3D CD 播放器浮在你瀏覽的每個網頁右下角，背景透明、按鈕可按，可選擇加上狗狗。",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {"matches": ["http://*/*", "https://*/*"], "js": ["content.js"], "run_at": "document_idle", "all_frames": false}
+  ],
+  "action": {"default_title": "chill_hihi 懸浮播放器", "default_popup": "popup.html", "default_icon": {"16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png"}},
+  "icons": {"16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png"}
+}

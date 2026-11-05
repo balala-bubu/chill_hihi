@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>MT-1 Disc Player</title>
+<script>/* desktop pet (?pet=full|mini): set the page classes before the first paint, so a transparent window never flashes the grey background */
+if(/[?&]ext=1/.test(location.search))addEventListener('message',function(e){if(e.data&&e.data.chp==='port'&&e.ports&&e.ports[0])window.__chpPort=e.ports[0];});
+(function(){var m=(location.search.match(/[?&]pet=(full|mini)/)||[])[1];if(m){var c=document.documentElement.classList;c.add('pet','pet-'+m);if(/[?&]card=1/.test(location.search))c.add('pet-card');if(/[?&]embed=1/.test(location.search)||/[?&]ext=1/.test(location.search))c.add('pet-embed');if(window.petBridge)c.add('pet-app');}})();</script>
 <style>
 /* Layout: one full-bleed 3D stage. Frosted grey world, a single player, albums on a shelf above. */
 :root{--bg:#d9dbde;--ink:#2d3033;--mute:#6a7076;--glass:rgba(240,241,243,.72);--line:rgba(45,48,51,.2)}
@@ -84,6 +87,50 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 #ytbox{position:fixed;left:0;top:0;width:640px;height:512px;opacity:0;pointer-events:none;z-index:4;overflow:hidden;transform-origin:0 0;border-radius:12px;background:#000;filter:contrast(1.12) saturate(.82) brightness(.95)}
 #ytbox iframe,#ytbox #ytp{position:absolute;left:-135px;top:0;width:910px;height:512px;border:0}
 #err{position:fixed;inset:0;display:grid;place-items:center;padding:24px;font:14px/1.6 "JetBrains Mono",ui-monospace,monospace;color:var(--ink);text-align:center;background:var(--bg)}
+/* ---- desktop pet (?pet=full | ?pet=mini): transparent page, a drag grip, and in mini a small control bar ---- */
+html.pet:not(.pet-card),html.pet:not(.pet-card) body{background:transparent}
+html.pet:not(.pet-card) #stage::after,html.pet #shelfHint.gone,html.pet #wardHint,html.pet #wardRecycle{display:none}
+html.pet:not(.pet-card) #shelfHint{left:auto;right:12px;transform:none;opacity:.55;transition:opacity .2s,transform .35s}html.pet:not(.pet-card) #shelfHint:hover{opacity:1}
+html.pet:not(.pet-card) #shelfHint.gone{transform:translateY(-10px)}   /* top-right corner: out of the dog's way */
+html.pet:not(.pet-card) #err{background:transparent}
+/* card style: the original grey-white scene inside a rounded player-like frame (the window itself is transparent, so the corners show the desktop) */
+html.pet-card,html.pet-card body{background:transparent}   /* the card colour comes from the stage, so the rounded clip below really cuts the corners */
+html.pet-card #stage,html.pet-card #err{background:var(--bg)}
+html.pet-card{clip-path:inset(0 round 26px)}
+html.pet-card body::after{content:"";position:fixed;inset:0;z-index:20;border-radius:26px;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.8),inset 0 0 0 2px rgba(45,48,51,.1),inset 0 6px 14px rgba(255,255,255,.35)}
+#petGrip,#petHide,#petBar{display:none}
+html.pet-app #petGrip,html.pet-app #petHide{display:grid;position:fixed;top:8px;z-index:9;height:22px;place-items:center;border-radius:11px;border:1px solid var(--line);background:var(--glass);color:var(--mute);font:600 12px/1 "JetBrains Mono",ui-monospace,Menlo,monospace;opacity:.4;transition:opacity .2s;-webkit-user-select:none;user-select:none}
+html.pet-app #petGrip{left:8px;width:44px;cursor:grab;-webkit-app-region:drag}
+html.pet-app #petHide{left:58px;width:26px;padding:0;cursor:pointer;-webkit-app-region:no-drag}
+html.pet-app #petGrip:hover,html.pet-app #petHide:hover,html.pet-app #petHide:focus-visible{opacity:1}
+html.pet-mini #shelfHint,html.pet-mini #wardHint,html.pet-mini #wardRecycle,html.pet-mini #wardPages,html.pet-mini #wardTip,html.pet-mini #tools,html.pet-mini #pop{display:none!important}
+html.pet-mini #petBar{display:block;position:fixed;left:10px;right:10px;bottom:10px;z-index:9;font:500 12px/1.4 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
+#petRow{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border-radius:24px;border:1px solid var(--line);background:rgba(240,241,243,.92);box-shadow:0 4px 14px rgba(45,48,51,.18)}
+#petNow{flex:1;min-width:0;display:flex;flex-direction:column}
+#petNow b{font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#petNow small{font-size:10px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#petBtns{display:flex;gap:5px;flex:none}
+#petBtns button{width:32px;height:32px;border-radius:50%;padding:0;font:inherit;font-size:13px;--lift:3px}
+#petBtns button:focus-visible,#petAlbums button:focus-visible,#petAddUrl:focus-visible,#petAddForm button:focus-visible,#petHide:focus-visible{outline:2px solid #ee5a2c;outline-offset:2px}
+#petList{position:absolute;left:0;right:0;bottom:calc(100% + 8px);max-height:min(58vh,210px);overflow:auto;padding:10px;border-radius:18px;border:1px solid var(--line);background:rgba(240,241,243,.96);box-shadow:0 4px 14px rgba(45,48,51,.18)}
+#petList[hidden]{display:none}
+#petAlbums{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:6px}
+#petAlbums button{width:100%;min-height:38px;padding:5px 12px;border-radius:12px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;font:inherit;text-align:left;--lift:2px}
+#petAlbums button span{font-weight:700;font-size:12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#petAlbums button small{font-size:10px;color:var(--mute)}
+#petAddForm{display:flex;gap:6px}
+#petAddUrl{flex:1;min-width:0;height:34px;padding:0 12px;border-radius:17px;border:1px solid var(--line);background:rgba(255,255,255,.7);color:var(--ink);font:inherit;font-size:12px}
+#petAddForm button{height:34px;padding:0 14px;border-radius:17px;font:inherit;font-weight:700;--lift:3px}
+/* compact upright window: smaller hint pill, the drag grip sits under the player */
+html.pet #shelfHint{top:6px;height:20px;padding:0 9px;font-size:10px;line-height:18px}
+html.pet-full.pet-app #petGrip,html.pet-full.pet-app #petHide{top:auto;bottom:8px}
+/* small browser window (picture-in-picture or popup): a plain rectangle, so no rounded clip; a button for the dog */
+html.pet-embed{clip-path:none!important}html.pet-embed{overflow:hidden}html.pet-embed body::after{display:none}
+#petDogBtn{display:none}
+html.pet-embed #petDogBtn{display:grid;position:fixed;left:8px;bottom:8px;z-index:9;width:26px;height:26px;padding:0;place-items:center;border-radius:50%;font-size:14px;line-height:1;opacity:.55;--lift:2px}
+html.pet-embed #petDogBtn:hover,html.pet-embed #petDogBtn[aria-pressed="true"]{opacity:1}
+/* while nothing needs the picture, YouTube plays in a small player so it picks a low-resolution stream (set from petFrame) */
+#ytbox.lite #ytp,#ytbox.lite iframe{left:0;width:320px;height:180px}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -99,6 +146,7 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
   <div id="menu" role="menu" hidden>
     <button class="k3" type="button" role="menuitem" data-act="add"><b>＋</b>新增</button>
     <button class="k3" type="button" role="menuitem" data-act="sort"><b>⇅</b>編輯排序</button>
+    <button class="k3" type="button" role="menuitem" data-act="widget"><b>▣</b>懸浮播放器</button>
     <button class="k3 danger" type="button" role="menuitem" data-act="del"><b>×</b>刪除</button>
   </div>
 </div>
@@ -109,6 +157,25 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
     <p id="editEmpty">還沒有加入播放清單。</p>
     <ul id="editList"></ul>
     <button id="resetBtn" class="k3" type="button">回復預設</button>
+  </div>
+</div>
+<div id="petGrip" title="拖曳移動視窗" aria-label="拖曳移動視窗">⠿</div>
+<button id="petDogBtn" class="k3" type="button" title="狗狗" aria-label="狗狗趴在播放器上" aria-pressed="false">🐶</button>
+<button id="petHide" type="button" title="隱藏視窗（音樂繼續播放）" aria-label="隱藏視窗，音樂繼續播放">–</button>
+<div id="petBar">
+  <div id="petList" hidden>
+    <ul id="petAlbums"></ul>
+    <form id="petAddForm" autocomplete="off"><input id="petAddUrl" type="text" inputmode="url" spellcheck="false" placeholder="貼上 YouTube 播放清單連結" aria-label="YouTube 播放清單連結"><button class="k3 dark" type="submit">加入</button></form>
+  </div>
+  <div id="petRow">
+    <div id="petNow"><b id="petTitle"></b><small id="petSub"></small></div>
+    <div id="petBtns">
+      <button id="pbList" class="k3" type="button" aria-label="專輯清單" aria-expanded="false">♫</button>
+      <button id="pbPlay" class="k3 hot" type="button" aria-label="播放">▶</button>
+      <button id="pbNext" class="k3" type="button" aria-label="下一首">⏭</button>
+      <button id="pbVm" class="k3" type="button" aria-label="音量減">－</button>
+      <button id="pbVp" class="k3" type="button" aria-label="音量加">＋</button>
+    </div>
   </div>
 </div>
 <div id="ytbox" aria-hidden="true"><div id="ytp"></div></div>

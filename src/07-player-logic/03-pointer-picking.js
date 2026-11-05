@@ -4,8 +4,9 @@ const cvs=renderer.domElement;
 function setNDC(e){const r=cvs.getBoundingClientRect();ndc.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(ndc,cam);}
 function planeHit(z){plane.constant=-z;const h=ray.ray.intersectPlane(plane,tmp);return h?tmp:null;}
 function pick(){
+  if(PET.mini)return null;   // mini desktop pet: only the dog and the control bar take the mouse
   const list=albumMeshes.concat(keyMeshes,playerHit);
-  if(PHYS){list.push(...rem.hit);if(hpState.s!=='none')list.push(...hpHit,...plugHit);if(tv.built&&tv.state!=='none'&&tv.state!=='sinking')list.push(...tv.hit);}
+  if(PHYS){if(!PET.noRemote)list.push(...rem.hit);if(hpState.s!=='none')list.push(...hpHit,...plugHit);if(tv.built&&tv.state!=='none'&&tv.state!=='sinking')list.push(...tv.hit);}
   if(cd&&(cd.mode==='case'||cd.mode==='drag'||cd.mode==='free'||cd.mode==='floor'||cd.mode==='carried'||(cd.mode==='in'&&lidOpen)))list.push(cd.mesh);
   /* Headphones are interactive even when their thin band overlaps the player or dog. */
   if(PHYS&&hpState.s!=='none'){

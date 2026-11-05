@@ -131,8 +131,11 @@ src/
   13-frame/                每幀同步、回饋特效、主迴圈
   14-dog/                  狗狗（骨架、動作、耳機穿戴）
   15-wardrobe/             狗狗衣櫃（帽子、眼鏡、項圈）
-  16-boot/                 啟動與測試用鉤子 window.__mt
+  16-pet/                  桌面小寵物模式（?pet=full|mini）：限幀、滑鼠穿透、迷你控制列
+  17-boot/                 啟動與測試用鉤子 window.__mt（必須是最後一個，它會把整支程式的函式收尾）
 models/                    狗與衣櫃的模型與貼圖
+desktop/                   macOS 桌面小寵物外殼（Electron），見 desktop/README.md
+extension/                 Chrome 擴充功能：把播放器浮在每個分頁右下角，見 extension/README.md
 tools/                     build.py（組 index.html）、build_wardrobe.py、validate_wardrobe.py
 ```
 
@@ -152,3 +155,20 @@ tools/                     build.py（組 index.html）、build_wardrobe.py、va
 
 - 耳機模型本身也是耳罩在 ±X、頭帶弧線在 +Y，所以不需要旋轉，只要縮放到耳根寬度並把耳罩中心放在耳根（`hpWear`）。
 - 眼鏡模型的鏡片面在 +X、鏡腳往 -X、鏡片寬在 Z；槽位 `slots.json` 的旋轉 `[0,-π/2,0]` 把它轉成朝向嘴巴。`glass_c` 的 `fit` 調成鏡片面在眼前約 z=2.5、寬約 ±8、鏡腳長到耳根。
+
+## 桌面小寵物（macOS）
+
+網址加參數就是寵物模式，不加參數時網頁版完全不變：
+
+| 參數 | 作用 |
+|---|---|
+| `?pet=full` | 完整版：CD 播放器、遙控器、耳機、專輯櫃、狗狗、衣櫃都在 |
+| `?pet=mini` | 迷你版：狗狗＋底下一條控制列（挑專輯、播放／暫停、下一首、音量、貼上新播放清單），不需要放 CD |
+| `&card=1` | 預設是全透明，只剩播放器（和狗狗）浮著；加這個改成灰白圓角卡片 |
+| `&quality=eco｜balanced｜smooth` | 省電（20 fps、像素比 1）／平衡（30 fps、像素比 ≤1.5，預設）／流暢（60 fps、像素比 ≤2、開陰影） |
+| `&dog=1` | 狗狗趴在播放器上面（預設沒有狗，可在視窗左下的狗狗鈕開關） |
+| `&ext=1` | 給 Chrome 擴充功能用（放在 iframe 裡，透過私有 MessagePort 通訊） |
+
+省電做法：幀數上限；8 秒沒操作降到閒置幀數（平衡 15、省電 8）；睡眠時用計時器而不是每 16 ms 喚醒一次；預設關陰影；`powerPreference: low-power`；YouTube 播放器在不顯示畫面時縮成小尺寸（讓 YouTube 挑低解析度串流）；可暫停動畫（音樂繼續）；迷你版不更新播放器、專輯櫃和物理。
+
+**懸浮在一般網頁上**用 Chrome 擴充功能（`extension/`），在原網頁的「⋯」選單點「懸浮播放器」開關。桌面外殼（透明置頂視窗、選單列圖示、滑鼠穿透）在 `desktop/`，安裝與使用見 [desktop/README.md](desktop/README.md)。
