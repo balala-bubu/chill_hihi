@@ -79,6 +79,20 @@
           0
         ]
       }
+    },
+    {
+      "id": "toy",
+      "label": "物品",
+      "tool": true,
+      "rowH": 0.8,
+      "display": {
+        "size": 1.1,
+        "rot": [
+          0,
+          0,
+          0
+        ]
+      }
     }
   ],
   "items": [
@@ -208,6 +222,13 @@
       "name": "項圈 D",
       "mesh": "items/coller_d.json",
       "tex": "items/coller_d.png"
+    },
+    {
+      "id": "t_fg_apple",
+      "slot": "toy",
+      "name": "蘋果",
+      "mesh": "items/t_fg_apple.json",
+      "tex": "items/t_fg_apple.png"
     }
   ]
 }

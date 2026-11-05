@@ -28,7 +28,7 @@ W = os.path.join(ROOT, 'models', 'wardrobe')
 INBOX, SRC, ITEMS = (os.path.join(W, d) for d in ('inbox', 'src', 'items'))
 SLOTS, MANIFEST = os.path.join(W, 'slots.json'), os.path.join(W, 'manifest.json')
 
-GUESS = [('glass', 'glasses'), ('coller', 'collar'), ('collar', 'collar'), ('head', 'hat'), ('hat', 'hat'), ('cap', 'hat')]
+GUESS = [('glass', 'glasses'), ('coller', 'collar'), ('collar', 'collar'), ('head', 'hat'), ('hat', 'hat'), ('cap', 'hat'), ('apple', 'toy')]
 NS = '{http://www.collada.org/2005/11/COLLADASchema}'
 
 
@@ -123,7 +123,7 @@ def parse_dae(path):
         filt = (sm.findtext(q('minfilter')) or 'NEAREST').strip().lower() if sm is not None else 'nearest'
         alpha = effect_root.find('.//' + q('phong') + '/' + q('transparent')) is not None
         return {'file': os.path.basename(img.strip()), 'wrapS': wrap('wrap_s'), 'wrapT': wrap('wrap_t'),
-                'filter': 'nearest' if filt == 'nearest' else 'linear', 'alpha': alpha}
+                'filter': 'nearest' if filt in ('nearest', 'none') else 'linear', 'alpha': alpha}
 
     bind = {im.get('symbol'): (im.get('target') or '').lstrip('#') for im in root.iter(q('instance_material'))}
     mats = {m.get('id'): m for m in root.iter(q('material'))}
