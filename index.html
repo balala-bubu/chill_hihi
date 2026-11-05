@@ -1127,7 +1127,7 @@ function up(){
     shelfDrag=false;
   }
   else if(p.kind==='selTap'&&!p.moved)openAlbum();
-  else if(p.kind==='player'&&!p.moved){if(!busy&&(state==='home'||state==='stage')){if(cdIn&&!lidOpen){Au.stop();status='stopped';setLid(true);}else if(!cdIn)setLid(!lidOpen);}}
+  else if(p.kind==='player'&&!p.moved){if(!busy&&(state==='home'||state==='stage')){if(cdIn){if(lidOpen)setLid(false);else{Au.stop();status='stopped';setLid(true);}}else setLid(!lidOpen);}}
   else if(p.kind==='bg'&&!p.moved&&!busy&&(state==='album'||state==='albumOpen'))cancelAlbum();
   else if(p.kind==='bg'&&!p.moved&&shelfPin&&(state==='home'||state==='stage'))shelfPin=false;
   cvs.style.cursor='default';
