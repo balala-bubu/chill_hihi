@@ -1294,7 +1294,7 @@ function makeHeadphones(s){
   parts.push(cup(-1),cup(1));
   for(let k=0;k<8;k++){const th=(k+.5)/8*Math.PI,chord=2*1.25*s*Math.sin(Math.PI/16)+.06*s;
     parts.push(Bodies.rectangle(1.25*s*Math.cos(th)*PXU,-1.25*s*Math.sin(th)*PXU,chord*PXU,.16*s*PXU,{angle:-(th+Math.PI/2)}));}
-  const b=Body.create({parts,density:.0007,friction:.7,frictionAir:.03,restitution:.2,collisionFilter:{category:CAT.hp,mask:CAT.floor|CAT.player|CAT.tv|CAT.rem}});
+  const b=Body.create({parts,density:.0007,friction:.7,frictionAir:.03,restitution:.2,collisionFilter:{category:CAT.hp,mask:CAT.floor|CAT.player|CAT.rem}});
   return b;
 }
 function hpBuild(){   // creates bodies (not yet placed)
@@ -1544,7 +1544,7 @@ function tvSlotX(){return tvDrift()-PW/2-TVW/2-.2;}                      // TV l
 function tvSummon(){
   if(!PHYS||tv.state!=='none')return;tvEnsureBuilt();
   const hw=L.hw-.15,x=clamp(tvSlotX(),-hw+TVW/2+.05,hw-TVW/2-.05);
-  tv.b=Bodies.rectangle(mxp(x),myp(L.half+2.6),TVW*PXU,TVH*PXU,{chamfer:{radius:36},density:.0016,friction:.85,frictionAir:.008,restitution:.14,angle:(Math.random()-.5)*.35,collisionFilter:{category:CAT.tv,mask:CAT.floor|CAT.hp|CAT.rem}});
+  tv.b=Bodies.rectangle(mxp(x),myp(L.half+2.6),TVW*PXU,TVH*PXU,{chamfer:{radius:36},density:.0016,friction:.85,frictionAir:.008,restitution:.14,angle:(Math.random()-.5)*.35,collisionFilter:{category:CAT.tv,mask:CAT.floor|CAT.rem}});
   Body.setAngularVelocity(tv.b,(Math.random()-.5)*.03);Body.setVelocity(tv.b,{x:(Math.random()-.5)*1.4,y:0});
   Composite.add(wld,tv.b);tv.state='falling';tv.landed=false;tv.pw=0;tv.g.visible=true;remLit(0,true);Au.whoosh();
 }
