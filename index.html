@@ -1209,7 +1209,7 @@ function spawnRemote(){
 /* the cable has no length limit: it starts with NR0 nodes and the segment next to the plug pays out more cable whenever the line goes taut (payOut), so stretching can never pull the plug out */
 const NR0=22,NMAX=140,SEG=.28;
 const HOV_K=Math.pow(2*Math.PI*.75/1000,2),HOV_C=.0008;   // headphones float on a soft spring (0.75 Hz); air drag already supplies most of the damping
-const hpState={s:'none',body:null,org:{x:0,y:0},att:{x:0,y:0},scale:1,rope:[],cons:[],segC:[],hov:{x:0,y:0},pin:null,drive:null,seek:0,plugAmt:0,aim:0,flash:0,grab:false,worn:false};
+const hpState={s:'none',body:null,org:{x:0,y:0},att:{x:0,y:0},scale:1,rope:[],cons:[],segC:[],hov:{x:0,y:0},pin:null,drive:null,seek:0,plugAmt:0,aim:0,flash:0,grab:false,worn:false,dragNear:0};
 const endB=()=>hpState.rope[hpState.rope.length-1];   // the plug end of the cable
 const newRopeNode=()=>Bodies.circle(0,0,5,{density:.006,frictionAir:.05,friction:.4,restitution:0,collisionFilter:{category:CAT.rope,mask:CAT.floor|CAT.tv|CAT.rem}});
 const hpRoot=new T.Group();hpRoot.visible=false;scene.add(hpRoot);
@@ -1274,18 +1274,19 @@ function hpSpawn(){   // headphones swoop in from above the screen, cable whippi
   h.hov={x:mxp(targetX)-h.org.x,y:myp(hoverY)-h.org.y};
   hpRoot.visible=true;cableMesh.visible=true;plug2.visible=true;hpState.s='free';
 }
+const HP_DOG_WEAR_SCALE=.56;  // Compared with the previous hat-sized fit, headphones shrink to a puppy-sized pair.
 function hpWear(){
   const h=hpState,sl=W.slotById.hat,b=sl&&wBone(sl.bone);
   if(!h.body||!dog.ready||!dog.present||dog.leaving||!b)return false;
   h.worn=true;b.add(hpRoot);
   hpRoot.position.set(sl.worn.pos[0],sl.worn.pos[1]+1.8,sl.worn.pos[2]);
-  hpRoot.rotation.set(0,0,0);hpRoot.scale.setScalar(sl.worn.scale*.88);
-  h.grab=false;Body.setVelocity(h.body,{x:0,y:0});Body.setAngularVelocity(h.body,0);
+  hpRoot.rotation.set(0,0,0);hpRoot.scale.setScalar(sl.worn.scale*HP_DOG_WEAR_SCALE);
+  h.dragNear=0;h.grab=false;Body.setVelocity(h.body,{x:0,y:0});Body.setAngularVelocity(h.body,0);
   W.recycleKey='';Au.snap();buzz(10);return true;
 }
 function hpUnwear(){
   const h=hpState;if(!h.worn)return;
-  scene.attach(hpRoot);h.worn=false;hpRoot.scale.setScalar(h.scale);
+  scene.attach(hpRoot);h.worn=false;h.dragNear=0;hpRoot.scale.setScalar(h.scale);
   const p=hpRoot.position,b=h.body;
   if(b){Body.setAngle(b,0);Body.setPosition(b,{x:mxp(p.x)-h.org.x,y:myp(p.y)-h.org.y});Body.setVelocity(b,{x:0,y:0});Body.setAngularVelocity(b,0);}
   hpRoot.rotation.set(0,0,0);hpRest();W.recycleKey='';
@@ -1604,8 +1605,16 @@ function physFrame(dt,time){
   /* headphones + cable */
   if(hpState.s!=='none'){const h=hpState,b=h.body,ca=Math.cos(b.angle),sa=Math.sin(b.angle);
     const ox=b.position.x+(h.org.x*ca-h.org.y*sa),oy=b.position.y+(h.org.x*sa+h.org.y*ca);
-    if(!h.worn){hpRoot.position.set(ox/PXU,-oy/PXU,.3);hpRoot.rotation.z=-b.angle;}
-    if(!h.worn)placeBlob(blobHp,ox/PXU,.3,3.1*h.scale,1.0*h.scale,-oy/PXU-.58*h.scale-FLOOR_Y);else blobHp.visible=false;
+    if(!h.worn){
+      hpRoot.position.set(ox/PXU,-oy/PXU,.3);hpRoot.rotation.z=-b.angle;
+      const pointer=grab.kind==='hp'?grab.pointer:null;
+      const anchor=pointer&&dog.ready&&dog.present&&!dog.leaving?wAnchor('hat'):null;
+      const dist=anchor?Math.hypot(pointer.x-anchor.x,pointer.y-anchor.y):Infinity;
+      const near=clamp((220-dist)/140,0,1);
+      h.dragNear+=(near-h.dragNear)*(1-Math.exp(-dt*13));
+      hpRoot.scale.setScalar(h.scale*(1-.54*h.dragNear));
+    }
+    if(!h.worn)placeBlob(blobHp,ox/PXU,.3,3.1*hpRoot.scale.x,1.0*hpRoot.scale.x,-oy/PXU-.58*hpRoot.scale.x-FLOOR_Y);else blobHp.visible=false;
     syncCable(dt);}
   /* TV */
   if(tv.b&&tv.state==='on'&&tv.landed&&!(grab.kind==="tv")&&Math.abs(tv.b.angle)>.01&&Math.abs(tv.b.angle)<1.1)Body.setAngularVelocity(tv.b,tv.b.angularVelocity-tv.b.angle*.0025);   // a set that's been dropped settles upright
@@ -1696,7 +1705,7 @@ function dogPet(){
   else if(Lc.s==='up'){Lc.s='down';Lc.fast=false;}
   Lc.petT=performance.now()/1000;
 }
-addEventListener('pointerdown',e=>{if(e.target&&e.target.tagName==='CANVAS'&&!(typeof wPick==='function'&&W.ready&&wPick(e.clientX,e.clientY))&&dogHit(e.clientX,e.clientY))dogPet();},{passive:true});
+addEventListener('pointerdown',e=>{if(e.target&&e.target.tagName==='CANVAS'&&grab.kind!=='hp'&&!(typeof wPick==='function'&&W.ready&&wPick(e.clientX,e.clientY))&&dogHit(e.clientX,e.clientY))dogPet();},{passive:true});
 const DOGX={AX:{u:new T.Vector3(0,1,0),r:new T.Vector3(1,0,0),f:new T.Vector3(0,0,1)},q:new T.Quaternion(),q2:new T.Quaternion(),v:new T.Vector3(),v2:new T.Vector3(),p:new T.Vector3(),pt:new T.Vector3(),pd:new T.Vector3(),mw:new T.Vector3()};
 /* the pointer projected onto the vertical plane at depth z (where the dog stands) */
 function dogPtrAt(z,out){out.set(dog.ptr.x,dog.ptr.y,.5).unproject(cam);DOGX.pd.copy(out).sub(cam.position).normalize();
