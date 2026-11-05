@@ -4,22 +4,80 @@
       "id": "hat",
       "label": "帽子",
       "bone": "Brow_group",
-      "worn": { "pos": [0, 7.2, -5], "rot": [0, 0, 0], "scale": 9 },
-      "display": { "size": 1.5, "rot": [0.25, 0, 0] }
+      "worn": {
+        "pos": [
+          0,
+          7.2,
+          -5
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ],
+        "scale": 9
+      },
+      "display": {
+        "size": 1.5,
+        "rot": [
+          0.25,
+          0,
+          0
+        ]
+      }
     },
     {
       "id": "glasses",
       "label": "眼鏡",
       "bone": "Brow_group",
-      "worn": { "pos": [0, -1.2, -3.5], "rot": [0, -1.5708, 0], "scale": 11 },
-      "display": { "size": 1.5, "rot": [0.1, -1.5708, 0] }
+      "worn": {
+        "pos": [
+          0,
+          -1.2,
+          0.8
+        ],
+        "rot": [
+          0,
+          -1.5708,
+          0
+        ],
+        "scale": 11
+      },
+      "display": {
+        "size": 1.5,
+        "rot": [
+          0.1,
+          -1.5708,
+          0
+        ]
+      }
     },
     {
       "id": "collar",
       "label": "項圈",
       "bone": "Neck",
-      "worn": { "pos": [3.3, 0, 0], "rot": [-0.5, -0.5, -0.5, 0.5], "scale": 12 },
-      "display": { "size": 1.5, "rot": [0.55, 0, 0] }
+      "worn": {
+        "pos": [
+          3.3,
+          0,
+          0
+        ],
+        "rot": [
+          -0.5,
+          -0.5,
+          -0.5,
+          0.5
+        ],
+        "scale": 12
+      },
+      "display": {
+        "size": 1.5,
+        "rot": [
+          0.55,
+          0,
+          0
+        ]
+      }
     }
   ]
 }
