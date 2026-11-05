@@ -21,6 +21,26 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 #addUrl::placeholder{color:var(--mute)}
 #addGo{height:42px;padding:0 18px;border-radius:21px;border:1px solid var(--line);background:#2d3033;color:#f1f2f3;font:inherit;font-weight:700;cursor:pointer}
 #addGo:disabled{opacity:.5;cursor:default}
+#editBtn span,#editBtn span::before,#editBtn span::after{position:absolute;left:50%;top:50%;width:16px;height:2px;margin:-1px 0 0 -8px;background:currentColor;border-radius:1px;content:""}
+#editBtn span::before{margin:0;left:0;top:-5px}
+#editBtn span::after{margin:0;left:0;top:5px}
+#editBtn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);cursor:pointer;position:relative;padding:0;color:var(--ink);transition:transform .25s cubic-bezier(.2,.9,.3,1.3)}
+#editBtn:active{transform:scale(.9)}
+#editBtn[aria-expanded="true"]{background:#2d3033;color:#f1f2f3}
+#editBtn:focus-visible,#editPanel button:focus-visible,#editPanel input:focus-visible{outline:2px solid #ee5a2c;outline-offset:2px}
+#editPanel{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(16px + 44px + 12px + env(safe-area-inset-bottom,0px));z-index:6;width:min(calc(100vw - 32px),380px);max-height:min(60vh,420px);overflow:auto;padding:14px;border-radius:20px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);font:500 12px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
+#editPanel[hidden]{display:none}
+#editPanel h2{margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.08em}
+#editList{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:8px}
+#editList li{display:flex;align-items:center;gap:8px;min-width:0}
+#editList input{flex:1;min-width:0;height:36px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.55);color:var(--ink);font:inherit;font-size:13px}
+#editList .cnt{color:var(--mute);white-space:nowrap}
+#editList .del{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-size:16px;line-height:1;cursor:pointer}
+#editList .del:hover{background:rgba(238,90,44,.16)}
+#editEmpty{color:var(--mute);margin:0 0 12px}
+#editEmpty[hidden]{display:none}
+#resetBtn{height:36px;padding:0 16px;border-radius:18px;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+#resetBtn.sure{background:#ee5a2c;border-color:#ee5a2c;color:#fff}
 #addBtn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);cursor:pointer;position:relative;padding:0;color:var(--ink);transition:transform .25s cubic-bezier(.2,.9,.3,1.3)}
 #addBtn:active{transform:scale(.9)}
 #addBtn span,#addBtn span::before{position:absolute;left:50%;top:50%;width:16px;height:2px;margin:-1px 0 0 -8px;background:currentColor;border-radius:1px;content:"";transition:transform .25s}
@@ -35,8 +55,15 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <div id="stage"></div>
 <div id="addMsg" role="status" aria-live="polite"></div>
+<div id="editPanel" hidden>
+  <h2>我的播放清單</h2>
+  <p id="editEmpty">還沒有加入播放清單。</p>
+  <ul id="editList"></ul>
+  <button id="resetBtn" type="button">回復預設</button>
+</div>
 <div id="dock">
   <button id="addBtn" type="button" aria-label="加入 YouTube 播放清單" aria-expanded="false"><span></span></button>
+  <button id="editBtn" type="button" aria-label="編輯播放清單" aria-expanded="false"><span></span></button>
   <form id="addForm" hidden autocomplete="off"><input id="addUrl" type="text" inputmode="url" spellcheck="false" placeholder="貼上 YouTube 播放清單連結" aria-label="YouTube 播放清單連結"><button id="addGo" type="submit">加入</button></form>
 </div>
 <div id="ytbox" aria-hidden="true"><div id="ytp"></div></div>
@@ -243,7 +270,7 @@ function buildAlbum(d,i){
   const cm=new T.MeshPhysicalMaterial({map:coverTex(d),roughness:.35,clearcoat:.6,clearcoatRoughness:.2});
   const cover=new T.Mesh(new T.BoxGeometry(1.5,1.5,.03),[edgeM,edgeM,edgeM,edgeM,cm,new T.MeshStandardMaterial({color:0xcfd2d5,roughness:.7})]);
   cover.position.x=.75;cover.castShadow=true;cover.userData.album=i;piv.add(cover);
-  albums.push({g,d,piv,k:0,open:0,sel:false,mag:0,dock:false,born:1});albumMeshes.push(bodyM,cover);
+  albums.push({g,d,piv,k:0,open:0,sel:false,mag:0,dock:false,born:1,meshes:[bodyM,cover]});albumMeshes.push(bodyM,cover);
 }
 ALBUMS.forEach((d,i)=>buildAlbum(d,i));
 
@@ -732,13 +759,43 @@ async function addFromUrl(raw){
   }catch(e){say(e.message||'讀取失敗，請再試一次。',7000);}
   finally{addBusy=false;$id('addGo').disabled=false;}
 }
-$id('addBtn').addEventListener('click',()=>{Au.ensure();setForm($id('addForm').hidden);});
+$id('addBtn').addEventListener('click',()=>{Au.ensure();const open=$id('addForm').hidden;setForm(open);if(open){$id('editPanel').hidden=true;$id('editBtn').setAttribute('aria-expanded','false');}});
 $id('addForm').addEventListener('submit',e=>{e.preventDefault();Au.ensure();addFromUrl($id('addUrl').value);});
 window.__ytEnd=()=>{if(status==='playing'||status==='paused'){status='stopped';Au.elapsed=0;}};
 window.__ytFail=m=>{if(status==='playing'){status='stopped';}say(m||'YouTube 播放失敗',6000);};
 $id('addUrl').value='https://youtube.com/playlist?list=PL09drhUwnd9l4d_4jNonOhI8iXy_5DfV6&si=GgiwHDWSV4ZndZlZ';
 if(!saved.length)setForm(true);
 (async()=>{for(const o of saved){const cov=await loadCover(o.ids[0]);addAlbum(ytAlbum(o,cov));}if(saved.length)sxTarget=N-1;})();
+
+/* ---------- edit / reset playlist shelf ---------- */
+function disposeAlbum(a){scene.remove(a.g);a.g.traverse(o=>{if(o.geometry&&o.geometry!==cdGeo)o.geometry.dispose();if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m.map)m.map.dispose();m.dispose();});}});}
+function reindexAlbums(){albumMeshes.length=0;albums.forEach((a,i)=>{a.meshes.forEach(m=>{m.userData.album=i;albumMeshes.push(m);});});}
+function canEdit(){if(busy||cd||state!=='home'){say('請先把 CD 放回專輯櫃，再編輯清單。',4000);return false;}return true;}
+function removeAlbumAt(i){disposeAlbum(albums[i]);albums.splice(i,1);ALBUMS.splice(i,1);N=ALBUMS.length;reindexAlbums();sxTarget=clamp(Math.round(Math.min(sxTarget,N-1)),0,N-1);}
+function renameAlbum(i,name){
+  const d=ALBUMS[i];d.t=name;disposeAlbum(albums[i]);buildAlbum(d,i);const a=albums.pop();albums.splice(i,0,a);reindexAlbums();
+}
+function renderEdit(){
+  const ul=$id('editList');ul.textContent='';let n=0;
+  ALBUMS.forEach((d,i)=>{if(!d.yt)return;n++;
+    const li=document.createElement('li'),inp=document.createElement('input'),c=document.createElement('span'),b=document.createElement('button');
+    inp.value=d.t;inp.maxLength=60;inp.setAttribute('aria-label','清單名稱');c.className='cnt';c.textContent=d.yt.ids.length+' 首';
+    b.className='del';b.type='button';b.textContent='×';b.setAttribute('aria-label','刪除 '+d.t);
+    inp.addEventListener('change',()=>{const v=inp.value.trim();if(!v){inp.value=d.t;return;}if(!canEdit()){inp.value=d.t;return;}
+      const idx=ALBUMS.indexOf(d);renameAlbum(idx,v);const s=saved.find(x=>x.list===d.yt.list);if(s){s.title=v;LS.set('mt1.lists',saved);}say('已更新名稱。',2500);});
+    b.addEventListener('click',()=>{if(!canEdit())return;const idx=ALBUMS.indexOf(d);removeAlbumAt(idx);saved=saved.filter(x=>x.list!==d.yt.list);LS.set('mt1.lists',saved);renderEdit();say('已刪除「'+d.t+'」。',3000);});
+    li.append(inp,c,b);ul.appendChild(li);});
+  $id('editEmpty').hidden=n>0;$id('resetBtn').disabled=n===0;$id('resetBtn').style.opacity=n===0?'.45':'';
+}
+let resetT=0;
+function resetBtnState(sure){const b=$id('resetBtn');b.classList.toggle('sure',sure);b.textContent=sure?'再按一次確認':'回復預設';clearTimeout(resetT);if(sure)resetT=setTimeout(()=>resetBtnState(false),4000);}
+$id('editBtn').addEventListener('click',()=>{Au.ensure();const open=$id('editPanel').hidden;$id('editPanel').hidden=!open;$id('editBtn').setAttribute('aria-expanded',open?'true':'false');resetBtnState(false);if(open){setForm(false);renderEdit();}});
+$id('resetBtn').addEventListener('click',()=>{
+  if(!$id('resetBtn').classList.contains('sure')){resetBtnState(true);return;}
+  if(!canEdit()){resetBtnState(false);return;}
+  for(let i=ALBUMS.length-1;i>=0;i--)if(ALBUMS[i].yt)removeAlbumAt(i);
+  saved=[];LS.set('mt1.lists',saved);resetBtnState(false);renderEdit();say('已回復預設專輯。',3000);
+});
 
 /* ---------- loop ---------- */
 const clock=new T.Clock();
@@ -765,7 +822,7 @@ function frame(){
   renderer.render(scene,cam);requestAnimationFrame(frame);
 }
 tween(1.1,k=>{player.position.y=lerp(PY-.9,PY,k);},ease.out5);
-window.__mt={cam,albums,player,BAY,L,ALBUMS,get cd(){return cd;},get state(){return state;},get status(){return status;},get lidOpen(){return lidOpen;},get cdIn(){return cdIn;},get sx(){return sx;},keys,YTA,addFromUrl,get N(){return N;}};
+window.__mt={cam,albums,player,BAY,L,ALBUMS,get cd(){return cd;},get state(){return state;},get status(){return status;},get lidOpen(){return lidOpen;},get cdIn(){return cdIn;},get sx(){return sx;},keys,YTA,addFromUrl,get N(){return N;},renderEdit};
 requestAnimationFrame(frame);
 })();
 </script>
