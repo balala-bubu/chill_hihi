@@ -975,8 +975,8 @@ function spawnRemote(){
 }
 
 /* ---------- headphones + cable + plug ---------- */
-const NR=22,SEG=.28,CABLE_LEN=(NR-1)*SEG;
-const hpState={s:'none',body:null,org:{x:0,y:0},att:{x:0,y:0},scale:1,rope:[],cons:[],pin:null,drive:null,seek:0,plugAmt:0,aim:0,flash:0,grab:false};
+const NR=22,SEG=.28,SEG_MAX=SEG*9;   // cable segments can pay out up to 9x their rest length (≈ 53 world units of cable)
+const hpState={seg:SEG,s:'none',body:null,org:{x:0,y:0},att:{x:0,y:0},scale:1,rope:[],cons:[],pin:null,drive:null,seek:0,plugAmt:0,aim:0,flash:0,grab:false};
 const hpRoot=new T.Group();hpRoot.visible=false;scene.add(hpRoot);
 hpRoot.add(hp);hp.position.set(0,0,0);hp.visible=true;
 hp.traverse(o=>{if(o.isMesh)o.userData.phys='hp';});
@@ -1017,7 +1017,7 @@ function hpBuild(){   // creates bodies (not yet placed)
   h.org={x:-h.body.position.x,y:-h.body.position.y};              // geometry origin relative to the centre of mass (matter px)
   h.att={x:1.25*h.scale*PXU+h.org.x,y:.6*h.scale*PXU+h.org.y};      // cable anchor on the right cup, relative to the centre of mass
   hpRoot.scale.setScalar(h.scale);
-  h.rope=[];h.cons=[];
+  h.rope=[];h.cons=[];h.seg=SEG;
   for(let i=0;i<NR;i++)h.rope.push(Bodies.circle(0,0,5,{density:.006,frictionAir:.05,friction:.4,restitution:0,collisionFilter:{category:CAT.rope,mask:CAT.floor|CAT.tv|CAT.rem}}));
   h.cons.push(Constraint.create({bodyA:h.body,pointA:h.att,bodyB:h.rope[0],pointB:{x:0,y:0},length:0,stiffness:1,damping:.3}));
   for(let i=0;i<NR-1;i++)h.cons.push(Constraint.create({bodyA:h.rope[i],bodyB:h.rope[i+1],length:SEG*PXU,stiffness:1,damping:.3}));
@@ -1040,8 +1040,8 @@ function hpSpawn(){   // headphones are tossed in from above the screen, cable w
   hpPlace(x0,y0,(targetX-x0)/t,0,.012);
   hpRoot.visible=true;cableMesh.visible=true;plug2.visible=true;hpState.s='free';
 }
-function hpSettled(){const h=hpState;if(!h.body)return false;const sp=Math.hypot(h.body.velocity.x,h.body.velocity.y);return sp<.6&&h.body.position.y>myp(FLOOR_Y+1.4);}
-function stretchRatio(){const r=hpState.rope;let l=0;for(let i=0;i<NR-1;i++)l+=Math.hypot(r[i+1].position.x-r[i].position.x,r[i+1].position.y-r[i].position.y);return l/PXU/CABLE_LEN;}
+function hpSettled(){const h=hpState;if(!h.body)return false;const sp=Math.hypot(h.body.velocity.x,h.body.velocity.y);return sp<.7&&h.body.position.y>myp(L.half-1);}
+function stretchRatio(){const r=hpState.rope;let l=0;for(let i=0;i<NR-1;i++)l+=Math.hypot(r[i+1].position.x-r[i].position.x,r[i+1].position.y-r[i].position.y);return l/PXU/((NR-1)*hpState.seg);}
 function plugOut(kick){   // pull the plug out of the jack
   const h=hpState;if(h.s!=='plugged')return;
   if(h.pin){Composite.remove(wld,h.pin);h.pin=null;}h.s='free';
@@ -1073,6 +1073,13 @@ if(PHYS)Events.on(eng,'beforeUpdate',()=>{
     const w=b.angularVelocity/DT_MS,W0=.0042;b.torque=-b.inertia*(W0*W0*wrapA(b.angle)+2*.8*W0*w);   // self-righting
   }
   const h=hpState;
+  if(h.body&&h.s!=='none'){   // headphones float too: a soft hover spring (not while held) + loose self-righting, cable gets partial lift
+    const b=h.body,m=b.mass,w=b.angularVelocity/DT_MS;
+    if(!h.grab){const hy=myp(FLOOR_Y+2.3+Math.sin(tt*1.3+1)*.09),vy=b.velocity.y/DT_MS,vx=b.velocity.x/DT_MS,W=.0034;
+      Body.applyForce(b,b.position,{x:-m*(2*.7*W*vx*.35),y:-m*g*0+m*(-(W*W)*(b.position.y-hy)-2*.9*W*vy)});}
+    b.torque=-b.inertia*(.0021*.0021*wrapA(b.angle)+2*.5*.0021*w);
+    for(const r of h.rope)Body.applyForce(r,r.position,{x:0,y:-r.mass*g*.8});
+  }
   if(h.drive&&h.s==='seek'){const e=h.rope[NR-1];if(h.drive.follow){h.drive.x=JACK.x;h.drive.y=JACK.y;}
     const dx=mxp(h.drive.x)-e.position.x,dy=myp(h.drive.y)-e.position.y,d=Math.hypot(dx,dy)||1,sp=Math.min(h.drive.sp,d*.06+.5);
     Body.setVelocity(e,{x:dx/d*sp,y:dy/d*sp});}
@@ -1301,8 +1308,13 @@ function syncCable(dt){
 function physFrame(dt,time){
   if(!PHYS||!physOn)return;
   if(grab.kind==='plug'&&hpState.s==='plugged'&&grab.c){   // yanking the plug away from the jack pulls it out
-    const dx=grab.c.pointA.x-mxp(JACK.x),dy=grab.c.pointA.y-myp(JACK.y);if(Math.hypot(dx,dy)>PXU*.95)plugOut({x:0,y:0});}
-  if(hpState.s==='plugged'&&stretchRatio()>1.085)plugOut({x:0,y:0});                                // a hard tug on the cable rips the plug out
+    const dx=grab.c.pointA.x-mxp(JACK.x),dy=grab.c.pointA.y-myp(JACK.y);if(Math.hypot(dx,dy)>PXU*2.6)plugOut({x:0,y:0});}   // only a really long, deliberate yank pulls the plug out
+  if(hpState.body&&hpState.rope.length){   // the cable pays out when pulled taut (practically endless) and slowly reels back in when slack
+    const h=hpState,sr=stretchRatio();
+    if(sr>1.012&&h.seg<SEG_MAX){h.seg=Math.min(SEG_MAX,h.seg*(1+Math.min(.5,(sr-1)*.9)*Math.min(1,dt*30)));}
+    else if(sr<.9&&h.seg>SEG&&!grab.kind){h.seg=Math.max(SEG,h.seg-dt*.5);}
+    for(let i=1;i<h.cons.length;i++)h.cons[i].length=h.seg*PXU;
+  }
   physAcc+=Math.min(dt,.05);let n=0;while(physAcc>=DT_MS/1000&&n<10){Engine.update(eng,DT_MS);physAcc-=DT_MS/1000;n++;}
   /* remote */
   if(rem.body){const p=bodyWorld(rem.body);rem.g.position.set(p.x,p.y,rem.z);rem.g.rotation.z=-rem.body.angle;
