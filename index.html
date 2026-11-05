@@ -239,8 +239,8 @@ function cdTex(a){return mkTex(1024,1024,(x)=>{const S=1024;x.save();x.beginPath
 /* ---------- backdrop: dot grid + soft shadow catcher ---------- */
 const dots=mkTex(64,64,(x,w)=>{x.fillStyle='#d9dbde';x.fillRect(0,0,w,w);x.fillStyle='#c2c5c9';x.beginPath();x.arc(w/2,w/2,2.2,0,TAU);x.fill();});
 dots.wrapS=dots.wrapT=T.RepeatWrapping;dots.repeat.set(160,100);dots.anisotropy=4;
-const grid=new T.Mesh(new T.PlaneGeometry(80,50),new T.MeshBasicMaterial({map:dots,toneMapped:false}));grid.position.z=-.52;scene.add(grid);
-const catcher=new T.Mesh(new T.PlaneGeometry(80,50),new T.ShadowMaterial({opacity:.2}));catcher.position.z=-.5;catcher.receiveShadow=true;scene.add(catcher);
+const grid=new T.Mesh(new T.PlaneGeometry(80,50),new T.MeshBasicMaterial({map:dots,toneMapped:false}));grid.position.z=-4.22;grid.scale.setScalar(1.2);scene.add(grid);   // wall sits well behind the action so there is room for depth
+const catcher=new T.Mesh(new T.PlaneGeometry(80,50),new T.ShadowMaterial({opacity:.2}));catcher.position.z=-4.2;catcher.scale.setScalar(1.2);catcher.receiveShadow=true;scene.add(catcher);
 
 /* ---------- materials ---------- */
 const GR=grainTex(128,5,.38),GR2=grainTex(128,9,2.5),WEAVE=weaveTex(7);
@@ -552,6 +552,7 @@ const Au={ctx:null,vol:6,playing:false,elapsed:0,step:0,timer:0,alb:null,
 
 /* ---------- state + layout ---------- */
 const L={d:18.3,half:5.25,hw:8.4,shelfC:3.8,shelfB:3.05};
+const TILT_UP=.2,TILT_DN=.12;   // camera looks slightly down so the floor reads as a deep surface the dog can run across
 const rig={x:0,y:0,d:18.3,tx:0,ty:0,td:18.3,px:0,py:0,ptx:0,pty:0};
 let state='home',sel=-1,cd=null,cdIn=false,cdAlbum=-1,lidOpen=false,busy=false,camLock=false,zoomed=false,status='empty',volT=0,hpScale=1;
 let sx=3,sxTarget=3,sxVel=0,shelfDrag=false;
@@ -1046,10 +1047,10 @@ const waitFor=(fn,ms)=>new Promise(res=>{const t0=performance.now(),id=setInterv
 const bodyWorld=b=>({x:b.position.x/PXU,y:-b.position.y/PXU});
 
 /* ---------- floor, walls, the (static) player body ---------- */
-const floorMesh=new T.Mesh(new T.BoxGeometry(160,1,3.6),new T.MeshStandardMaterial({color:0xe4e6e8,roughness:.9}));floorMesh.receiveShadow=true;floorMesh.position.z=1.3;scene.add(floorMesh);
+const floorMesh=new T.Mesh(new T.BoxGeometry(160,12,16),new T.MeshStandardMaterial({color:0xe4e6e8,roughness:.9}));floorMesh.receiveShadow=true;floorMesh.position.z=3.8;scene.add(floorMesh);
 let floorB=null,wallL=null,wallR=null,playerB=null;
 function buildBounds(){
-  FLOOR_Y=PY-PH/2-.8;floorMesh.position.y=FLOOR_Y-.5;
+  FLOOR_Y=PY-PH/2-.8;floorMesh.position.y=FLOOR_Y-6;
   if(!PHYS)return;
   [floorB,wallL,wallR].forEach(b=>b&&Composite.remove(wld,b));
   const W=L.hw-.15,f={isStatic:true,friction:.9,restitution:.1,collisionFilter:{category:CAT.floor,mask:0xffff}};
@@ -1073,13 +1074,21 @@ function remIconTex(kind,lit){return mkTex(128,128,(x,w)=>{const c=w/2;x.strokeS
   if(kind==='tv'){x.beginPath();x.roundRect?x.roundRect(c-38,c-22,76,54,12):x.rect(c-38,c-22,76,54);x.stroke();x.beginPath();x.moveTo(c-18,c-26);x.lineTo(c-30,c-46);x.moveTo(c+18,c-26);x.lineTo(c+30,c-46);x.stroke();}
   else if(kind==='shake'){x.beginPath();x.moveTo(c-40,c-18);x.lineTo(c-22,c+18);x.lineTo(c,c-18);x.lineTo(c+22,c+18);x.lineTo(c+40,c-18);x.stroke();}
   else if(kind==='zerog'){x.font='800 54px '+MONO;x.textAlign='center';x.textBaseline='middle';x.fillText('0G',c,c+3);x.beginPath();x.arc(c,c+3,46,0,TAU);x.lineWidth=5;x.stroke();}
-  else{x.beginPath();x.moveTo(c-22,c-8);x.lineTo(c+22,c-8);x.lineTo(c+22,c+14);x.lineTo(c-22,c+14);x.closePath();x.stroke();x.beginPath();x.moveTo(c-10,c-8);x.lineTo(c-10,c-30);x.moveTo(c+10,c-8);x.lineTo(c+10,c-30);x.moveTo(c,c+14);x.lineTo(c,c+34);x.stroke();}});}
+  else{ /* dog face as a solid silhouette: floppy ears, round head, eyes + nose cut out */
+    const ear=s=>{x.beginPath();x.moveTo(c+s*15,c-19);x.quadraticCurveTo(c+s*50,c-26,c+s*45,c+16);x.quadraticCurveTo(c+s*43,c+38,c+s*31,c+33);x.quadraticCurveTo(c+s*23,c+17,c+s*21,c-6);x.closePath();x.fill();};
+    ear(-1);ear(1);
+    x.globalCompositeOperation='destination-out';x.lineWidth=5;x.beginPath();x.ellipse(c,c+3,26,29,0,0,TAU);x.stroke();   // thin gap between ears and head
+    x.globalCompositeOperation='source-over';x.beginPath();x.ellipse(c,c+3,23,26,0,0,TAU);x.fill();
+    x.globalCompositeOperation='destination-out';
+    x.beginPath();x.arc(c-9,c-3,5.4,0,TAU);x.fill();x.beginPath();x.arc(c+9,c-3,5.4,0,TAU);x.fill();
+    x.beginPath();x.ellipse(c,c+12,8.5,6,0,0,TAU);x.fill();
+    x.globalCompositeOperation='source-over';}});}
 const remTexN=RB.map(k=>remIconTex(k,false)),remTexL=RB.map(k=>remIconTex(k,true));
 { const remM=new T.MeshPhysicalMaterial({color:0xe6e8ea,roughness:.48,clearcoat:.3,clearcoatRoughness:.4,envMapIntensity:.85});
   const rb=new T.Mesh(rrBox(RW,RH,.24,.3,.05),remM);rb.castShadow=true;rb.userData.phys='rem';rem.g.add(rb);rem.hit.push(rb);
   const lab=new T.Mesh(new T.PlaneGeometry(RW-.06,RH-.06),new T.MeshBasicMaterial({transparent:true,toneMapped:false,map:mkTex(190,520,(x,w,h)=>{
     x.fillStyle='#6a7076';x.font='700 15px '+MONO;x.textAlign='center';x.textBaseline='middle';
-    RBP.forEach((p,i)=>x.fillText(['TV','SHAKE','0G','PLUG'][i],w/2+p[0]*200,(1.3-(p[1]-.3))*200));
+    RBP.forEach((p,i)=>x.fillText(['TV','SHAKE','0G','DOG'][i],w/2+p[0]*200,(1.3-(p[1]-.3))*200));
     x.fillStyle='#b4b7bb';for(let r=0;r<4;r++)for(let c=0;c<5;c++){x.beginPath();x.arc(w/2+(c-2)*20,350+r*20,4.2,0,TAU);x.fill();}
     x.fillStyle='#8d9399';x.font='700 12px '+MONO;x.fillText('BalaBuBu',w/2,h-26);x.font='500 9px '+MONO;x.fillText('REMOTE · MT-1',w/2,h-12);
     x.fillStyle='#ee5a2c';x.beginPath();x.arc(w/2,52,7,0,TAU);x.fill();})}));
@@ -1241,7 +1250,7 @@ renderer.localClippingEnabled=true;
 const floorClip=new T.Plane(new V3(0,1,0),-FLOOR_Y);     // everything of the TV below the floor is cut away -> it sinks "into" the hole
 const TVW0=2.9,TVH0=2.5,TVS=1.45,TVW=TVW0*TVS,TVH=TVH0*TVS,SC={x:-.28,y:.18};   // TVW/TVH = world size of the (scaled) set; the model is built at TVW0×TVH0
 const tv={g:new T.Group(),i:new T.Group(),b:null,state:'none',landed:false,pw:0,mode:'noise',album:null,hit:[],poke:0,glass:null,punch:null,over:null,built:false};
-const hole={g:new T.Group(),k:0,x:0,rx:1.8,rz:1.3};
+const hole={g:new T.Group(),k:0,x:0,rx:1.8,rz:2.1};
 function tvMat(C,p){p.clippingPlanes=[floorClip];return new C(p);}
 function rrPathAt(w,h,r,cx,cy){const p=new T.Path(),x=cx-w/2,y=cy-h/2;p.moveTo(x+r,y);p.lineTo(x+w-r,y);p.quadraticCurveTo(x+w,y,x+w,y+r);p.lineTo(x+w,y+h-r);p.quadraticCurveTo(x+w,y+h,x+w-r,y+h);p.lineTo(x+r,y+h);p.quadraticCurveTo(x,y+h,x,y+h-r);p.lineTo(x,y+r);p.quadraticCurveTo(x,y,x+r,y);return p;}
 /* CRT screen: one 2D canvas drawn every frame (picture + scanlines + grain + vignette + glare + power on/off), used as an overlay texture */
@@ -1285,6 +1294,11 @@ function tvEnsureBuilt(){
   const add=(m,x,y,z,hit)=>{m.position.set(x,y,z);m.castShadow=true;tv.i.add(m);if(hit){m.userData.phys='tv';tv.hit.push(m);}return m;};
   add(new T.Mesh(rrBox(TVW0,TVH0,.7,.3,.06),bodyM),0,0,.15,true).receiveShadow=true;               // front shell
   add(new T.Mesh(rrBox(2.25,1.95,.45,.3,.05),bodyM),0,.02,-.28,true);                          // tapered rear (CRT hump)
+  add(new T.Mesh(rrBox(1.9,1.62,.72,.28,.05),bodyM),0,.02,-.84,true);                           // CRT body, stepping down toward the back
+  add(new T.Mesh(rrBox(1.4,1.18,.58,.25,.05),bodyM),0,.02,-1.45,true);
+  add(new T.Mesh(rrBox(.9,.78,.34,.2,.04),insetM),0,.02,-1.84,false);                           // neck cap
+  for(let i=0;i<5;i++)add(new T.Mesh(new T.BoxGeometry(1.3,.014,.05),darkM),0,.83,-.62-i*.12,false).castShadow=false;   // vent slots on top
+  for(let i=0;i<3;i++)add(new T.Mesh(new T.BoxGeometry(.9,.014,.045),darkM),0,.605,-1.28-i*.11,false).castShadow=false;
   /* recessed bezel around the glass */
   {const s=rrShape(2.06,1.82,.34);s.holes.push(rrPathAt(1.72,1.38,.22,0,.07));
    add(new T.Mesh(new T.ExtrudeGeometry(s,{depth:.04,bevelEnabled:true,bevelThickness:.012,bevelSize:.012,bevelSegments:2,curveSegments:12}),insetM),SC.x,SC.y-.07,.49,true);}
@@ -1310,7 +1324,7 @@ function tvEnsureBuilt(){
     x.fillStyle='#232426';x.beginPath();x.roundRect?x.roundRect(0,0,w,h,16):x.rect(0,0,w,h);x.fill();
     x.fillStyle='#f1f2f3';x.font='italic 800 38px "Trebuchet MS","Helvetica Neue",Arial,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('BalaBuBu',w/2,h/2+2);})}));
   badge.position.set(SC.x-.5,SC.y-.07-.91+.145+.03,.545);tv.i.add(badge);
-  tv.i.rotation.y=-.12;tv.i.scale.setScalar(TVS);tv.g.add(tv.i);tv.g.visible=false;scene.add(tv.g);
+  tv.i.rotation.y=-.36;tv.i.scale.setScalar(TVS);tv.g.add(tv.i);tv.g.visible=false;scene.add(tv.g);
   /* the hole in the floor */
   const dm=new T.Mesh(new T.CircleGeometry(1,64),new T.MeshBasicMaterial({transparent:true,depthWrite:false,toneMapped:false,map:mkTex(256,256,(x,w)=>{const g=x.createRadialGradient(w/2,w/2,0,w/2,w/2,w/2);g.addColorStop(0,'#020203');g.addColorStop(.72,'#0b0c0e');g.addColorStop(.94,'rgba(14,15,18,.9)');g.addColorStop(1,'rgba(14,15,18,0)');x.fillStyle=g;x.fillRect(0,0,w,w);})}));
   const rm=new T.Mesh(new T.RingGeometry(.9,1,64),new T.MeshBasicMaterial({color:ACC,transparent:true,opacity:.55,depthWrite:false,toneMapped:false}));rm.position.z=.001;
@@ -1330,7 +1344,7 @@ function tvRemove(){if(tv.b)Composite.remove(wld,tv.b);tv.b=null;tv.state='none'
 async function tvDismiss(){
   if(tv.state!=='on'&&tv.state!=='falling')return;const t=tv;t.state='sinking';remLit(0,false);Au.whoosh();
   const bx=t.b.position.x/PXU,cs=Math.abs(Math.cos(t.b.angle)),sn=Math.abs(Math.sin(t.b.angle));
-  hole.x=bx;hole.rx=(cs*TVW+sn*TVH)/2+.4;hole.rz=1.3;hole.g.visible=true;
+  hole.x=bx;hole.rx=(cs*TVW+sn*TVH)/2+.4;hole.rz=2.1;hole.g.visible=true;
   for(const b of [hpState.body]){if(b&&Math.abs(b.position.x/PXU-bx)<hole.rx+1.6){Body.setVelocity(b,{x:Math.sign(b.position.x/PXU-bx||1)*4,y:-3});}}   // anything standing there is nudged out of the way
   const p0=t.pw;tween(.4,k=>{t.pw=p0*(1-k);},ease.io2);
   await tween(.55,k=>{hole.k=k;},ease.out5);
@@ -1359,9 +1373,7 @@ function remoteFx(i){
   else if(i===2){zeroG=!zeroG;eng.gravity.scale=zeroG?G0*.08:G0;remLit(2,zeroG);Au.whoosh();
     if(zeroG){dynBodies().forEach(b=>Body.setVelocity(b,{x:b.velocity.x,y:b.velocity.y-1.2}));hpState.rope.forEach(b=>Body.setVelocity(b,{x:b.velocity.x,y:b.velocity.y-.8}));}}
   else if(i===3){
-    if(hpState.s==='none'){(async()=>{hpSpawn();Au.whoosh();await waitFor(hpSettled,3600);seekPlug();})();}
-    else if(hpState.s==='plugged')plugOut();
-    else if(hpState.s==='free')seekPlug();
+    dogToggle();
   }
 }
 
@@ -1443,7 +1455,7 @@ function physFrame(dt,time){
   /* TV */
   if(tv.b&&tv.state==='on'&&tv.landed&&!(grab.kind==="tv")&&Math.abs(tv.b.angle)>.01&&Math.abs(tv.b.angle)<1.1)Body.setAngularVelocity(tv.b,tv.b.angularVelocity-tv.b.angle*.0025);   // a set that's been dropped settles upright
   if(tv.b){const p=bodyWorld(tv.b);tv.g.position.set(p.x,p.y,0);tv.g.rotation.z=-tv.b.angle;
-    placeBlob(blobTv,p.x,0,TVW*1.05,1.2,p.y-TVH/2-FLOOR_Y);
+    placeBlob(blobTv,p.x,-.75,TVW*1.05,3.1,p.y-TVH/2-FLOOR_Y);
     if(tv.state==='sinking')blobTv.visible=false;
     tv.poke=Math.max(0,tv.poke-dt*3);
     const a=cd&&(cdIn||status!=='empty')?ALBUMS[cd.ai]:null;
@@ -1451,7 +1463,7 @@ function physFrame(dt,time){
     tv.punch.visible=tv.mode==='video';crtDraw(time);
     ytLayout(tv.mode==='video'&&tv.pw>.02);
   }else ytLayout(false);
-  hole.g.position.set(hole.x,FLOOR_Y+.015,.3);hole.g.scale.set(Math.max(.001,hole.rx*hole.k),1,Math.max(.001,hole.rz*hole.k));
+  hole.g.position.set(hole.x,FLOOR_Y+.015,-.95);hole.g.scale.set(Math.max(.001,hole.rx*hole.k),1,Math.max(.001,hole.rz*hole.k));
   /* the player floats: soft bobbing, shadow on the floor */
   placeBlob(blobPlayer,0,0,PW*.95,1.3,player.position.y-PH/2-FLOOR_Y);
   if(shakeT>0)shakeT=Math.max(0,shakeT-dt);
@@ -1505,6 +1517,192 @@ function updateFx(dt,time){
 
 /* ---------- loop ---------- */
 const clock=new T.Clock();let fpsAvg=60;
+/* ---------- dog: a rigged puppy that runs in from the left, watches the pointer, chases a dragged CD and sits in front of the TV ---------- */
+const dog={g:new T.Group(),ready:false,failed:false,present:false,leaving:false,wantShow:false,
+  x:-20,z:2.6,ry:.4,mode:'idle',move:0,gait:0,sit:0,hop:0,hopT:0,lookYaw:0,lookPitch:0,blinkT:2,blink:0,earT:3,earL:0,earR:0,wag:0,
+  bones:{},acc:{},scale:2.3/53.7,footLift:.75,nextHop:0,ptr:{x:0,y:.05,t:0,cx:0,cy:0},
+  lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null};
+dog.g.visible=false;scene.add(dog.g);
+addEventListener('pointermove',e=>{dog.ptr.x=e.clientX/innerWidth*2-1;dog.ptr.y=-(e.clientY/innerHeight*2-1);dog.ptr.cx=e.clientX;dog.ptr.cy=e.clientY;dog.ptr.t=performance.now();},{passive:true});
+/* petting: a click on the dog (ray vs. a body-sized ellipsoid in the dog's own space) makes it flop over for belly rubs */
+const dogHitX={r:new T.Raycaster(),n:new T.Vector2(),inv:new T.Matrix4(),o:new T.Vector3(),d:new T.Vector3(),C:new T.Vector3(0,22,2),R:new T.Vector3(30,34,54)};
+function dogHit(cx,cy){
+  if(!dog.ready||!dog.present||dog.leaving)return false;
+  dogHitX.n.set(cx/innerWidth*2-1,-(cy/innerHeight*2-1));dogHitX.r.setFromCamera(dogHitX.n,cam);
+  dog.g.updateMatrixWorld();dogHitX.inv.copy(dog.g.matrixWorld).invert();
+  const o=dogHitX.o.copy(dogHitX.r.ray.origin).applyMatrix4(dogHitX.inv).sub(dogHitX.C).divide(dogHitX.R),d=dogHitX.d.copy(dogHitX.r.ray.direction).transformDirection(dogHitX.inv).divide(dogHitX.R);
+  const a=d.dot(d),b=2*o.dot(d),c=o.dot(o)-1,disc=b*b-4*a*c;
+  return disc>=0&&(-b+Math.sqrt(disc))>0;
+}
+function dogPet(){
+  const Lc=dog.lie;if(!dog.ready||!dog.present||dog.leaving||Lc.s==='trip')return;
+  if(Lc.s==='none'){Lc.s='down';Lc.ryL=dog.ry>=0?1.25:-1.25;Lc.sign=dog.ry>=0?-1:1;Lc.retried=false;Lc.fast=false;Au.click(.5,.6);}
+  else if(Lc.s==='up'){Lc.s='down';Lc.fast=false;}
+  Lc.petT=performance.now()/1000;
+}
+addEventListener('pointerdown',e=>{if(e.target&&e.target.tagName==='CANVAS'&&dogHit(e.clientX,e.clientY))dogPet();},{passive:true});
+const DOGX={AX:{u:new T.Vector3(0,1,0),r:new T.Vector3(1,0,0),f:new T.Vector3(0,0,1)},q:new T.Quaternion(),q2:new T.Quaternion(),v:new T.Vector3(),v2:new T.Vector3(),p:new T.Vector3()};
+async function loadDog(){
+  try{
+    const [meta,buf]=await Promise.all([fetch('models/dog.json').then(r=>{if(!r.ok)throw new Error('dog.json '+r.status);return r.json();}),fetch('models/dog.bin').then(r=>{if(!r.ok)throw new Error('dog.bin '+r.status);return r.arrayBuffer();})]);
+    const tl=new T.TextureLoader(),lt=(u,srgb)=>new Promise((res,rej)=>tl.load(u,t=>{if(srgb)t.colorSpace=T.SRGBColorSpace;t.anisotropy=8;res(t);},undefined,rej));
+    /* colour maps are sRGB; normal / roughness / occlusion / specular are data. fur strips carry their shape in the alpha channel */
+    const [tb,tf,tN,tR,tA,tS,tFA]=await Promise.all([lt('models/dog_body.png',1),lt('models/dog_fur.png',1),lt('models/dog_normal.png'),lt('models/dog_rough.png'),lt('models/dog_ao.png'),lt('models/dog_spec.png'),lt('models/dog_furao.png')]);
+    const mat={
+      body:new T.MeshPhysicalMaterial({map:tb,normalMap:tN,normalScale:new T.Vector2(.9,.9),roughness:1,roughnessMap:tR,metalness:0,aoMap:tA,aoMapIntensity:1,specularIntensity:.45,specularIntensityMap:tS,
+        envMapIntensity:.5}),
+      fur:new T.MeshStandardMaterial({map:tf,aoMap:tFA,aoMapIntensity:1,transparent:true,alphaTest:.02,depthWrite:false,side:T.DoubleSide,roughness:.95,metalness:0,envMapIntensity:.5}),
+      whisk:new T.MeshStandardMaterial({color:0xf6f3ea,roughness:.6,side:T.DoubleSide,envMapIntensity:.5})};
+    dog.mat=mat;
+    const byNode=new Map(meta.meshes.map(m=>[m.node,m]));
+    const attr=(m,k,Arr)=>{const a=m.attrs[k];return new T.BufferAttribute(new Arr(buf,a.off,a.count*a.size),a.size);};
+    const objs=meta.nodes.map((n,i)=>{
+      let o;const m=byNode.get(i);
+      if(m){const g=new T.BufferGeometry();
+        g.setAttribute('position',attr(m,'position',Float32Array));g.setAttribute('normal',attr(m,'normal',Float32Array));g.setAttribute('uv',attr(m,'uv',Float32Array));g.setAttribute('uv1',g.attributes.uv);g.setAttribute('uv2',g.attributes.uv);   // occlusion maps share the one UV set
+        g.setAttribute('skinIndex',attr(m,'skinIndex',Uint16Array));g.setAttribute('skinWeight',attr(m,'skinWeight',Float32Array));
+        const mi=meta.meshes.indexOf(m),kind=mi===2?'whisk':mi===1?'fur':'body';   // export order: body, fur, whisker
+        o=new T.SkinnedMesh(g,mat[kind]);o.castShadow=kind==='body';o.renderOrder=kind==='body'?0:2;o.receiveShadow=false;o.frustumCulled=false;}
+      else o=n.t==='B'?new T.Bone():new T.Object3D();
+      o.name=n.n;o.position.fromArray(n.pos);o.quaternion.fromArray(n.q);o.scale.fromArray(n.s);return o;});
+    meta.nodes.forEach((n,i)=>{if(n.p>=0)objs[n.p].add(objs[i]);});
+    const fix=new T.Group();fix.rotation.x=Math.PI/2;fix.add(objs[0]);
+    const SPN=1.1/dog.scale,pv=new T.Group(),rg=new T.Group(),inn=new T.Group();pv.position.y=SPN;inn.position.y=-SPN;   // roll about the spine, not the feet
+    inn.add(fix);rg.add(inn);pv.add(rg);dog.g.add(pv);dog.rg=rg;
+    dog.g.scale.setScalar(dog.scale);dog.g.updateMatrixWorld(true);
+    meta.meshes.forEach(m=>{const o=objs[m.node],bones=m.bones.map(i=>objs[i]),inv=new Float32Array(buf,m.inv,bones.length*16),bi=[];
+      for(let i=0;i<bones.length;i++)bi.push(new T.Matrix4().fromArray(inv,i*16));
+      o.bind(new T.Skeleton(bones,bi),new T.Matrix4().fromArray(m.bind));});
+    /* animated bones: the OUTER node of each duplicated pair (the inner one is its child and follows) */
+    ['Hip','Waist','Bust','Neck','Head','jawA','UplidL','UplidR','LearA','LearB','RearA','RearB','tailA','tailB','tailC','ClavicleL','ClavicleR','ShoulderL','ShoulderR','LegL','LegR','Brow_group'].forEach(nm=>{
+      const i=meta.nodes.findIndex(n=>n.t==='B'&&n.n===nm);if(i<0)return;const o=objs[i],pq=new T.Quaternion();o.parent.getWorldQuaternion(pq);
+      dog.bones[nm]={o,q0:o.quaternion.clone(),pqi:pq.invert()};});
+    dog.ready=true;
+    if(dog.wantShow)dogToggle();
+  }catch(e){console.warn('dog failed to load',e);dog.failed=true;remLit(3,false);}
+}
+function dogAdd(n,ax,a){(dog.acc[n]||(dog.acc[n]=[])).push([ax,a]);}
+function dogApply(){
+  for(const nm in dog.bones){const b=dog.bones[nm],list=dog.acc[nm];DOGX.q.copy(b.q0);
+    if(list)for(const [ax,a] of list){DOGX.v.copy(DOGX.AX[ax]).applyQuaternion(b.pqi);DOGX.q2.setFromAxisAngle(DOGX.v,a);DOGX.q.premultiply(DOGX.q2);}
+    b.o.quaternion.copy(DOGX.q);}
+  dog.acc={};
+}
+function dogToggle(){
+  if(dog.failed)return;
+  if(!dog.ready){dog.wantShow=!dog.wantShow;remLit(3,dog.wantShow);return;}
+  if(!dog.present){dog.present=true;dog.leaving=false;dog.g.visible=true;dog.x=-(L.hw+3.2);dog.z=1.9;dog.sit=0;remLit(3,true);Au.whoosh();}
+  else if(dog.leaving){dog.leaving=false;remLit(3,true);}
+  else{dog.leaving=true;remLit(3,false);Au.whoosh();}
+}
+const angDiff=(a,b)=>{let d=(b-a)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU;return d;};
+function dogFrame(dt,time){
+  if(!dog.ready||!dog.present)return;
+  const hw=L.hw,home=-clamp(hw-1.6,2.4,3.3);
+  const dragging=!!(cd&&cd.mode==='drag'&&cd.committed&&cd.pos);
+  const tvOn=tv.b&&(tv.state==='on'||(tv.state==='falling'&&tv.landed));
+  /* 1. what is the dog doing? */
+  let tx=home,tz=1.9,spd=4.2,mode='idle';
+  if(dog.leaving){tx=-(hw+3.4);spd=8;mode='out';}
+  else if(dragging){mode='chase';tx=clamp(cd.pos.x,-hw+1.1,hw-1.1);tz=1.9;spd=8.5;}
+  else if(tvOn){mode='tv';tx=tv.b.position.x/PXU-1.3;tz=2.9;spd=5.2;}   // sits left-front of the set so the picture stays visible
+  /* belly-up state machine: down -> lie (as long as it is being petted) -> up (slowly; now and then it flops back) */
+  const Lc=dog.lie,nowS=performance.now()/1000;
+  if(dog.leaving&&Lc.s!=='none'){Lc.s='none';}
+  if(dragging&&Lc.s!=='none'&&Lc.s!=='trip'){Lc.s='up';Lc.fast=true;Lc.fail=false;}
+  switch(Lc.s){
+    case 'down':Lc.amt=Math.min(1,Lc.amt+dt/.7);if(Lc.amt>=1)Lc.s='lie';break;
+    case 'lie':if(dogHit(dog.ptr.cx,dog.ptr.cy))Lc.petT=nowS;
+      if(nowS-Lc.petT>(Lc.retried?1.2:2.8)){Lc.s='up';Lc.fail=!Lc.retried&&Math.random()<.16;Lc.failAt=.4+Math.random()*.3;}break;
+    case 'up':Lc.amt-=dt*(Lc.fast?1:1/2.8);
+      if(Lc.fail&&(1-Lc.amt)>Lc.failAt){Lc.s='trip';Lc.tt=0;Lc.a0=Lc.amt;Lc.retried=true;Lc.fail=false;Au.crash(.35);camShake=Math.max(camShake,.3);}
+      else if(Lc.amt<=0){Lc.amt=0;Lc.s='none';}break;
+    case 'trip':Lc.tt+=dt;{const k=clamp(Lc.tt/.45,0,1);Lc.amt=Lc.a0+(1.04-Lc.a0)*ease.out3(k);if(Lc.tt>.45+.25){Lc.amt=1;Lc.s='lie';Lc.petT=nowS;}}break;
+    default:if(Lc.amt>0)Lc.amt=Math.max(0,Lc.amt-dt*2);
+  }
+  const eo=Lc.amt*Lc.amt*(3-2*Math.min(1,Lc.amt));
+  if(Lc.s!=='none'){tx=dog.x;tz=dog.z;mode='lie';}
+  dog.mode=mode;
+  /* 2. move */
+  const dx=tx-dog.x,dz=tz-dog.z,dist=Math.abs(dx);
+  let vx=0;
+  if(dist>.12){const want=Math.sign(dx)*Math.min(spd,dist*5.5+.8);vx=want;dog.x+=want*dt;if((dx>0)!==(tx-dog.x>0))dog.x=tx;}
+  dog.z+=dz*(1-Math.exp(-dt*3));
+  if(dog.leaving&&dog.x<-(hw+2.2)){dog.present=false;dog.leaving=false;dog.g.visible=false;return;}
+  const moving=Math.abs(vx)>.35;
+  dog.move+=((moving?clamp(Math.abs(vx)/6,.35,1.25):0)-dog.move)*(1-Math.exp(-dt*9));
+  dog.gait+=dt*(6+Math.abs(vx)*1.15)*(moving?1:0);
+  /* 3. sit when parked in front of the TV */
+  const sitWant=(mode==='tv'&&!moving&&Math.abs(dog.z-tz)<.15)?1:0;
+  dog.sit+=(sitWant-dog.sit)*(1-Math.exp(-dt*(sitWant?5:9)));
+  /* 4. facing */
+  DOGX.p.set(dog.ptr.x,dog.ptr.y,.5).unproject(cam);DOGX.v.copy(DOGX.p).sub(cam.position).normalize();
+  const tpl=(cam.position.z-dog.z)/Math.max(.001,-DOGX.v.z);DOGX.p.copy(cam.position).addScaledVector(DOGX.v,tpl);   // pointer projected onto the dog's depth plane
+  let look=DOGX.p;                                                                                                       // where the head aims (world)
+  let ryT;
+  if(Lc.s!=='none'&&Lc.amt>.12){ryT=Lc.ryL;look=DOGX.p;}
+  else if(mode==='tv'&&dog.sit>.5){ryT=Math.PI-.4;look=DOGX.v2.set(tv.b.position.x/PXU,-tv.b.position.y/PXU+.3,0);}
+  else if(moving)ryT=vx>0?1.2:-1.2;
+  else if(mode==='chase'){ryT=clamp(Math.atan2(cd.pos.x-dog.x,4),-1,1);look=DOGX.v2.set(cd.pos.x,cd.pos.y,.8);}
+  else ryT=clamp(Math.atan2(DOGX.p.x-dog.x,4.5),-.95,.95)*.8;
+  dog.ry+=angDiff(dog.ry,ryT)*(1-Math.exp(-dt*(moving?10:5)));
+  /* 5. hops: when the dragged CD is just above, the dog jumps for it */
+  let hopY=0;
+  if(mode==='chase'&&!moving&&cd.pos.y-FLOOR_Y<4.6&&performance.now()>dog.nextHop){dog.hopT=.0001;dog.nextHop=performance.now()+900+Math.random()*500;}
+  if(dog.hopT>0){dog.hopT+=dt;const k=dog.hopT/.5;if(k>=1)dog.hopT=0;else hopY=Math.sin(k*Math.PI)*.85;}
+  /* 6. place */
+  const bob=moving?Math.abs(Math.sin(dog.gait*.5))*.1*dog.move:0;
+  dog.g.position.set(dog.x,FLOOR_Y+dog.footLift*dog.scale+bob+hopY-dog.sit*DOG_SIT.drop-eo*DOG_LIE.drop,dog.z);
+  dog.g.rotation.y=dog.ry;if(dog.rg)dog.rg.rotation.z=Lc.sign*(DOG_LIE.ang*eo+Math.sin(performance.now()/1000*2.2)*.05*eo*(nowS-Lc.petT<.6?2:1));
+dog.g.updateMatrixWorld(true);
+  /* 7. head look */
+  const hb=dog.bones.Head;hb.o.getWorldPosition(DOGX.v);dog.g.worldToLocal(DOGX.v);DOGX.p.copy(look);dog.g.worldToLocal(DOGX.p);
+  const ddx=DOGX.p.x-DOGX.v.x,ddy=DOGX.p.y-DOGX.v.y,ddz=Math.max(.2,DOGX.p.z-DOGX.v.z);
+  const yawT=clamp(Math.atan2(ddx,ddz),-1.25,1.25),pitT=clamp(Math.atan2(ddy,Math.hypot(ddx,ddz)),-.55,.75);
+  const kl=1-Math.exp(-dt*(mode==='chase'?14:9));dog.lookYaw+=(yawT-dog.lookYaw)*kl;dog.lookPitch+=(pitT-dog.lookPitch)*kl;
+  const playing=status==='playing',bpm=(Au.alb&&Au.alb.bpm)||90,beat=playing?Math.sin(time*Math.PI*bpm/60):0;
+  const happy=Math.max(playing?.55:0,mode==='chase'?1:0,moving?.7:0,eo);
+  dogAdd('Neck','u',dog.lookYaw*.42*(1-eo));dogAdd('Head','u',dog.lookYaw*.58*(1-eo));
+  dogAdd('Neck','r',(-dog.lookPitch*.4+beat*.03)*(1-eo));dogAdd('Head','r',(-dog.lookPitch*.6+beat*.05)*(1-eo));
+  /* 8. tail, ears, blink, breath, jaw */
+  const wf=lerp(3,13,happy),wa=lerp(.22,.6,happy);dog.wag+=dt*wf;
+  dogAdd('tailA','u',Math.sin(dog.wag)*wa);dogAdd('tailB','u',Math.sin(dog.wag-.7)*wa*1.1);dogAdd('tailC','u',Math.sin(dog.wag-1.4)*wa*1.2);
+  dog.earT-=dt;if(dog.earT<=0){dog.earT=2+Math.random()*4;if(Math.random()<.5)dog.earL=.6;else dog.earR=.6;}
+  dog.earL*=Math.exp(-dt*6);dog.earR*=Math.exp(-dt*6);
+  /* ears are damped springs: they lift back with speed and bounce on every stride, the tips lag behind the base */
+  {const spd01=Math.min(1,Math.abs(vx)/7),bn=Math.sin(dog.gait+1.2)*dog.move,E=dog.ear||(dog.ear={L:{a:0,av:0,b:0,bv:0,f:0,fv:0},R:{a:0,av:0,b:0,bv:0,f:0,fv:0}});
+   const step=(e,ph,kick,sgn)=>{const n=Math.max(1,Math.ceil(dt/.012)),h2=dt/n;
+     const ta=.62*spd01+.55*bn*Math.cos(ph)+Math.sin(time*1.7+ph)*.025,tf=sgn*(.35*spd01+.4*Math.abs(bn)+kick*.7);
+     for(let i=0;i<n;i++){
+       e.av+=(150*(ta-e.a)-9*e.av)*h2;e.a+=e.av*h2;
+       e.bv+=(95*(e.a*.9+.35*bn*.5-e.b)-6*e.bv)*h2;e.b+=e.bv*h2;
+       e.fv+=(130*(tf-e.f)-8*e.fv)*h2;e.f+=e.fv*h2;}};
+   step(E.L,0,dog.earL,-1);step(E.R,.6,dog.earR,1);
+   dogAdd('LearA','r',E.L.a);dogAdd('LearB','r',E.L.b);dogAdd('LearA','f',E.L.f);dogAdd('LearB','f',E.L.f*.6);
+   dogAdd('RearA','r',E.R.a);dogAdd('RearB','r',E.R.b);dogAdd('RearA','f',E.R.f);dogAdd('RearB','f',E.R.f*.6);}
+  dog.blinkT-=dt;if(dog.blinkT<=0){dog.blinkT=2.2+Math.random()*3.5;dog.blink=.0001;}
+  let bl=0;if(dog.blink>0){dog.blink+=dt;const k=dog.blink/.16;if(k>=1)dog.blink=0;else bl=Math.sin(k*Math.PI);}
+  dogAdd('UplidL','r',bl*DOG_LID);dogAdd('UplidR','r',bl*DOG_LID);
+  dogAdd('Bust','r',Math.sin(time*2.2)*.012);
+  dogAdd('jawA','r',(moving||playing?.12+.08*Math.sin(time*9):0)*DOG_JAW);
+  /* 9. legs: trot while moving, folded when sitting */
+  const g=dog.gait,A=dog.move*.75;
+  dogAdd('ShoulderL','r',Math.sin(g)*A*DOG_LEG);dogAdd('ShoulderR','r',-Math.sin(g)*A*DOG_LEG);
+  dogAdd('LegL','r',-Math.sin(g)*A*DOG_LEG);dogAdd('LegR','r',Math.sin(g)*A*DOG_LEG);
+  dogAdd('Waist','r',-Math.sin(g*2)*.04*dog.move);
+  const s=dog.sit;
+  if(s>.001){dogAdd('Hip','r',-DOG_SIT.hip*s);dogAdd('ClavicleL','r',DOG_SIT.hip*s*DOG_SIT.front);dogAdd('ClavicleR','r',DOG_SIT.hip*s*DOG_SIT.front);
+    dogAdd('Neck','r',DOG_SIT.hip*s*.5);dogAdd('LegL','r',DOG_SIT.leg*s);dogAdd('LegR','r',DOG_SIT.leg*s);dogAdd('tailA','r',DOG_SIT.tail*s);}
+  if(eo>.001){const pet=nowS-Lc.petT<.6,sp=pet?7:4,amp=pet?1.4:1;
+    dogAdd('ShoulderL','r',(DOG_LIE.arm+Math.sin(time*sp)*.35*amp)*eo);dogAdd('ShoulderR','r',(DOG_LIE.arm+Math.sin(time*sp+.9)*.35*amp)*eo);
+    dogAdd('LegL','r',(DOG_LIE.leg+Math.sin(time*(sp+1)+1.7)*.3*amp)*eo);dogAdd('LegR','r',(DOG_LIE.leg+Math.sin(time*(sp+1)+2.6)*.3*amp)*eo);
+    dogAdd('Neck','u',Math.sin(time*1.4)*.2*eo);dogAdd('Head','r',.25*eo);dogAdd('jawA','r',.22*eo*DOG_JAW);
+    dogAdd('UplidL','r',.7*eo*DOG_LID);dogAdd('UplidR','r',.7*eo*DOG_LID);}
+  dogApply();
+}
+const DOG_LIE={ang:2.6,drop:.75,arm:.9,leg:-.5},DOG_LID=1,DOG_JAW=1,DOG_LEG=1,DOG_SIT={hip:.8,front:1,leg:.9,tail:0,drop:.3};
+loadDog();
+
 function frame(){
   const rawDt=clock.getDelta(),dt=Math.min(.05,rawDt),time=clock.elapsedTime;fpsAvg+=(1/Math.max(rawDt,.001)-fpsAvg)*.1;
   stepTweens(dt);
@@ -1521,9 +1719,9 @@ function frame(){
   }
   const kc=1-Math.exp(-dt*3.4),kp=1-Math.exp(-dt*3);
   rig.x+=(rig.tx-rig.x)*kc;rig.y+=(rig.ty-rig.y)*kc;rig.d+=(rig.td-rig.d)*kc;rig.px+=(rig.ptx-rig.px)*kp;rig.py+=(rig.pty-rig.py)*kp;
-  cam.position.set(rig.x+rig.px*.35,rig.y+rig.py*.22,rig.d);
+  cam.position.set(rig.x+rig.px*.35,rig.y+rig.py*.22+rig.d*TILT_UP,rig.d);
   if(camShake>.003){cam.position.x+=(Math.random()-.5)*camShake*.3;cam.position.y+=(Math.random()-.5)*camShake*.3;camShake*=Math.exp(-dt*5);}
-  cam.lookAt(rig.x,rig.y,0);cam.updateMatrixWorld();
+  cam.lookAt(rig.x,rig.y-rig.d*TILT_DN,0);cam.updateMatrixWorld();
   if(!shelfDrag)sx+=(sxTarget-sx)*(1-Math.exp(-dt*6.5));
   {const w=shelfWant();shelfVis+=(w-shelfVis)*(1-Math.exp(-dt*(w>shelfVis?7:4.5)));if(Math.abs(w-shelfVis)<.003)shelfVis=w;
    shelfOff=(1-ease.io2(clamp(shelfVis,0,1)))*(L.half-L.shelfB+1.4);
@@ -1549,11 +1747,12 @@ function frame(){
   if(Au.alb&&Au.alb.yt&&(status==='playing'||status==='paused'))Au.elapsed=YTA.time();else if(Au.playing)Au.elapsed+=dt;
   YTA.tick(dt);
   if(volT>0)volT-=dt;
+  try{dogFrame(dt,time);}catch(e){if(!dog.err){dog.err=1;console.warn('dog',e);}}
   drawDisplay();syncKeys();updateFx(dt,time);
   renderer.render(scene,cam);requestAnimationFrame(frame);
 }
 tween(1.1,k=>{pOff.intro=lerp(-.9,0,k);},ease.out5);
-window.__mt={cam,albums,player,BAY,L,ALBUMS,get cd(){return cd;},get state(){return state;},get status(){return status;},get lidOpen(){return lidOpen;},get cdIn(){return cdIn;},get busy(){return busy;},rem,hpState,tv,hole,eng,grab,get zeroG(){return zeroG;},remoteFx,tvSummon,tvDismiss,seekPlug,plugOut,hpSpawn,stretchRatio,FLOOR:()=>FLOOR_Y,get shelfVis(){return shelfVis;},get fps(){return fpsAvg;},get sx(){return sx;},keys,YTA,addFromUrl,get N(){return N;},renderEdit};
+window.__mt={dog,dogToggle,dogPet,cam,albums,player,BAY,L,ALBUMS,get cd(){return cd;},get state(){return state;},get status(){return status;},get lidOpen(){return lidOpen;},get cdIn(){return cdIn;},get busy(){return busy;},rem,hpState,tv,hole,eng,grab,get zeroG(){return zeroG;},remoteFx,tvSummon,tvDismiss,seekPlug,plugOut,hpSpawn,stretchRatio,FLOOR:()=>FLOOR_Y,get shelfVis(){return shelfVis;},get fps(){return fpsAvg;},get sx(){return sx;},keys,YTA,addFromUrl,get N(){return N;},renderEdit};
 requestAnimationFrame(frame);
 })();
 </script>
