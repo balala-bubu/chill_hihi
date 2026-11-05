@@ -54,7 +54,7 @@ async function loadDog(){
     meta.nodes.forEach((n,i)=>{if(n.p>=0)objs[n.p].add(objs[i]);});
     const fix=new T.Group();fix.rotation.x=Math.PI/2;fix.add(objs[0]);
     const SPN=1.1/dog.scale,pv=new T.Group(),rg=new T.Group(),inn=new T.Group();pv.position.y=SPN;inn.position.y=-SPN;   // roll about the spine, not the feet
-    inn.add(fix);rg.add(inn);pv.add(rg);dog.g.add(pv);dog.rg=rg;
+    inn.add(fix);rg.add(inn);pv.add(rg);dog.g.add(pv);dog.rg=rg;dog.inn=inn;dog.fix=fix;
     dog.g.scale.setScalar(dog.scale);dog.g.updateMatrixWorld(true);
     meta.meshes.forEach(m=>{const o=objs[m.node],bones=m.bones.map(i=>objs[i]),inv=new Float32Array(buf,m.inv,bones.length*16),bi=[];
       for(let i=0;i<bones.length;i++)bi.push(new T.Matrix4().fromArray(inv,i*16));
@@ -67,11 +67,12 @@ async function loadDog(){
     dog.g.updateMatrixWorld(true);
     if(dog.bones.Head)dog.mouthL=dog.bones.Head.o.worldToLocal(dog.g.localToWorld(new T.Vector3(DOG_BITE.mx,DOG_BITE.my,DOG_BITE.mz)));
     dog.g.traverse(o=>o.layers.enable(1));
+    dogVarReg0();   // 14-dog/02-dog2.js: remember this puppy as variant 0
     dog.ready=true;
     if(dog.wantShow)dogToggle();
   }catch(e){console.warn('dog failed to load',e);dog.failed=true;remLit(3,false);}
 }
-function dogAdd(n,ax,a){(dog.acc[n]||(dog.acc[n]=[])).push([ax,a]);}
+function dogAdd(n,ax,a){const k=dog.ak&&dog.ak[n];(dog.acc[n]||(dog.acc[n]=[])).push([ax,k===undefined?a:a*k]);}   // dog.ak: per-puppy strength of a bone's motion (second puppy)
 function dogApply(){
   for(const nm in dog.bones){const b=dog.bones[nm],list=dog.acc[nm];DOGX.q.copy(b.q0);
     if(list)for(const [ax,a] of list){DOGX.v.copy(DOGX.AX[ax]).applyQuaternion(b.pqi);DOGX.q2.setFromAxisAngle(DOGX.v,a);DOGX.q.premultiply(DOGX.q2);}
@@ -81,7 +82,7 @@ function dogApply(){
 function dogToggle(){
   if(dog.failed)return;
   if(!dog.ready){dog.wantShow=!dog.wantShow;remLit(3,dog.wantShow);return;}
-  if(!dog.present){dog.present=true;dog.leaving=false;dog.g.visible=true;dog.x=-(L.hw+3.2);dog.z=1.9;dog.sit=0;dog.pop=PET.perch?0:1;remLit(3,true);Au.whoosh();}
+  if(!dog.present){dogPick();dog.present=true;dog.leaving=false;dog.g.visible=true;dog.x=-(L.hw+3.2);dog.z=1.9;dog.sit=0;dog.pop=PET.perch?0:1;remLit(3,true);Au.whoosh();}
   else if(dog.leaving){dog.leaving=false;remLit(3,true);}
   else{if(hpState.worn)hpUnwear();dog.leaving=true;remLit(3,false);Au.whoosh();}
 }
