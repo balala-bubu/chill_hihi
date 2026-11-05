@@ -11,7 +11,7 @@ async function insertCD(){
   await tween(.25,()=>{},ease.lin);
   await setLid(false,true);
   rig.td=L.d*1.02;rig.tx=-1.5;rig.ty=-1.5;
-  await plugIn();
+  if(btOn&&btHave)await plugIn();else{rig.td=L.d;rig.tx=0;rig.ty=0;await tween(.35,()=>{},ease.lin);}   // no bluetooth headphones: it just plays
   camLock=false;status='playing';Au.start(ALBUMS[c.ai]);busy=false;
 }
 async function plugIn(){   // after the disc is in: headphones are tossed in, the plug flies to the jack and snaps in (see seekPlug)

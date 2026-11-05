@@ -1017,7 +1017,7 @@ async function insertCD(){
   await tween(.25,()=>{},ease.lin);
   await setLid(false,true);
   rig.td=L.d*1.02;rig.tx=-1.5;rig.ty=-1.5;
-  await plugIn();
+  if(btOn&&btHave)await plugIn();else{rig.td=L.d;rig.tx=0;rig.ty=0;await tween(.35,()=>{},ease.lin);}   // no bluetooth headphones: it just plays
   camLock=false;status='playing';Au.start(ALBUMS[c.ai]);busy=false;
 }
 async function plugIn(){   // after the disc is in: headphones are tossed in, the plug flies to the jack and snaps in (see seekPlug)
@@ -1498,6 +1498,24 @@ function plugOut(kick){   // pull the plug out of the jack
   const e=endB();Body.setVelocity(e,{x:kick?(kick.x||0):1.2,y:kick?(kick.y||0):-1.6});
   tween(.22,k=>{h.plugAmt=1-k;},ease.out3);Au.snap();Au.click(1.5,.8);h.flash=1;
 }
+function hpDespawn(){   // headphones and cable are gone (reeled in): free the bodies, hide the meshes; the next hpSpawn builds fresh ones
+  const h=hpState;if(h.s==='none')return;
+  if(h.worn)hpUnwear();
+  if(h.pin){Composite.remove(wld,h.pin);h.pin=null;}
+  if(h.body)[h.body,...h.rope,...h.cons].forEach(o=>Composite.remove(wld,o));
+  h.body=null;h.rope=[];h.cons=[];h.segC=[];h.drive=null;h.seek=0;h.plugAmt=0;h.aim=0;h.flash=0;h.grab=false;h.dragNear=0;h.s='none';
+  hpRoot.visible=false;cableMesh.visible=false;plug2.visible=false;blobHp.visible=false;
+}
+async function hpRetract(){   // Bluetooth disconnected: the plug pops out, the headphones float up with their cable and leave through the top of the screen
+  const h=hpState;if(h.s==='none'||h.s==='retract')return;
+  if(grab.c&&(grab.kind==='hp'||grab.kind==='plug')){Composite.remove(wld,grab.c);grab.c=null;grab.kind=null;grab.body=null;h.grab=false;}
+  if(h.worn)hpUnwear();
+  if(h.s==='plugged')plugOut({x:0,y:-2.5});
+  h.drive=null;h.seek=0;h.s='retract';h.rt0=performance.now();h.hov.y=myp(L.top+6);
+  Au.whoosh();
+  await waitFor(()=>[h.body,...h.rope].every(b=>-b.position.y/PXU>L.top+2.4),5000);
+  hpDespawn();
+}
 async function plugInsert(){
   const h=hpState;if(h.pin)return;const J=jackWorld(),e=endB();
   h.pin=Constraint.create({pointA:{x:mxp(J.x),y:myp(J.y)},bodyB:e,pointB:{x:0,y:0},length:0,stiffness:.95,damping:.3});Composite.add(wld,h.pin);
@@ -1506,12 +1524,14 @@ async function plugInsert(){
   Au.thunk();jiggle();h.flash=1;
 }
 async function seekPlug(){   // auto-plug: the loose plug flies up in an arc, aligns itself with the jack, pushes in
-  const h=hpState;if(h.s==='plugged'||h.s==='seek')return;h.s='seek';h.seek=1;h.plugAmt=0;
+  const h=hpState;if(h.s!=='free')return;h.s='seek';h.seek=1;h.plugAmt=0;
   const e=endB,J=()=>jackWorld(),far=()=>Math.hypot(e().position.x/PXU-J().x,-e().position.y/PXU-J().y);
   h.drive={x:J().x-.5,y:J().y-.75,sp:4.3};Au.whoosh();
-  await waitFor(()=>Math.hypot(e().position.x/PXU-h.drive.x,-e().position.y/PXU-h.drive.y)<.22,2600);
+  await waitFor(()=>h.s!=='seek'||Math.hypot(e().position.x/PXU-h.drive.x,-e().position.y/PXU-h.drive.y)<.22,2600);
+  if(h.s!=='seek')return;   // cancelled meanwhile (grabbed, or the headphones are being reeled in)
   h.drive={x:J().x,y:J().y,sp:2.8,follow:true};
-  await waitFor(()=>far()<.14,2400);
+  await waitFor(()=>h.s!=='seek'||far()<.14,2400);
+  if(h.s!=='seek')return;
   h.drive=null;h.seek=0;
   await plugInsert();
 }
@@ -1525,6 +1545,8 @@ if(PHYS)Events.on(eng,'beforeUpdate',()=>{
   const h=hpState;
   if(h.body&&h.s!=='none'){   // the headphones float: their own weight is cancelled and a soft spring holds them at a hover spot that bobs a little
     const b=h.body,m=b.mass;
+    if(h.s==='retract'){const up=-Math.min(8,1.5+(performance.now()-h.rt0)/1000*7)*PXU/180;   // bluetooth gone: reel the headphones and the whole cable up and off the top of the screen
+      for(const q of [b,...h.rope])Body.setVelocity(q,{x:q.velocity.x*.9,y:up});Body.setAngularVelocity(b,b.angularVelocity*.9);}
     if(h.worn){
       hpRoot.updateWorldMatrix(true,false);const p=hpRoot.getWorldPosition(new T.Vector3());
       Body.setAngle(b,0);Body.setPosition(b,{x:mxp(p.x)-h.org.x,y:myp(p.y)-h.org.y});
@@ -1552,6 +1574,7 @@ function dynBodies(){const a=[];if(rem.body)a.push(rem.body);if(hpState.body)a.p
 const grab={c:null,kind:null,body:null,z:.5,btn:-1,startX:0,startY:0};
 function startPhysGrab(hit){
   const o=hit.object,kind=o.userData.phys;let body=null,stiff=.2;
+  if((kind==='hp'||kind==='plug')&&hpState.s==='retract')return false;   // on its way out
   if(kind==='rem'){body=rem.body;stiff=.22;}else if(kind==='hp'){if(hpState.worn)hpUnwear();body=hpState.body;stiff=.13;hpState.grab=true;}
   else if(kind==='plug'){body=endB();stiff=.3;if(hpState.s==='seek'){hpState.drive=null;hpState.s='free';hpState.seek=0;}}
   else if(kind==='tv'){body=tv.b;stiff=.07;}
@@ -1583,6 +1606,42 @@ function endPhysGrab(moved){
   grab.body=null;
 }
 
+/* ---------- bluetooth headphones ---------- */
+/* The headphones are not always there. They swoop in and plug into the jack when the computer gets Bluetooth headphones (a new audio output),
+   and when that output goes away the plug pops out and they reel themselves up off the top of the screen. With nothing connected a disc just plays.
+   A web page cannot ask "is Bluetooth connected": it can only list the audio outputs, and only gets their names once the page has a media permission. So:
+   named outputs -> a headphone-like name counts; unnamed -> one more output than the fewest ever seen counts (it can't tell Bluetooth from a wired headset). */
+let btOn=false,btHave=false,btBusy=false,btBase=null;
+const BT_RE=/bluetooth|airpods|buds|earbud|earphone|headphone|headset|hands-?free|beats|wh-\d|wf-\d|藍牙|藍芽|耳機|耳麥/i;
+async function btScan(){
+  const md=navigator.mediaDevices;if(!md||!md.enumerateDevices)return;
+  let list;try{list=await md.enumerateDevices();}catch(_){return;}
+  const out=list.filter(d=>d.kind==='audiooutput'&&d.deviceId!=='default'&&d.deviceId!=='communications');
+  let on;
+  if(out.some(d=>d.label))on=out.some(d=>BT_RE.test(d.label));
+  else{btBase=btBase===null?out.length:Math.min(btBase,out.length);on=out.length>btBase;}
+  btSet(on);
+}
+function btSet(on){on=!!on;if(on===btOn)return;btOn=on;btSync();}   // also the test hook: __mt.btSet(true/false)
+async function btSync(){   // one at a time: attach and detach never overlap, whatever order the connect / disconnect events come in
+  if(btBusy||!PHYS)return;btBusy=true;
+  try{
+    await waitFor(()=>physOn,8000);
+    while(btHave!==btOn){
+      if(btOn){await btAttach();btHave=true;}
+      else{await hpRetract();btHave=false;}
+    }
+  }finally{btBusy=false;}
+}
+async function btAttach(){
+  const h=hpState;
+  if(h.s==='none'){hpSpawn();Au.whoosh();await waitFor(hpSettled,3600);await tween(.25,()=>{},ease.lin);}
+  if(h.s==='free')await seekPlug();
+}
+if(navigator.mediaDevices&&navigator.mediaDevices.addEventListener){
+  navigator.mediaDevices.addEventListener('devicechange',btScan);
+  setTimeout(btScan,1200);
+}
 /* ====================================================================
    THE OLD TV  (modelled on the grey portable set: recessed CRT, dark control strip on the right, tape drawer below)
    ==================================================================== */
@@ -2508,7 +2567,7 @@ function frame(){
   requestAnimationFrame(frame);
 }
 tween(1.1,k=>{pOff.intro=lerp(-.9,0,k);},ease.out5);
-window.__mt={ward:W,wardEquip:wEquip,wardRecycle:wRecycle,dog,dogToggle,dogPet,cam,albums,player,BAY,L,ALBUMS,get cd(){return cd;},get state(){return state;},get status(){return status;},get lidOpen(){return lidOpen;},get cdIn(){return cdIn;},get busy(){return busy;},rem,hpState,tv,hole,eng,grab,get zeroG(){return zeroG;},remoteFx,tvSummon,tvDismiss,seekPlug,plugOut,hpSpawn,stretchRatio,FLOOR:()=>FLOOR_Y,get shelfVis(){return shelfVis;},get fps(){return fpsAvg;},get sx(){return sx;},get sxTarget(){return sxTarget;},keys,YTA,addFromUrl,get N(){return N;},renderEdit};
+window.__mt={ward:W,wardEquip:wEquip,wardRecycle:wRecycle,dog,dogToggle,dogPet,cam,albums,player,BAY,L,ALBUMS,get cd(){return cd;},get state(){return state;},get status(){return status;},get lidOpen(){return lidOpen;},get cdIn(){return cdIn;},get busy(){return busy;},rem,hpState,btSet,get btOn(){return btOn;},get btHave(){return btHave;},hpRetract,tv,hole,eng,grab,get zeroG(){return zeroG;},remoteFx,tvSummon,tvDismiss,seekPlug,plugOut,hpSpawn,stretchRatio,FLOOR:()=>FLOOR_Y,get shelfVis(){return shelfVis;},get fps(){return fpsAvg;},get sx(){return sx;},get sxTarget(){return sxTarget;},keys,YTA,addFromUrl,get N(){return N;},renderEdit};
 requestAnimationFrame(frame);
 })();
 </script>
