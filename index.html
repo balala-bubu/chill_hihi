@@ -298,6 +298,17 @@ const hint=new T.Mesh(new T.CircleGeometry(1.5,64),new T.MeshBasicMaterial({tran
   x.translate(w/2,w/2);const g=x.createRadialGradient(0,0,90,0,0,126);g.addColorStop(0,'rgba(238,100,56,0)');g.addColorStop(.5,'rgba(238,100,56,0)');g.addColorStop(.62,'rgba(238,100,56,.85)');g.addColorStop(.74,'rgba(238,100,56,.25)');g.addColorStop(1,'rgba(238,100,56,0)');
   x.fillStyle=g;x.beginPath();x.arc(0,0,126,0,TAU);x.fill();})}));
 hint.position.set(0,BAYY,FZ+.09);player.add(hint);
+/* impact burst, fired when a disc lands in the bay: a shockwave ring, a warm flash and a few sparks.
+   normal blending (not additive) on purpose: additive just clips to white on the pale body */
+const burst={t:9,dur:.7};
+const mkRadial=stops=>mkTex(256,256,(x,w)=>{x.translate(w/2,w/2);const g=x.createRadialGradient(0,0,0,0,0,w/2);stops.forEach(([p,c])=>g.addColorStop(p,c));x.fillStyle=g;x.beginPath();x.arc(0,0,w/2,0,TAU);x.fill();});
+const burstRing=new T.Mesh(new T.CircleGeometry(1.5,64),new T.MeshBasicMaterial({transparent:true,depthWrite:false,toneMapped:false,opacity:0,
+  map:mkRadial([[0,'rgba(238,100,56,0)'],[.74,'rgba(238,100,56,0)'],[.84,'rgba(238,100,56,.95)'],[.92,'rgba(255,190,140,.35)'],[1,'rgba(255,190,140,0)']])}));
+const burstFlash=new T.Mesh(new T.CircleGeometry(1.5,64),new T.MeshBasicMaterial({transparent:true,depthWrite:false,toneMapped:false,opacity:0,
+  map:mkRadial([[0,'rgba(255,226,196,.85)'],[.5,'rgba(255,170,110,.35)'],[1,'rgba(255,150,90,0)']])}));
+burstFlash.position.set(0,BAYY,FZ+.085);burstRing.position.set(0,BAYY,FZ+.095);burstRing.visible=burstFlash.visible=false;player.add(burstFlash,burstRing);
+const sparks=[];for(let i=0;i<14;i++){const m=new T.Mesh(new T.PlaneGeometry(.075,.075),new T.MeshBasicMaterial({color:i%3?0xff8a4c:0xffd9b0,transparent:true,depthWrite:false,toneMapped:false,opacity:0}));
+  m.position.set(0,BAYY,FZ+.11);m.visible=false;player.add(m);sparks.push({m,a:i/14*TAU+((i*7)%5)*.13,s:1.5+((i*5)%4)*.28});}
 cyl(.13,.1,M.metal,0,BAYY,FZ+.08);
 
 /* display */
@@ -514,6 +525,10 @@ const Au={ctx:null,vol:6,playing:false,elapsed:0,step:0,timer:0,alb:null,
  /* sound effects */
  click(p,g){if(!this.ensure())return;const t=this.ctx.currentTime;this.tone(2300*(p||1),t,.012,'square',.09*(g||1),this.sfx,.001,.03);this.hit(t,.025,4200,.22*(g||1),'highpass',this.sfx);},
  snap(){if(!this.ensure())return;const t=this.ctx.currentTime;this.tone(1500,t,.01,'square',.12,this.sfx,.001,.04);this.hit(t,.04,3200,.4,'bandpass',this.sfx);this.tone(170,t,.05,'sine',.4,this.sfx,.002,.1);},
+ /* heavier layer for a disc slamming into the bay: pitch-dropping sub thump + low noise body + a bright tick on top */
+ smash(){if(!this.ensure())return;const c=this.ctx,t=c.currentTime,o=c.createOscillator(),e=c.createGain();
+  o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(48,t+.16);e.gain.setValueAtTime(.55,t);e.gain.exponentialRampToValueAtTime(.0001,t+.28);
+  o.connect(e);e.connect(this.sfx);o.start(t);o.stop(t+.3);this.hit(t,.09,900,.3,'lowpass',this.sfx);this.tone(2600,t,.012,'square',.07,this.sfx,.001,.05);},
  thunk(){if(!this.ensure())return;const t=this.ctx.currentTime;this.tone(120,t,.04,'sine',.5,this.sfx,.002,.12);this.hit(t,.03,2400,.25,'bandpass',this.sfx);this.tone(1900,t+.02,.01,'square',.06,this.sfx,.001,.03);},
  whoosh(){if(!this.ensure())return;const c=this.ctx,t=c.currentTime,s=c.createBufferSource(),f=c.createBiquadFilter(),e=c.createGain();s.buffer=this.noise;f.type='bandpass';f.Q.value=.8;
   f.frequency.setValueAtTime(500,t);f.frequency.exponentialRampToValueAtTime(2600,t+.35);e.gain.setValueAtTime(.0001,t);e.gain.linearRampToValueAtTime(.16,t+.12);e.gain.exponentialRampToValueAtTime(.0001,t+.45);
@@ -527,7 +542,7 @@ const L={d:18.3,half:5.25,hw:8.4,shelfC:3.8,shelfB:3.05};
 const rig={x:0,y:0,d:18.3,tx:0,ty:0,td:18.3,px:0,py:0,ptx:0,pty:0};
 let state='home',sel=-1,cd=null,cdIn=false,cdAlbum=-1,lidOpen=false,busy=false,camLock=false,zoomed=false,status='empty',volT=0,hpScale=1;
 let sx=3,sxTarget=3,sxVel=0,shelfDrag=false;
-let hoverKey=-1,hintT=0,wasArmed=false;
+let hoverKey=-1,hintT=0,wasArmed=false,bayKick=0;
 const SHELF_GAIN=.5;                                  // shelf follows the pointer at this fraction of its speed (lower = calmer)
 let shelfVis=0,shelfOff=0,topHover=false,shelfPin=false;   // shelf is hidden by default; slides down when the pointer visits the top edge
 function shelfWant(){
@@ -680,6 +695,12 @@ function updateCD(dt){
 }
 
 /* ---------- lid, player feedback ---------- */
+/* a disc has just landed: fire the burst, kick the bay light, press the body down, dip the disc, nudge the camera */
+function impact(c){
+  burst.t=0;bayKick=1.6;camShake=Math.max(camShake,.22);
+  tween(.3,k=>{pOff.jig=-Math.sin(Math.PI*k)*.08*(1-.35*k);},ease.lin);
+  tween(.32,k=>c.root.scale.setScalar(1-.05*Math.sin(Math.PI*k)),ease.lin);
+}
 function jiggle(){return tween(.2,k=>{pOff.jig=-Math.sin(Math.PI*k)*.035;},ease.lin);}
 async function setLid(open,quiet){
   if(lidOpen===open)return;lidOpen=open;const from=lidPivot.rotation.y,to=open?LID_OPEN:0;
@@ -752,7 +773,7 @@ async function insertCD(){
   Au.whoosh();
   await tween(.9,k=>{const h=Math.sin(Math.PI*k);c.pos.z=1.1+h*1.5;c.disc.rotation.z=r0+TAU*ease.io3(k);c.root.scale.setScalar(1+.12*h);},ease.lin);
   await tween(.26,k=>{c.pos.z=lerp(1.1,FZ+.07,ease.in2(k));c.root.scale.setScalar(1);},ease.lin);
-  Au.thunk();jiggle();buzz(18);cdIn=true;c.mode='in';c.spin=0;
+  Au.thunk();Au.smash();impact(c);buzz([16,22,10]);cdIn=true;c.mode='in';c.spin=0;
   await tween(.25,()=>{},ease.lin);
   await setLid(false,true);
   rig.td=L.d*1.02;rig.tx=-1.5;rig.ty=-1.5;
@@ -1440,9 +1461,18 @@ function updateFx(dt,time){
   hint.scale.setScalar(armed?1.03+.02*Math.sin(time*10):1);
   if(armed&&!wasArmed){Au.click(1.7,.45);buzz(8);}
   wasArmed=armed;
-  const bt=(status==='playing'?.32:0)+hintT*(armed?.6:.35);
+  bayKick*=Math.exp(-dt*7);
+  const bt=(status==='playing'?.32:0)+hintT*(armed?.6:.35)+bayKick;
   bayLight.position.set(BAY.x,BAY.y,FZ+1.4);
   bayLight.intensity+=(bt-bayLight.intensity)*(1-Math.exp(-dt*6));
+  if(burst.t<burst.dur){
+    burst.t+=dt;const k=clamp(burst.t/burst.dur,0,1),eo=ease.out3(k);
+    burstRing.visible=burstFlash.visible=true;
+    burstRing.scale.setScalar(.86+eo*.75);burstRing.material.opacity=(1-k)*(1-k)*.95;
+    burstFlash.scale.setScalar(.9+eo*.35);burstFlash.material.opacity=Math.pow(1-k,2.2)*.8;
+    sparks.forEach(p=>{const r=.55+eo*p.s*.9;p.m.visible=true;p.m.position.set(Math.cos(p.a)*r,BAYY+Math.sin(p.a)*r,FZ+.11);
+      p.m.rotation.z=p.a+k*3;p.m.scale.setScalar(1-k*.7);p.m.material.opacity=(1-k)*(k<.08?k/.08:1);});
+  }else if(burstRing.visible){burstRing.visible=burstFlash.visible=false;sparks.forEach(p=>{p.m.visible=false;});}
   if(cd&&cd.rb){
     const sp=Math.min(1,Math.abs(cd.spin)/9),m=cd.rb.material;
     m.opacity+=((.15+.3*sp)-m.opacity)*(1-Math.exp(-dt*6));
