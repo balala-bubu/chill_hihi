@@ -146,6 +146,22 @@ renderer.outputColorSpace=T.SRGBColorSpace;
 renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
 stage.appendChild(renderer.domElement);
+/* Render only the dog and its worn accessories over the embedded TV video.
+   The main 3D scene stays below the iframe; all pointer input stays on the main canvas. */
+let dogOverlayRenderer=null;
+const dogOverlayCam=new T.PerspectiveCamera(32,1,.1,200);
+try{
+  dogOverlayRenderer=new T.WebGLRenderer({antialias:true,alpha:true,powerPreference:'low-power'});
+  dogOverlayRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  dogOverlayRenderer.outputColorSpace=renderer.outputColorSpace;
+  dogOverlayRenderer.toneMapping=renderer.toneMapping;
+  dogOverlayRenderer.toneMappingExposure=renderer.toneMappingExposure;
+  dogOverlayRenderer.setClearColor(0x000000,0);
+  const overlay=dogOverlayRenderer.domElement;
+  overlay.style.cssText='position:fixed;inset:0;z-index:5;pointer-events:none;display:none;';
+  overlay.setAttribute('aria-hidden','true');
+  document.body.appendChild(overlay);
+}catch(e){dogOverlayRenderer=null;console.warn('Dog foreground renderer unavailable',e);}
 const scene=new T.Scene();scene.background=new T.Color(0xd9dbde);
 const FOV=32,TANH=Math.tan(FOV/2*Math.PI/180);
 const cam=new T.PerspectiveCamera(FOV,1,.1,200);
@@ -658,7 +674,7 @@ function layout(){
   const a=innerWidth/innerHeight;L.d=baseD();L.half=L.d*TANH;L.hw=L.half*a;
   L.top=L.d*(TILT_UP-Math.tan(TOPA));L.shelfC=Math.min(L.top-1.45,4.4);L.shelfB=L.shelfC-.75;shelf.position.y=L.shelfB-.07;shelfBack.position.y=L.shelfB-.07+BACK_H/2;shelfShade.position.y=L.shelfB-.14-SHADE_H/2;
   hpScale=clamp((L.hw-2.1)/3.6,.35,1);
-  renderer.setSize(innerWidth,innerHeight);cam.aspect=a;cam.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);if(dogOverlayRenderer)dogOverlayRenderer.setSize(innerWidth,innerHeight);cam.aspect=a;cam.updateProjectionMatrix();
   if(physOn)buildBounds();
 }
 layout();rig.d=rig.td=L.d;
@@ -1312,7 +1328,7 @@ const HP_DOG_WEAR_SCALE=.56;  // Compared with the previous hat-sized fit, headp
 function hpWear(){
   const h=hpState,sl=W.slotById.hat,b=sl&&wBone(sl.bone);
   if(!h.body||!dog.ready||!dog.present||dog.leaving||!b)return false;
-  h.worn=true;b.add(hpRoot);
+  h.worn=true;b.add(hpRoot);hpRoot.traverse(o=>o.layers.enable(1));
   hpRoot.position.set(sl.worn.pos[0],sl.worn.pos[1]+1.8,sl.worn.pos[2]);
   hpRoot.rotation.set(0,0,0);hpRoot.scale.setScalar(sl.worn.scale*HP_DOG_WEAR_SCALE);
   h.dragNear=0;h.grab=false;Body.setVelocity(h.body,{x:0,y:0});Body.setAngularVelocity(h.body,0);
@@ -1320,7 +1336,7 @@ function hpWear(){
 }
 function hpUnwear(){
   const h=hpState;if(!h.worn)return;
-  scene.attach(hpRoot);h.worn=false;h.dragNear=0;hpRoot.scale.setScalar(h.scale);
+  scene.attach(hpRoot);hpRoot.traverse(o=>o.layers.disable(1));h.worn=false;h.dragNear=0;hpRoot.scale.setScalar(h.scale);
   const p=hpRoot.position,b=h.body;
   if(b){Body.setAngle(b,0);Body.setPosition(b,{x:mxp(p.x)-h.org.x,y:myp(p.y)-h.org.y});Body.setVelocity(b,{x:0,y:0});Body.setAngularVelocity(b,0);}
   hpRoot.rotation.set(0,0,0);hpRest();W.recycleKey='';
@@ -1592,12 +1608,15 @@ function homography(s,d){
     for(let r=c+1;r<8;r++){const f=A[r][c]/A[c][c];for(let k=c;k<8;k++)A[r][k]-=f*A[c][k];b[r]-=f*b[c];}}
   const h=new Array(8);for(let r=7;r>=0;r--){let s2=b[r];for(let k=r+1;k<8;k++)s2-=A[r][k]*h[k];h[r]=s2/A[r][r];}return h;}
 function ytLayout(show){
-  if(!show){if(ytboxEl.style.opacity!=='0')ytboxEl.style.opacity='0';return;}
+  if(!show){if(ytboxEl.style.opacity!=='0')ytboxEl.style.opacity='0';if(dogOverlayRenderer)dogOverlayRenderer.domElement.style.display='none';return;}
   tv.punch.updateWorldMatrix(true,false);
   const P=[[-.9,.73],[.9,.73],[.9,-.73],[-.9,-.73]].map(([x,y])=>{_tmpA.set(x,y,0).applyMatrix4(tv.punch.matrixWorld).project(cam);return [(_tmpA.x+1)/2*innerWidth,(1-_tmpA.y)/2*innerHeight];});
   const h=homography([[0,0],[YB.w,0],[YB.w,YB.h],[0,YB.h]],P);
   ytboxEl.style.transform='matrix3d('+[h[0],h[3],0,h[6],h[1],h[4],0,h[7],0,0,1,0,h[2],h[5],0,1].join(',')+')';
   if(ytboxEl.style.opacity!=='1')ytboxEl.style.opacity='1';
+  if(dogOverlayRenderer){const el=dogOverlayRenderer.domElement;
+    el.style.clipPath='polygon('+P.map(p=>p[0].toFixed(1)+'px '+p[1].toFixed(1)+'px').join(',')+')';
+    el.style.display=dog.ready&&dog.present&&!dog.leaving?'block':'none';}
 }
 
 /* ---------- per-frame sync: physics -> meshes ---------- */
@@ -1782,6 +1801,7 @@ async function loadDog(){
     /* the bite point between the lips, remembered in the head bone's own space so it follows every head turn and bob (rest-pose spot in the dog's model space) */
     dog.g.updateMatrixWorld(true);
     if(dog.bones.Head)dog.mouthL=dog.bones.Head.o.worldToLocal(dog.g.localToWorld(new T.Vector3(DOG_BITE.mx,DOG_BITE.my,DOG_BITE.mz)));
+    dog.g.traverse(o=>o.layers.enable(1));
     dog.ready=true;
     if(dog.wantShow)dogToggle();
   }catch(e){console.warn('dog failed to load',e);dog.failed=true;remLit(3,false);}
@@ -2073,7 +2093,7 @@ function wEquip(id,quiet){
   if(f.pos)m.position.fromArray(f.pos);wSetRot(m,f.rot);if(f.scale)m.scale.setScalar(f.scale);
   m.renderOrder=it.alpha?4:1;sg.add(m);
   const p=new T.Mesh(new T.SphereGeometry(1,8,6),new T.MeshBasicMaterial({visible:false}));p.position.set(it.c[0],it.c[1],it.c[2]);p.scale.setScalar(it.md*.75);p.userData.ward={id,src:'worn'};m.add(p);
-  par.add(sg);
+  par.add(sg);sg.traverse(o=>o.layers.enable(1));
   W.worn[it.slot]={id,sg,m,proxy:p,pop:quiet?1:0};it.away=true;
   if(!quiet){dog.shk=1;Au.snap();buzz(10);}
   wSave();
@@ -2262,7 +2282,16 @@ function frame(){
   try{dogFrame(dt,time);}catch(e){if(!dog.err){dog.err=1;console.warn('dog',e);}}
   try{wardFrame(dt,time);}catch(e){if(!W.err){W.err=1;console.warn('wardrobe',e);}}
   drawDisplay();syncKeys();updateFx(dt,time);
-  renderer.render(scene,cam);requestAnimationFrame(frame);
+  renderer.render(scene,cam);
+  if(dogOverlayRenderer&&dog.ready&&dog.present&&!dog.leaving&&tv.mode==='video'&&tv.pw>.02&&tv.b){
+    if(!dog.overlayLights){scene.traverse(o=>{if(o.isLight)o.layers.enable(1);});dog.overlayLights=true;}
+    dogOverlayCam.copy(cam);dogOverlayCam.layers.set(1);
+    const bg=scene.background;scene.background=null;
+    try{dogOverlayRenderer.render(scene,dogOverlayCam);}
+    catch(e){if(!dog.overlayError){dog.overlayError=true;console.warn('Dog foreground render failed',e);}dogOverlayRenderer.domElement.style.display='none';}
+    finally{scene.background=bg;}
+  }
+  requestAnimationFrame(frame);
 }
 tween(1.1,k=>{pOff.intro=lerp(-.9,0,k);},ease.out5);
 window.__mt={ward:W,wardEquip:wEquip,wardRecycle:wRecycle,dog,dogToggle,dogPet,cam,albums,player,BAY,L,ALBUMS,get cd(){return cd;},get state(){return state;},get status(){return status;},get lidOpen(){return lidOpen;},get cdIn(){return cdIn;},get busy(){return busy;},rem,hpState,tv,hole,eng,grab,get zeroG(){return zeroG;},remoteFx,tvSummon,tvDismiss,seekPlug,plugOut,hpSpawn,stretchRatio,FLOOR:()=>FLOOR_Y,get shelfVis(){return shelfVis;},get fps(){return fpsAvg;},get sx(){return sx;},get sxTarget(){return sxTarget;},keys,YTA,addFromUrl,get N(){return N;},renderEdit};
