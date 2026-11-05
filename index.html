@@ -12,17 +12,20 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 #stage canvas{display:block;width:100%;height:100%;outline:none}
 #stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 88% 72% at 50% 50%,rgba(255,255,255,0) 58%,rgba(70,78,90,.12) 100%)}
 #err[hidden]{display:none}
-#dock{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;align-items:center;gap:10px;padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));pointer-events:none;font:500 12px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
-#dock>*{pointer-events:auto}
+/* tools: the "⋯" button is one more slot at the end of the album row, standing on the shelf: its position is projected from the next free album slot every frame, so it scrolls with the albums */
+#tools{position:fixed;left:0;top:0;width:46px;height:46px;z-index:8;transition:opacity .2s;font:500 12px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
+/* add form + edit panel: right-aligned under the plank (they are too wide to hang off a button that can sit anywhere along the row) */
+#pop{position:fixed;right:max(16px,env(safe-area-inset-right,0px));top:0;z-index:7;display:flex;flex-direction:column;align-items:flex-end;gap:12px;transition:opacity .2s;font:500 12px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
+#tools.away,#pop.away{opacity:0;pointer-events:none;visibility:hidden}
 #addMsg{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:6;max-width:min(88vw,460px);padding:8px 16px;border-radius:18px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);text-align:center;color:var(--ink);text-wrap:balance;pointer-events:none}
 #addMsg:empty{display:none}
-#addForm{display:flex;gap:8px;flex:1;max-width:400px;min-width:0}
+#addForm{display:flex;gap:8px;width:min(calc(100vw - 104px),400px);min-width:0}
 #addForm[hidden]{display:none}
 #addUrl{flex:1;min-width:0;height:42px;padding:0 14px;border-radius:21px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:var(--ink);font:inherit;font-size:13px}
 #addUrl::placeholder{color:var(--mute)}
 #addGo{height:42px;padding:0 18px;border-radius:21px;font:inherit;font-weight:700}
 #editPanel button:focus-visible,#menu button:focus-visible,#moreBtn:focus-visible,#editPanel input:focus-visible{outline:2px solid #ee5a2c;outline-offset:2px}
-#editPanel{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(16px + 44px + 12px + env(safe-area-inset-bottom,0px));z-index:6;width:min(calc(100vw - 32px),380px);max-height:min(60vh,420px);overflow:auto;padding:14px;border-radius:20px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);font:500 12px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
+#editPanel{box-sizing:border-box;width:min(calc(100vw - 32px),380px);max-height:min(calc(100vh - 230px),420px);overflow:auto;padding:14px;border-radius:20px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);font:500 12px/1.5 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
 #editPanel[hidden]{display:none}
 #editPanel h2{margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.08em}
 #editList{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:8px}
@@ -46,12 +49,15 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 .k3.hot{--foot:#a8330f;border-color:rgba(255,200,180,.6);background:linear-gradient(180deg,#ff8658,#ee5a2c 60%,#dc4a1d);color:#fff}
 .k3:disabled{opacity:.5;cursor:default;transform:none}
 #moreBtn{width:46px;height:46px;border-radius:50%;padding:0;flex:none}
-#moreBtn i{position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px;border-radius:50%;background:currentColor;transition:transform .25s cubic-bezier(.2,.9,.3,1.3)}
+#moreBtn i{position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px;border-radius:50%;background:currentColor;transition:transform .25s cubic-bezier(.2,.9,.3,1.3),opacity .05s}
 #moreBtn i:nth-child(1){transform:translateX(-9px)}#moreBtn i:nth-child(3){transform:translateX(9px)}
 #moreBtn[aria-expanded="true"]{--lift:1px;transform:translateY(3px);background:linear-gradient(180deg,#26292c,#2d3033);color:#f1f2f3}
-#moreBtn[aria-expanded="true"] i:nth-child(1){transform:translate(-3px,0) scale(.9)}#moreBtn[aria-expanded="true"] i:nth-child(3){transform:translate(3px,0) scale(.9)}
-#menu{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(16px + 46px + 16px + env(safe-area-inset-bottom,0px));z-index:7;display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:22px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);transform-origin:0 100%;transition:opacity .18s,transform .22s cubic-bezier(.2,.9,.3,1.25);font:600 13px/1 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
-#menu[hidden]{display:flex;opacity:0;transform:scale(.8) translateY(8px);pointer-events:none;visibility:hidden}
+/* open: the three dots slide into the middle and become ONE dot (the outer two vanish once they have landed exactly on it) */
+#moreBtn[aria-expanded="true"] i:nth-child(1),#moreBtn[aria-expanded="true"] i:nth-child(3){transform:translateX(0);opacity:0;transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .01s .24s}
+#moreBtn[aria-expanded="true"] i:nth-child(2){transform:scale(1.35)}
+#tools.flip #menu{left:auto;right:0;transform-origin:calc(100% - 23px) 0}   /* near the screen's right edge the menu opens leftwards */
+#menu{position:absolute;left:0;top:calc(46px + 12px);z-index:2;display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:22px;border:1px solid var(--line);background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);transform-origin:23px 0;transition:opacity .18s,transform .22s cubic-bezier(.2,.9,.3,1.25);font:600 13px/1 "JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+#menu[hidden]{display:flex;opacity:0;transform:scale(.8) translateY(-8px);pointer-events:none;visibility:hidden}
 #menu button{height:40px;min-width:150px;padding:0 18px 0 14px;border-radius:20px;display:flex;align-items:center;gap:10px;font:inherit;--lift:3px}
 #menu button b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(45,48,51,.1);font-size:14px;line-height:1}
 #menu button.danger b{background:rgba(238,90,44,.18);color:#c9411a}
@@ -72,20 +78,22 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 <div id="stage"></div>
 <button id="shelfHint" type="button" aria-label="展開專輯櫃">專輯櫃 ▾</button>
 <div id="addMsg" role="status" aria-live="polite"></div>
-<div id="menu" role="menu" hidden>
-  <button class="k3" type="button" role="menuitem" data-act="add"><b>＋</b>新增</button>
-  <button class="k3" type="button" role="menuitem" data-act="sort"><b>⇅</b>編輯排序</button>
-  <button class="k3 danger" type="button" role="menuitem" data-act="del"><b>×</b>刪除</button>
-</div>
-<div id="editPanel" hidden>
-  <h2 id="editTitle">我的播放清單</h2>
-  <p id="editEmpty">還沒有加入播放清單。</p>
-  <ul id="editList"></ul>
-  <button id="resetBtn" class="k3" type="button">回復預設</button>
-</div>
-<div id="dock">
+<div id="tools" class="away">
   <button id="moreBtn" class="k3" type="button" aria-label="更多：新增、編輯排序、刪除" aria-haspopup="menu" aria-expanded="false"><i></i><i></i><i></i></button>
+  <div id="menu" role="menu" hidden>
+    <button class="k3" type="button" role="menuitem" data-act="add"><b>＋</b>新增</button>
+    <button class="k3" type="button" role="menuitem" data-act="sort"><b>⇅</b>編輯排序</button>
+    <button class="k3 danger" type="button" role="menuitem" data-act="del"><b>×</b>刪除</button>
+  </div>
+</div>
+<div id="pop" class="away">
   <form id="addForm" hidden autocomplete="off"><input id="addUrl" type="text" inputmode="url" spellcheck="false" placeholder="貼上 YouTube 播放清單連結" aria-label="YouTube 播放清單連結"><button id="addGo" class="k3 dark" type="submit">加入</button></form>
+  <div id="editPanel" hidden>
+    <h2 id="editTitle">我的播放清單</h2>
+    <p id="editEmpty">還沒有加入播放清單。</p>
+    <ul id="editList"></ul>
+    <button id="resetBtn" class="k3" type="button">回復預設</button>
+  </div>
 </div>
 <div id="ytbox" aria-hidden="true"><div id="ytp"></div></div>
 <div id="err" hidden>這個瀏覽器無法啟動 WebGL，沒辦法顯示 3D 播放器。</div>
@@ -378,8 +386,13 @@ lidShine.position.set(LW/2,0,.004);lidShine.renderOrder=4;lidPivot.add(lidShine)
 const playerHit=[body,lid,lidGlass,lidShine];const isPlayerObj=o=>o===body||o===lid||o===lidGlass||o===lidShine;
 
 /* ---------- shelf + albums ---------- */
-const shelf=new T.Mesh(new T.BoxGeometry(70,.14,1.2),new T.MeshPhysicalMaterial({color:0xe4e6e8,roughness:.6,clearcoat:.25,clearcoatRoughness:.5,envMapIntensity:.6}));shelf.receiveShadow=true;scene.add(shelf);
-const shelfBack=new T.Mesh(new T.PlaneGeometry(70,3),new T.MeshBasicMaterial({color:0xcfd2d5,toneMapped:false,transparent:true,opacity:.55}));shelfBack.position.z=-.46;scene.add(shelfBack);
+const shelf=new T.Mesh(new T.BoxGeometry(70,.14,.8),new T.MeshPhysicalMaterial({color:0xe4e6e8,roughness:.6,clearcoat:.25,clearcoatRoughness:.5,envMapIntensity:.6}));shelf.receiveShadow=true;shelf.position.z=-.1;scene.add(shelf);   // 0.8 deep, back flush with the wall
+/* soft shadow under the plank: a gradient that fades out, instead of a hard shadow-map edge. albums resting on the shelf don't cast real shadows
+   (they stand turned and overhang the plank, so their shadows used to hang below it like pillars); they cast again once lifted off the shelf */
+const SHADE_H=1.0,shadeTex=mkTex(4,128,(x,w,h)=>{const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,'rgba(58,64,74,.34)');g.addColorStop(.35,'rgba(58,64,74,.14)');g.addColorStop(1,'rgba(58,64,74,0)');x.fillStyle=g;x.fillRect(0,0,w,h);});
+const shelfShade=new T.Mesh(new T.PlaneGeometry(70,SHADE_H),new T.MeshBasicMaterial({map:shadeTex,transparent:true,depthWrite:false,toneMapped:false}));shelfShade.position.z=-.45;shelfShade.renderOrder=1;scene.add(shelfShade);   // the plank casts its own shadow onto the wall, so nothing shows through underneath it
+/* back panel: lit like everything else (catches the albums' shadows), starts exactly at the plank and runs up past the top of the screen, so it has no loose lower edge */
+const BACK_H=12,shelfBack=new T.Mesh(new T.PlaneGeometry(70,BACK_H),new T.MeshStandardMaterial({color:0xaeb2b7,roughness:.95}));shelfBack.position.z=-.46;shelfBack.receiveShadow=true;scene.add(shelfBack);
 const albums=[];const albumMeshes=[];
 const edgeM=new T.MeshPhysicalMaterial({color:0xd9dbde,roughness:.42,clearcoat:.5,clearcoatRoughness:.3,envMapIntensity:.9});   // jewel-case plastic
 const CASE_D=.16,COV_T=.025,TRAY_Z=CASE_D/2+.02;   // slim jewel case; TRAY_Z = height at which a CD rests in the open case
@@ -545,7 +558,15 @@ let sx=3,sxTarget=3,sxVel=0,shelfDrag=false;
 let hoverKey=-1,hintT=0,wasArmed=false,bayKick=0;
 const SHELF_GAIN=.5;                                  // shelf follows the pointer at this fraction of its speed (lower = calmer)
 let shelfVis=0,shelfOff=0,topHover=false,shelfPin=false;   // shelf is hidden by default; slides down when the pointer visits the top edge
+const _tv=new T.Vector3(),toolsEl=document.getElementById('tools'),popEl=document.getElementById('pop');
+let toolsOver=false;
+[toolsEl,popEl].forEach(el=>{
+  el.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch')toolsOver=true;});
+  el.addEventListener('pointerleave',()=>{toolsOver=false;});});
+/* the shelf stays out while its tools are being used: menu / add form / edit panel open, or the pointer is on them */
+function toolsHold(){return toolsOver||!$id('menu').hidden||!$id('addForm').hidden||!$id('editPanel').hidden;}
 function shelfWant(){
+  if(toolsHold())return 1;
   if(state==='album'||state==='albumOpen'||state==='opening')return 1;
   if(cdAlbum>=0&&albums[cdAlbum]&&albums[cdAlbum].dock)return 1;
   if(cd&&cd.mode==='drag'&&cd.committed&&cdAlbum>=0&&cd.pos.y>L.shelfB-2.8)return 1;   // dragging the CD up to the top reveals the shelf
@@ -556,7 +577,7 @@ const V3=T.Vector3;
 var physOn=false;
 function layout(){
   const a=innerWidth/innerHeight;L.d=baseD();L.half=L.d*TANH;L.hw=L.half*a;
-  L.shelfC=Math.min(L.half-1.45,4.4);L.shelfB=L.shelfC-.75;shelf.position.y=L.shelfB-.07;shelfBack.position.y=L.shelfC;
+  L.shelfC=Math.min(L.half-1.45,4.4);L.shelfB=L.shelfC-.75;shelf.position.y=L.shelfB-.07;shelfBack.position.y=L.shelfB-.07+BACK_H/2;shelfShade.position.y=L.shelfB-.14-SHADE_H/2;
   hpScale=clamp((L.hw-2.1)/3.6,.35,1);
   renderer.setSize(innerWidth,innerHeight);cam.aspect=a;cam.updateProjectionMatrix();
   if(physOn)buildBounds();
@@ -855,8 +876,10 @@ cvs.addEventListener('pointermove',e=>{
   pd.lx=e.clientX;
   if(pd.kind==='cd'&&cd&&cd.mode==='drag'&&!cd.committed&&e.clientY-dragY0>innerHeight*.18)commitStage();
 });
+function closeTools(){setMenu(false);setPanel(null);setForm(false);}
 function up(){
   if(!pd)return;const p=pd;pd=null;
+  if(p.kind==='bg'&&!p.moved)closeTools();   // tap on empty background: put the tools away (the shelf follows)
   if(p.kind==='phys'){endPhysGrab(p.moved);cvs.style.cursor='default';return;}
   if(p.kind==='cd'){releaseCD();}
   else if(p.kind==='shelf'){
@@ -1504,9 +1527,20 @@ function frame(){
   if(!shelfDrag)sx+=(sxTarget-sx)*(1-Math.exp(-dt*6.5));
   {const w=shelfWant();shelfVis+=(w-shelfVis)*(1-Math.exp(-dt*(w>shelfVis?7:4.5)));if(Math.abs(w-shelfVis)<.003)shelfVis=w;
    shelfOff=(1-ease.io2(clamp(shelfVis,0,1)))*(L.half-L.shelfB+1.4);
-   shelf.position.y=L.shelfB-.07+shelfOff;shelfBack.position.y=L.shelfC+shelfOff;shelf.visible=shelfBack.visible=shelfVis>.002;
-   shelfHint.classList.toggle('gone',shelfVis>.3);}
-  albums.forEach((a,i)=>{if(a.dock)return;const on=cd&&cd.ai===i&&cd.mode==='drag'&&cd.committed;
+   shelf.position.y=L.shelfB-.07+shelfOff;shelfBack.position.y=L.shelfB-.07+BACK_H/2+shelfOff;shelfShade.position.y=L.shelfB-.14-SHADE_H/2+shelfOff;shelf.visible=shelfBack.visible=shelfShade.visible=shelfVis>.002;
+   shelfHint.classList.toggle('gone',shelfVis>.3);
+   /* the ⋯ button is one more slot after the last album, standing on the shelf: project that slot (same spacing formula as placeAlbums) to the screen.
+      if the slot has scrolled off the right edge it parks at the edge, so it can always be reached */
+   {const d=albums.length-sx,ad=Math.abs(d),f=clamp(1-ad,0,1),s0=1+.16*f,x0=d*1.42+Math.sign(d)*Math.min(ad,1)*.22;
+    const v=_tv.set(x0,L.shelfB+.75*s0+shelfOff,0).project(cam);
+    const cx=clamp((v.x+1)/2*innerWidth,39,innerWidth-39),cy=(1-v.y)/2*innerHeight;
+    toolsEl.style.transform='translate3d('+Math.round(cx-23)+'px,'+Math.round(cy-23)+'px,0)';
+    toolsEl.classList.toggle('flip',cx+23+190>innerWidth);
+    const u=_tv.set(0,L.shelfB-.14+shelfOff,-.5).project(cam);   // under the plank (its lowest visible line)
+    popEl.style.transform='translate3d(0,'+Math.round((1-u.y)/2*innerHeight+16)+'px,0)';
+    const away=shelfVis<.05;toolsEl.classList.toggle('away',away);popEl.classList.toggle('away',away);}}
+  albums.forEach((a,i)=>{const cs=a.k>.02||a.mag>.02||a.dock;a.meshes.forEach(m=>{m.castShadow=cs;});   // only albums lifted off the shelf cast real shadows
+    if(a.dock)return;const on=cd&&cd.ai===i&&cd.mode==='drag'&&cd.committed;
     /* the album only reaches for its CD once the CD is dragged up near the shelf, at the top of the screen */
     const tg=on?clamp((cd.pos.y-(L.shelfB-1.6))/1.3,0,1):0;a.mag+=(tg*tg*(3-2*tg)-a.mag)*(1-Math.exp(-dt*6));});
   placeAlbums(time);
