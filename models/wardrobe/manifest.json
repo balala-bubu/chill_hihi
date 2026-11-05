@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "slots": [
+    {
+      "id": "hat",
+      "label": "帽子",
+      "bone": "Brow_group",
+      "worn": {
+        "pos": [
+          0,
+          7.2,
+          -5
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ],
+        "scale": 9
+      },
+      "display": {
+        "size": 1.5,
+        "rot": [
+          0.25,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "glasses",
+      "label": "眼鏡",
+      "bone": "Brow_group",
+      "worn": {
+        "pos": [
+          0,
+          -1.2,
+          -3.5
+        ],
+        "rot": [
+          0,
+          -1.5708,
+          0
+        ],
+        "scale": 11
+      },
+      "display": {
+        "size": 1.5,
+        "rot": [
+          0.1,
+          -1.5708,
+          0
+        ]
+      }
+    },
+    {
+      "id": "collar",
+      "label": "項圈",
+      "bone": "Neck",
+      "worn": {
+        "pos": [
+          3.3,
+          0,
+          0
+        ],
+        "rot": [
+          -0.5,
+          -0.5,
+          -0.5,
+          0.5
+        ],
+        "scale": 12
+      },
+      "display": {
+        "size": 1.5,
+        "rot": [
+          0.55,
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "head_e",
+      "slot": "hat",
+      "name": "帽子 E",
+      "mesh": "items/head_e.json",
+      "tex": "items/head_e.png"
+    },
+    {
+      "id": "glass_c",
+      "slot": "glasses",
+      "name": "眼鏡 C",
+      "mesh": "items/glass_c.json",
+      "tex": "items/glass_c.png"
+    },
+    {
+      "id": "coller_d",
+      "slot": "collar",
+      "name": "項圈 D",
+      "mesh": "items/coller_d.json",
+      "tex": "items/coller_d.png"
+    }
+  ]
+}
