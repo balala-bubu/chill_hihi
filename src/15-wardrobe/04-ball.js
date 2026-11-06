@@ -34,7 +34,7 @@ if(PHYS&&TOY.eng)Events.on(TOY.eng,'collisionStart',ev=>{   // squash a little o
     const n=p.collision.normal,vn=Math.abs((p.bodyA.velocity.x-p.bodyB.velocity.x)*n.x+(p.bodyA.velocity.y-p.bodyB.velocity.y)*n.y)*BALL.K;
     if(vn<1)continue;
     b.jv+=Math.min(vn*.1,1.5);b.jn.x=Math.abs(n.x);b.jn.y=Math.abs(n.y);
-    const now=performance.now();if(vn>2.2&&now-BALL.sndT>70){BALL.sndT=now;Au.click(.4+Math.min(.4,vn*.03),.3);}
+    
   }});
 /* where will the ball be when the puppy can reach it? hit = it will come down through the height of the lips; x = where */
 function ballPred(b){
@@ -97,7 +97,7 @@ function ballHit(b,kind,mx,my){
   }
   Body.setVelocity(b.body,{x:vx/BALL.K,y:-vy/BALL.K});Body.setAngularVelocity(b.body,(vx>=0?1:-1)*(.05+Math.random()*.08));
   b.last=DOGS.me;b.own=DOGS.me;b.air=true;b.jv+=1.2;b.jn.x=b.jn.y=.6;
-  Au.click(1.3+Math.random()*.3,.5);buzz(5);
+  buzz(5);
 }
 /* mode 'ball' of dogFrame: the floor strikes (bow down, nose under / against the ball) and the headers. returns {pitch,jaw}: pitch > 0 = head down, < 0 = flicked up */
 function ballDog(dt,moving,tz,BP){

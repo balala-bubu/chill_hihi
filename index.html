@@ -2312,9 +2312,9 @@ function dogHit1(cx,cy){   // is the pointer on THIS (loaded) puppy? (03-dogs.js
 }
 function dogPet(){
   const Lc=dog.lie;if(!dog.ready||!dog.present||dog.leaving||Lc.s==='trip')return;
-  if(PET.perch){dog.pet2=1.2;Au.click(.5,.6);return;}   // lying on the player: it wiggles happily instead of rolling over
+  if(PET.perch){dog.pet2=1.2;return;}   // lying on the player: it wiggles happily instead of rolling over
   if(cd&&(cd.mode==='carried'||dog.grab))return;   // busy with a CD: the dog does not flop over
-  if(Lc.s==='none'){Lc.s='down';Lc.ryL=dog.ry>=0?1.25:-1.25;Lc.sign=dog.ry>=0?-1:1;Lc.retried=false;Lc.fast=false;Au.click(.5,.6);}
+  if(Lc.s==='none'){Lc.s='down';Lc.ryL=dog.ry>=0?1.25:-1.25;Lc.sign=dog.ry>=0?-1:1;Lc.retried=false;Lc.fast=false;}
   else if(Lc.s==='up'){Lc.s='down';Lc.fast=false;}
   Lc.petT=performance.now()/1000;
 }
@@ -2444,7 +2444,7 @@ function dogFrame(dt,time){
   if(mode==='fetch'&&!dog.grab){const a=(cd.pos.x-dog.x)*dog.fd;if(!moving&&Math.abs(dog.z-tz)<.25&&a<=DOG_BITE.stand+.25&&a>-.3)dog.grab={t:0,at:false};}
   if(dog.grab){const G=dog.grab;G.t+=dt;const p=G.t/DOG_BITE.dur;
     bow=Math.sin(Math.min(1,p)*Math.PI);jawX=p<.45?.4*Math.sin(p/.45*Math.PI/2):.12;
-    if(!G.at&&p>=.45&&cd.mode==='floor'){G.at=true;cd.mode='carried';cd.att=0;cd.fp0.copy(cd.pos);Au.click(1.5,.8);}   // snatched: from here on the CD travels with the mouth
+    if(!G.at&&p>=.45&&cd.mode==='floor'){G.at=true;cd.mode='carried';cd.att=0;cd.fp0.copy(cd.pos);}   // snatched: from here on the CD travels with the mouth
     if(p>=1)dog.grab=null;}
   let eatJaw=0;
   if(mode==='eat'){const E=toyEat(dt,moving,tz,toyTarget());bow=Math.max(bow,E.bow);eatJaw=E.jaw;}
@@ -2683,7 +2683,7 @@ function dogEnter(I){
   dogLoad(I);
   dog.present=true;dog.leaving=false;dog.g.visible=true;dog.x=-(L.hw+3.2);dog.z=1.9;dog.sit=0;dog.pop=PET.perch?0:1;dog.watchT=0;dog.trotX=null;dog.lie.s='none';dog.lie.amt=0;
   I.pend=false;if(!DOGS.focus||!DS(DOGS.focus).present||DS(DOGS.focus).leaving)DOGS.focus=I;
-  Au.whoosh();dogSave(I);
+  dogSave(I);
 }
 function dogLeave(I,delay){
   if(I.pend){I.pend=false;DOGS.list=DOGS.list.filter(o=>o!==I);return;}   // had not walked in yet
@@ -2692,7 +2692,7 @@ function dogLeave(I,delay){
 function dogDoLeave(I){
   const s=DS(I);if(!s.present||s.leaving)return;
   if(hpState.worn&&DOGS.focus===I)hpUnwear();
-  s.leaving=true;Au.whoosh();
+  s.leaving=true;
   for(const o of DOGS.list)if(o!==I){const t=DS(o);if(t.present&&!t.leaving){t.watchT=2.2+Math.random()*1.4;t.trotX=Math.random()<.4?t.x-2.6:null;}}   // the other one looks after it, sometimes trots a few steps
   if(DOGS.focus===I){const o=DOGS.list.find(x=>x!==I&&DS(x).present&&!DS(x).leaving);if(o)DOGS.focus=o;}
 }
@@ -3261,7 +3261,7 @@ if(PHYS){TOY.eng=Engine.create({positionIterations:10,velocityIterations:8});TOY
       const A=p.bodyA,B=p.bodyB,n=p.collision.normal,vn=Math.abs((A.velocity.x-B.velocity.x)*n.x+(A.velocity.y-B.velocity.y)*n.y)*120/PXU;   // closing speed in world units per second
       if(vn<1)continue;
       for(const b of [A,B])if(b.apple){const a=b.apple;a.jv+=Math.min(vn*.55,4.2);a.jn.x=Math.abs(n.x);a.jn.y=Math.abs(n.y);}
-      const now=performance.now();if(vn>2.6&&now-TOY.sndT>70){TOY.sndT=now;Au.click(.5+Math.min(.5,vn*.05),.22);}
+      
     }});}
 function toyBounds(){   // floor and side walls follow the screen
   const key=FLOOR_Y.toFixed(2)+'/'+L.hw.toFixed(2);if(key===TOY.key)return;TOY.key=key;
@@ -3314,7 +3314,7 @@ function toyEat(dt,moving,tz,a0){
   const bow=Math.sin(Math.min(1,p)*Math.PI);
   const att=ss((p-.22)/.2);                                  // the apple travels from the floor into the mouth
   a.att=att;a.r=1-.96*ss((p-.42)/.5);                        // upright in the mouth, shrinking as it is chewed
-  const thr=[.5,.67,.84];while(E.n<3&&p>=thr[E.n]){E.n++;Au.click(1.5+E.n*.2,.55);buzz(6);a.jv+=3;a.jn.x=a.jn.y=.7;}   // every bite squashes it
+  const thr=[.5,.67,.84];while(E.n<3&&p>=thr[E.n]){E.n++;buzz(6);a.jv+=3;a.jn.x=a.jn.y=.7;}   // every bite squashes it
   let jaw=0;if(p>.24&&p<.95)jaw=.38*Math.abs(Math.sin((p-.24)/.7*Math.PI*3));
   if(dog.mouthL&&dog.bones.Head){
     DOGX.mw.copy(dog.mouthL);dog.bones.Head.o.localToWorld(DOGX.mw);
@@ -3703,7 +3703,7 @@ if(PHYS&&TOY.eng)Events.on(TOY.eng,'collisionStart',ev=>{   // squash a little o
     const n=p.collision.normal,vn=Math.abs((p.bodyA.velocity.x-p.bodyB.velocity.x)*n.x+(p.bodyA.velocity.y-p.bodyB.velocity.y)*n.y)*BALL.K;
     if(vn<1)continue;
     b.jv+=Math.min(vn*.1,1.5);b.jn.x=Math.abs(n.x);b.jn.y=Math.abs(n.y);
-    const now=performance.now();if(vn>2.2&&now-BALL.sndT>70){BALL.sndT=now;Au.click(.4+Math.min(.4,vn*.03),.3);}
+    
   }});
 /* where will the ball be when the puppy can reach it? hit = it will come down through the height of the lips; x = where */
 function ballPred(b){
@@ -3766,7 +3766,7 @@ function ballHit(b,kind,mx,my){
   }
   Body.setVelocity(b.body,{x:vx/BALL.K,y:-vy/BALL.K});Body.setAngularVelocity(b.body,(vx>=0?1:-1)*(.05+Math.random()*.08));
   b.last=DOGS.me;b.own=DOGS.me;b.air=true;b.jv+=1.2;b.jn.x=b.jn.y=.6;
-  Au.click(1.3+Math.random()*.3,.5);buzz(5);
+  buzz(5);
 }
 /* mode 'ball' of dogFrame: the floor strikes (bow down, nose under / against the ball) and the headers. returns {pitch,jaw}: pitch > 0 = head down, < 0 = flicked up */
 function ballDog(dt,moving,tz,BP){

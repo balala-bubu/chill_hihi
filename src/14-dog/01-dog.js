@@ -18,9 +18,9 @@ function dogHit1(cx,cy){   // is the pointer on THIS (loaded) puppy? (03-dogs.js
 }
 function dogPet(){
   const Lc=dog.lie;if(!dog.ready||!dog.present||dog.leaving||Lc.s==='trip')return;
-  if(PET.perch){dog.pet2=1.2;Au.click(.5,.6);return;}   // lying on the player: it wiggles happily instead of rolling over
+  if(PET.perch){dog.pet2=1.2;return;}   // lying on the player: it wiggles happily instead of rolling over
   if(cd&&(cd.mode==='carried'||dog.grab))return;   // busy with a CD: the dog does not flop over
-  if(Lc.s==='none'){Lc.s='down';Lc.ryL=dog.ry>=0?1.25:-1.25;Lc.sign=dog.ry>=0?-1:1;Lc.retried=false;Lc.fast=false;Au.click(.5,.6);}
+  if(Lc.s==='none'){Lc.s='down';Lc.ryL=dog.ry>=0?1.25:-1.25;Lc.sign=dog.ry>=0?-1:1;Lc.retried=false;Lc.fast=false;}
   else if(Lc.s==='up'){Lc.s='down';Lc.fast=false;}
   Lc.petT=performance.now()/1000;
 }
@@ -150,7 +150,7 @@ function dogFrame(dt,time){
   if(mode==='fetch'&&!dog.grab){const a=(cd.pos.x-dog.x)*dog.fd;if(!moving&&Math.abs(dog.z-tz)<.25&&a<=DOG_BITE.stand+.25&&a>-.3)dog.grab={t:0,at:false};}
   if(dog.grab){const G=dog.grab;G.t+=dt;const p=G.t/DOG_BITE.dur;
     bow=Math.sin(Math.min(1,p)*Math.PI);jawX=p<.45?.4*Math.sin(p/.45*Math.PI/2):.12;
-    if(!G.at&&p>=.45&&cd.mode==='floor'){G.at=true;cd.mode='carried';cd.att=0;cd.fp0.copy(cd.pos);Au.click(1.5,.8);}   // snatched: from here on the CD travels with the mouth
+    if(!G.at&&p>=.45&&cd.mode==='floor'){G.at=true;cd.mode='carried';cd.att=0;cd.fp0.copy(cd.pos);}   // snatched: from here on the CD travels with the mouth
     if(p>=1)dog.grab=null;}
   let eatJaw=0;
   if(mode==='eat'){const E=toyEat(dt,moving,tz,toyTarget());bow=Math.max(bow,E.bow);eatJaw=E.jaw;}
