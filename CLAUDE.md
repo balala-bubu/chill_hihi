@@ -9,3 +9,4 @@
 
 資料夾結構、檔案編號（＝執行順序，所有檔案共用同一個作用域）見 README「專案結構」。
 新增狗狗衣櫃飾品見 `.claude/skills/wardrobe-accessory-import/SKILL.md`（只動 `models/wardrobe/` 的話不用重建 `index.html`）。
+新增或調整背景（草地、咖啡廳等）見 `docs/add-background.md`：預設灰白、BG 按鈕輪流切換，場景不可壓到播放器。

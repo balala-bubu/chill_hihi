@@ -88,4 +88,3 @@ function cfFrame(dt,time){
   if(CF.hands.length===2){const d=new Date(),mi=d.getMinutes()+d.getSeconds()/60,hr=(d.getHours()%12)+mi/60;CF.hands[0].g.rotation.z=-hr/12*TAU;CF.hands[1].g.rotation.z=-mi/60*TAU;}
 }
 window.__cf={CF,cfBuild,cfLayout};   // test hook
-try{if(BG_OK){const m=+localStorage.getItem('chill_hihi.bg')||0;if(m)bgSet(m,true);}}catch(e){}   // restore the saved background (after both scenes are defined)

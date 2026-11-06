@@ -9,7 +9,7 @@ const SM={el:null,btn:-1,want:-1,showT:0,hideT:0,over:false,sync:0,
     3:[{v:0,n:'米格魯'},{v:1,n:'柴犬'},{v:2,n:'巴哥'},{v:3,n:'吉娃娃'},{v:4,n:'哈士奇'}],
     5:[{v:5,n:'皮卡丘'},{v:6,n:'吉伊卡哇'},{v:7,n:'小八'},{v:8,n:'烏薩奇'},{v:9,n:'奇諾比奧'},{g:[6,7,8],n:'三隻一組'}]},
   title:{1:'背景',3:'狗狗',5:'卡通人物'}};
-SM.tiles[1]=[{m:1,n:'草地',img:'bg1'},{m:2,n:'咖啡廳',img:'bg2'}];   // m = BG.mode (04-scenery.js)
+SM.tiles[1]=[{m:1,n:'草地',img:'bg1'},{m:2,n:'咖啡廳',img:'bg2'},{m:3,n:'博物館',img:'bg3'}];   // m = BG.mode (04-scenery.js)
 const smOn=t=>t.m?BG.mode===t.m:t.g?t.g.some(dogOut):dogOut(t.v);
 function smBuild(){
   const el=document.createElement('div');el.id='summonMenu';el.setAttribute('role','menu');document.body.appendChild(el);
