@@ -27,7 +27,9 @@ function press(i){
     if(status==='playing'||status==='paused'){Au.stop();status='stopped';}
     else if(status==='stopped')ejectCD();
   }else if(i===2){
+    if(cd&&(status==='playing'||status==='paused')){Au.skipPrev();status='playing';}
+  }else if(i===3){
     if(cd&&(status==='playing'||status==='paused')){Au.skipNext();status='playing';}
-  }else{const v0=Au.vol;Au.setVol(clamp(Au.vol+(i===4?1:-1),0,10));volT=1.4;updateLeds();if(Au.vol!==v0)ledFlash[clamp(i===4?Au.vol-1:Au.vol,0,9)]=1;}
+  }else{const v0=Au.vol;Au.setVol(clamp(Au.vol+(i===5?1:-1),0,10));volT=1.4;updateLeds();if(Au.vol!==v0)ledFlash[clamp(i===5?Au.vol-1:Au.vol,0,9)]=1;}
 }
 

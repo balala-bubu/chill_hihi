@@ -68,8 +68,12 @@ function petToggle(){
   else petPlayAlbum(PET.cur>=0?PET.cur:petLast());
   petBarSync(true);
 }
-function petNext(){
+function petPrev(){
   if(!PET.mini){if(cd&&cdIn)press(2);return;}
+  if(status==='playing'||status==='paused'){Au.skipPrev();status='playing';petBarSync(true);}
+}
+function petNext(){
+  if(!PET.mini){if(cd&&cdIn)press(3);return;}
   if(status==='playing'||status==='paused'){Au.skipNext();status='playing';petBarSync(true);}
 }
 function petVol(d){
@@ -84,8 +88,9 @@ function petDog(on){
 /* ---------- mini control bar ---------- */
 const petEl={};
 function petBuildBar(){
-  ['petBar','petTitle','petSub','pbPlay','pbNext','pbVm','pbVp','pbList','petList','petAlbums','petAddForm','petAddUrl'].forEach(k=>petEl[k]=$id(k));
+  ['petBar','petTitle','petSub','pbPlay','pbPrev','pbNext','pbVm','pbVp','pbList','petList','petAlbums','petAddForm','petAddUrl'].forEach(k=>petEl[k]=$id(k));
   petEl.pbPlay.addEventListener('click',()=>{Au.ensure();petToggle();});
+  petEl.pbPrev.addEventListener('click',petPrev);
   petEl.pbNext.addEventListener('click',petNext);
   petEl.pbVm.addEventListener('click',()=>petVol(-1));
   petEl.pbVp.addEventListener('click',()=>petVol(1));
@@ -149,6 +154,7 @@ function petSite(c){
   }else if(c.a==='play'){if(status==='paused'){Au.resume();status='playing';}}
   else if(c.a==='pause'){if(status==='playing'){Au.pause();status='paused';}}
   else if(c.a==='stop'){if(status==='playing'||status==='paused'){Au.stop();status='stopped';}}
+  else if(c.a==='prev'){if(cd&&(status==='playing'||status==='paused')){Au.skipPrev();status='playing';}}
   else if(c.a==='next'){if(cd&&(status==='playing'||status==='paused')){Au.skipNext();status='playing';}}
   petSaveState(true);
 }
@@ -172,6 +178,7 @@ function petHandle(m){
     case 'activate':if(status==='playing'){YTA.call('unMute');YTA.call('setVolume',Au.vol*10);}break;   // the first click on the host page lifts the browser's autoplay block
     case 'site':petSite(m.c);break;
     case 'toggle':petToggle();break;
+    case 'prev':petPrev();break;
     case 'next':petNext();break;
     case 'cursor':   // the pointer anywhere on the desktop, normalised to this window (-1..1); the dog looks at it
       if(typeof m.x==='number'&&typeof m.y==='number'){dog.ptr.x=clamp(m.x,-2.5,2.5);dog.ptr.y=clamp(m.y,-2.5,2.5);}

@@ -23,6 +23,13 @@ const YTA={p:null,ready:false,failed:false,waiters:[],plErr:0,plWatch:false,soun
  time(){const t=this.call('getCurrentTime');return typeof t==='number'&&isFinite(t)&&t>=0?t:(this.pausedAt??0);},
   pause(){this.pausedAt=this.time();this.call('pauseVideo');},
   resume(){if(this.pausedAt!==null){const t=this.time();if(Math.abs(t-this.pausedAt)>1)this.call('seekTo',this.pausedAt,true);}this.call('playVideo');this.pausedAt=null;},
+  /* like a real deck: more than 3 s into a track restarts it, otherwise go to the previous one (wraps to the last) */
+  prev(){if(!this.cur)return;const idx=this.call('getPlaylistIndex'),n=this.cur.yt.ids.length;if(n<1)return;
+    this.pausedAt=null;this.finished=false;
+    if(this.time()>3){this.call('seekTo',0,true);this.call('playVideo');return;}
+    const p=typeof idx==='number'&&idx>=0?(idx-1+n)%n:0;
+    this.call('playVideoAt',p);this.call('playVideo');
+    this.inf.i=p;this.inf.title='';this.infoT=0;},
   next(){if(!this.cur)return;const idx=this.call('getPlaylistIndex'),n=this.cur.yt.ids.length;if(n<1)return;
     const next=typeof idx==='number'&&idx>=0?(idx+1)%n:0;
     this.pausedAt=null;this.finished=false;this.call('playVideoAt',next);this.call('playVideo');
