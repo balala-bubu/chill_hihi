@@ -2,7 +2,7 @@
 const dogFresh=()=>({pop:1,pet2:0,g:new T.Group(),ready:false,failed:false,present:false,leaving:false,wantShow:false,
   x:-20,z:2.6,ry:.4,mode:'idle',move:0,gait:0,sit:0,hop:0,hopT:0,lookYaw:0,lookPitch:0,blinkT:2,blink:0,earT:3,earL:0,earR:0,earWear:0,wag:0,fd:1,job:0,grab:null,mouthL:null,
   bones:{},acc:{},scale:2.3/53.7,footLift:.75,nextHop:0,ptr:{x:0,y:.05,t:0,cx:0,cy:0},
-  lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null,watchT:0,trotX:null,glT:4,glance:0,play:null,ballBored:0,ballSince:0,ballMax:0,chair:null,cy:0,
+  lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null,watchT:0,trotX:null,glT:4,glance:0,play:null,ballBored:0,ballSince:0,ballMax:0,chair:null,cy:0,th:null,
   human:false,biteBone:'Head',hit:null,rad:1.3,tvGap:3.4,hold:0,crouch:0});   // human: a cartoon character that moves like a person (02-dog2.js HUMANOID); biteBone: the bone the mouth / hands point lives in; hit: its own pet ellipsoid {C,R}; rad: half width; tvGap: spacing in front of the TV
 const dog=dogFresh();
 dog.g.visible=false;scene.add(dog.g);
@@ -129,6 +129,7 @@ function dogFrame(dt,time){
   }
   const eo=Lc.amt*Lc.amt*(3-2*Math.min(1,Lc.amt));
   if(Lc.s!=='none'){tx=dog.x;tz=dog.z;mode='lie';}
+  if(dog.th){dogThrowStep(dt,hw);mode='held';tx=dog.x;tz=dog.z;}   // picked up / thrown (14-dog/04-throw.js): the pointer or the air decides where it is
   let jfinal=mode==='job';
   if(mode!=='lie'){const rt=jobRoute(tx,tz);if(rt){tx=rt[0];tz=rt[1];jfinal=false;}}   // the counter is in the way: round its left end
   dog.mode=mode;
@@ -164,7 +165,7 @@ function dogFrame(dt,time){
   const chSit=mode==='chair'&&!moving&&Math.abs(dog.z-tz)<.15&&Math.abs(dog.x-tx)<.12;
   dog.sit+=(((sitWant||chSit)?1:0)-dog.sit)*(1-Math.exp(-dt*((sitWant||chSit)?5:9)));
   const cyT=chSit?CS.h+(dog.human?0:.22):0;   // puppies sit a bit higher: their hind legs hang down in front of the seat edge
-  dog.cy+=(cyT-dog.cy)*(1-Math.exp(-dt*(cyT>dog.cy?9:16)));   // up onto the seat / down again
+  if(!dog.th)dog.cy+=(cyT-dog.cy)*(1-Math.exp(-dt*(cyT>dog.cy?9:16)));   // up onto the seat / down again
   const chHop=cyT>0?Math.sin(Math.PI*clamp(dog.cy/cyT,0,1))*.22:0;
   /* 4. facing */
   DOGX.p.set(dog.ptr.x,dog.ptr.y,.5).unproject(cam);DOGX.v.copy(DOGX.p).sub(cam.position).normalize();
@@ -197,6 +198,7 @@ function dogFrame(dt,time){
     dog.crouch=dog.human?Math.max(bow,bPitch*.8)*.32:0;
     dog.g.position.set(dog.x,FLOOR_Y+dog.footLift*dog.scale+bob+hopY-dog.sit*DOG_SIT.drop-eo*DOG_LIE.drop-dog.crouch+dog.job*(dog.human?DOG_JOB.humanRise:DOG_JOB.rise)+dog.cy+chHop,dog.z);dog.g.rotation.x=dog.human?0:-dog.job*DOG_JOB.pitch;   // people stay upright (lifted a bit so the head clears the counter), puppies rise on their hind legs
   }
+  dog.g.rotation.order=dog.th?'ZYX':'XYZ';dog.g.rotation.z=dog.th?dog.th.rz:0;   // thrown: tumbles about the view axis
   dog.g.rotation.y=dog.ry;if(dog.rg)dog.rg.rotation.z=Lc.sign*(DOG_LIE.ang*eo+Math.sin(performance.now()/1000*2.2)*.05*eo*(nowS-Lc.petT<.6?2:1));
 dog.g.updateMatrixWorld(true);
   /* 6b. the CD hangs from the lips: its rim in the mouth, its centre a little way out in front, tipped up so it can be seen; right after the bite it glides up from the floor */
