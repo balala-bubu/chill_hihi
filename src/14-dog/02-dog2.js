@@ -39,7 +39,7 @@ DV.P[5]=Object.assign({},DV.P[1],{
     ShoulderL:'Larm1',ShoulderR:'Rarm1',LegL:'Lleg1',LegR:'Rleg1'},
   sit:{hip:.5,front:0,leg:.9,tail:0,drop:.2},lie:{ang:2.6,drop:.3,arm:.9,leg:-.5},
   bite:{mx:0,my:27,mz:16,stand:.8},
-  ak:{LearA:.5,RearA:.5,Neck:.8,Head:.8,Bust:1},
+  ak:{LearA:.5,RearA:.5,Neck:.6,Head:.6,Bust:1},
   brow:[0,30,14],   // the painted eyes sit at x=+-5.5, y=29, z=16 in the model (K=125)
   fit:{hat:{pos:[0,0,0],s:.8},glasses:{pos:[0,4.2,0],s:.95}}});
 function dogVarReg0(){   // called by loadDog when puppy A is built

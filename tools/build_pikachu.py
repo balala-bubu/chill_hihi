@@ -74,9 +74,9 @@ ALT = {'face': {'wavy': 'face_wavy', 'tongue': 'face_tongue', 'cyan': 'face_cyan
 
 def neck_tris(seg=10, ring=6):
     """脖子橢球：中心、半徑單位 = obj 單位 × K；頂點權重隨高度在 chest -> neck -> head 之間平滑過渡。"""
-    C = np.array((0, .185, .005)) * K
-    R = np.array((.062, .058, .058)) * K
-    y0, y1 = .135 * K, .24 * K
+    C = np.array((0, .175, .0)) * K
+    R = np.array((.095, .075, .08)) * K
+    y0, y1 = .12 * K, .245 * K
     bi = {b[0]: i for i, b in enumerate(BONES)}
 
     def vert(a, b):   # a = 緯度 0..pi，b = 經度 0..2pi
