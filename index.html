@@ -329,7 +329,8 @@ const buzz=ms=>{try{navigator.vibrate&&navigator.vibrate(ms);}catch(e){}};
 
 /* ---------- albums: data + procedural artwork ---------- */
 /* Default shelf = these YouTube playlists. Title and artist are fixed here (not read from YouTube);
-   the track list and the cover are filled in later in the background (see src/09-playlist). */
+   the track list and the cover are filled in later in the background (see src/09-playlist).
+   Optional img:'https://...' (or a path in this repo, e.g. 'covers/x.jpg') = cover image to use instead of the first track's thumbnail. */
 const DEFAULT_LISTS=[
  {list:'PL09drhUwnd9l4d_4jNonOhI8iXy_5DfV6',title:'更好',author:'Gummy B'},
  {list:'OLAK5uy_l4EaHd6QNtsgR6DfUfNa1F1PLQYoyftRM',title:'如果每天都可以 happy happy 誰想要sad:))',author:'陳嫻靜'},
@@ -349,7 +350,7 @@ function ytAlbum(o,cov){
   return {t:o.title||'PLAYLIST',a:(o.author||'YOUTUBE').toUpperCase(),m:['orbit','tiles','sun','wave','grid','stripe'][h%6],seed:h%997+1,c,img:cov?cov.im:null,yt:{list:o.list,ids:o.ids},bpm:80,root:55,lead:'triangle',prog:[]};
 }
 /* def:true = built-in (can't be renamed or deleted, comes back on reload); starts with a generated cover and no track list */
-const ALBUMS=DEFAULT_LISTS.map(o=>Object.assign(ytAlbum({list:o.list,ids:[],title:o.title,author:o.author},null),{def:true}));
+const ALBUMS=DEFAULT_LISTS.map(o=>Object.assign(ytAlbum({list:o.list,ids:[],title:o.title,author:o.author},null),{def:true,coverUrl:o.img||''}));
 let N=ALBUMS.length;
 
 function art(x,S,alb,txt){
@@ -1313,14 +1314,16 @@ cvs.addEventListener('wheel',e=>{if(state!=='home'&&state!=='stage')return;e.pre
 const $id=i=>document.getElementById(i);
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 function loadImg(src){return new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);im.src=src;});}
+function coverOf(im){   // cover image -> {im, avg colour}; null if it has no CORS headers (cannot be used as a texture)
+  try{const c=document.createElement('canvas');c.width=c.height=8;const x=c.getContext('2d');x.drawImage(im,0,0,8,8);const d=x.getImageData(0,0,8,8).data;let r=0,g=0,b=0;
+    for(let i=0;i<d.length;i+=4){r+=d[i];g+=d[i+1];b+=d[i+2];}const n=d.length/4;return {im,avg:[r/n,g/n,b/n]};}
+  catch(e){return null;}
+}
+async function loadCoverUrl(u){const im=await loadImg(u);return im&&im.naturalWidth>50?coverOf(im):null;}
 async function loadCover(id){
   for(const q of ['hq720','mqdefault']){
     const im=await loadImg('https://i.ytimg.com/vi/'+id+'/'+q+'.jpg');
-    if(im&&im.naturalWidth>200){
-      try{const c=document.createElement('canvas');c.width=c.height=8;const x=c.getContext('2d');x.drawImage(im,0,0,8,8);const d=x.getImageData(0,0,8,8).data;let r=0,g=0,b=0;
-        for(let i=0;i<d.length;i+=4){r+=d[i];g+=d[i+1];b+=d[i+2];}const n=d.length/4;return {im,avg:[r/n,g/n,b/n]};}
-      catch(e){return null;}   // image has no CORS headers: cannot be used as a texture
-    }
+    if(im&&im.naturalWidth>200)return coverOf(im);
   }
   return null;
 }
@@ -1367,11 +1370,15 @@ const defCache=LS.get('mt1.defids',{});
 ALBUMS.forEach(d=>{if(d.def&&Array.isArray(defCache[d.yt.list]))d.yt.ids=defCache[d.yt.list];});
 const defIdle=()=>!cd&&!busy&&state==='home'&&status==='empty';
 async function defCover(d){   // swap the generated cover for the real one, only while nothing is lifted off the shelf
-  if(!d.yt.ids.length)return;
-  const cov=await loadCover(d.yt.ids[0]);if(!cov)return;
-  while(ALBUMS.indexOf(d)>=0&&!(state==='home'&&!cd&&!busy&&sel<0&&!shelfDrag))await sleep(600);
-  const i=ALBUMS.indexOf(d);if(i<0)return;
-  Object.assign(d,ytAlbum({list:d.yt.list,ids:d.yt.ids,title:d.t,author:d.a},cov));rebuildAt(i);
+  if(d.coverDone||d.coverBusy)return;d.coverBusy=true;
+  try{
+    let cov=d.coverUrl?await loadCoverUrl(d.coverUrl):null;   // DEFAULT_LISTS img first, then the first track's thumbnail
+    if(!cov&&d.yt.ids.length)cov=await loadCover(d.yt.ids[0]);
+    if(!cov)return;
+    while(ALBUMS.indexOf(d)>=0&&!(state==='home'&&!cd&&!busy&&sel<0&&!shelfDrag))await sleep(600);
+    const i=ALBUMS.indexOf(d);if(i<0)return;
+    Object.assign(d,ytAlbum({list:d.yt.list,ids:d.yt.ids,title:d.t,author:d.a},cov));rebuildAt(i);d.coverDone=true;
+  }finally{d.coverBusy=false;}
 }
 async function defLoad(d){
   if(!d.yt.ids.length){
@@ -1385,7 +1392,7 @@ async function defLoad(d){
 }
 (async()=>{
   const defs=ALBUMS.filter(d=>d.def);
-  defs.filter(d=>d.yt.ids.length).forEach(defCover);
+  defs.filter(d=>d.yt.ids.length||d.coverUrl).forEach(defCover);
   for(const d of defs.filter(d=>!d.yt.ids.length)){if(YTA.failed)break;await defLoad(d);}
 })();
 

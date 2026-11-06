@@ -1,6 +1,7 @@
 /* ---------- albums: data + procedural artwork ---------- */
 /* Default shelf = these YouTube playlists. Title and artist are fixed here (not read from YouTube);
-   the track list and the cover are filled in later in the background (see src/09-playlist). */
+   the track list and the cover are filled in later in the background (see src/09-playlist).
+   Optional img:'https://...' (or a path in this repo, e.g. 'covers/x.jpg') = cover image to use instead of the first track's thumbnail. */
 const DEFAULT_LISTS=[
  {list:'PL09drhUwnd9l4d_4jNonOhI8iXy_5DfV6',title:'更好',author:'Gummy B'},
  {list:'OLAK5uy_l4EaHd6QNtsgR6DfUfNa1F1PLQYoyftRM',title:'如果每天都可以 happy happy 誰想要sad:))',author:'陳嫻靜'},
@@ -20,7 +21,7 @@ function ytAlbum(o,cov){
   return {t:o.title||'PLAYLIST',a:(o.author||'YOUTUBE').toUpperCase(),m:['orbit','tiles','sun','wave','grid','stripe'][h%6],seed:h%997+1,c,img:cov?cov.im:null,yt:{list:o.list,ids:o.ids},bpm:80,root:55,lead:'triangle',prog:[]};
 }
 /* def:true = built-in (can't be renamed or deleted, comes back on reload); starts with a generated cover and no track list */
-const ALBUMS=DEFAULT_LISTS.map(o=>Object.assign(ytAlbum({list:o.list,ids:[],title:o.title,author:o.author},null),{def:true}));
+const ALBUMS=DEFAULT_LISTS.map(o=>Object.assign(ytAlbum({list:o.list,ids:[],title:o.title,author:o.author},null),{def:true,coverUrl:o.img||''}));
 let N=ALBUMS.length;
 
 function art(x,S,alb,txt){
