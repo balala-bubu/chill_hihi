@@ -185,6 +185,21 @@ html.pet-embed #petDogBtn:hover,html.pet-embed #petDogBtn[aria-pressed="true"]{o
 #ckM,#ckP{flex:0 0 38px}
 #ckRow .k3[disabled]{opacity:.4;pointer-events:none}
 html.pet #clockW{display:none}
+
+/* summon menu: hover the dog / TOON button on the remote (10-world/03-summon-menu.js) */
+#summonMenu{position:fixed;z-index:30;padding:8px 10px 10px;border-radius:16px;background:var(--glass);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);border:1px solid rgba(255,255,255,.75);box-shadow:0 10px 28px rgba(45,48,51,.22),0 2px 6px rgba(45,48,51,.12);opacity:0;transform:translateX(8px) scale(.97);pointer-events:none;transition:opacity .16s ease,transform .16s ease;font-family:'JetBrains Mono',ui-monospace,monospace;color:var(--ink);user-select:none}
+#summonMenu.open{opacity:1;transform:none;pointer-events:auto}
+#summonMenu .smh{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--mute);margin:0 2px 6px}
+#summonMenu .smr{display:flex;gap:6px}
+#summonMenu .smt{width:64px;padding:4px 2px 5px;border-radius:12px;border:1.5px solid transparent;background:rgba(255,255,255,.55);font:inherit;color:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:background .12s,border-color .12s,transform .12s}
+#summonMenu .smt:hover{background:#fff;transform:translateY(-2px)}
+#summonMenu .smt:active{transform:translateY(0) scale(.97)}
+#summonMenu .smt.on{border-color:#ee5a2c;background:#fff;box-shadow:0 0 0 2px rgba(238,90,44,.18)}
+#summonMenu .smt img{width:56px;height:56px;object-fit:contain;pointer-events:none}
+#summonMenu .smt span{font-size:10px;font-weight:700;white-space:nowrap}
+#summonMenu .smg{display:flex;width:56px;height:56px;align-items:center;justify-content:center}
+#summonMenu .smg img{width:30px;height:30px;margin:0 -4px}
+@media (pointer:coarse){#summonMenu{display:none}}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1335,8 +1350,9 @@ cvs.addEventListener('pointermove',e=>{
   if(!pd){
     const h=pick(),o=h&&h.object;let cur='default';hoverKey=-1;
     if(o&&o.userData.phys)cur=o.userData.rbtn!==undefined?'pointer':'grab';else if(o&&!busy){if(o.userData.cd)cur='grab';else if(o.userData.key!==undefined){cur='pointer';hoverKey=o.userData.key;}else if(o.userData.album!==undefined)cur=(state==='home'||state==='album'?'pointer':'default');else if(isPlayerObj(o))cur='grab';}
-    cvs.style.cursor=cur;return;
+    cvs.style.cursor=cur;smHover(o&&o.userData.rbtn!==undefined?o.userData.rbtn:-1);return;   // (10-world/03-summon-menu.js)
   }
+  smHide();
   if(Math.hypot(e.clientX-pd.x,e.clientY-pd.y)>(pd.kind==='shelf'?(e.pointerType==='touch'?8:4):pd.kind==='phys'?8:6))pd.moved=true;
   if(pd.kind==='phys'){moveGrab(e);return;}
   /* shelf drag: just start it. the albums are moved in shelfStep, once per frame, from the latest pointer position */
@@ -1623,6 +1639,51 @@ function spawnRemote(){
   Composite.add(wld,rem.body);
 }
 
+/* ---------- the summon menu: hover the dog button (3) or the TOON button (5) on the remote and pick WHO comes ----------
+   A small card with one thumbnail per puppy / character (models/thumbs/v<N>.png, made by tools/render_thumbs.py). Click a tile: that one walks in (or, if it is already out, leaves).
+   The TOON menu also has a "three friends" tile (chiikawa + hachiware + usagi together). Highlighted tiles are the ones that are out now. Pressing the remote button works as before.
+   The menu opens after the pointer has rested on the button for a moment and stays while the pointer is on the button or on the menu. */
+const SM={el:null,btn:-1,want:-1,showT:0,hideT:0,over:false,sync:0,
+  tiles:{
+    3:[{v:0,n:'米格魯'},{v:1,n:'柴犬'},{v:2,n:'巴哥'},{v:3,n:'吉娃娃'},{v:4,n:'哈士奇'}],
+    5:[{v:5,n:'皮卡丘'},{v:6,n:'吉伊卡哇'},{v:7,n:'小八'},{v:8,n:'烏薩奇'},{g:[6,7,8],n:'三隻一組'}]},
+  title:{3:'狗狗',5:'卡通人物'}};
+const smOn=t=>t.g?t.g.some(dogOut):dogOut(t.v);
+function smBuild(){
+  const el=document.createElement('div');el.id='summonMenu';el.setAttribute('role','menu');document.body.appendChild(el);
+  el.addEventListener('pointerenter',()=>{SM.over=true;clearTimeout(SM.hideT);SM.hideT=0;});
+  el.addEventListener('pointerleave',()=>{SM.over=false;smSchedHide();});
+  el.addEventListener('pointerdown',e=>e.stopPropagation());
+  el.addEventListener('click',e=>{
+    const b=e.target.closest('.smt');if(!b||SM.btn<0)return;const t=SM.tiles[SM.btn][+b.dataset.i];
+    Au.ensure();
+    if(t.g){if(t.g.some(dogOut))t.g.forEach((v,i)=>{const I=DOGS.byV[v];if(dogOut(v))dogLeave(I,i*DOGS.stagger);});else dogSummon(t.g.filter(v=>DV.v[v]&&DV.v[v].ready));}
+    else dogSummonOne(t.v);
+    Au.click(1.4,.5);smSync();
+  });
+  SM.el=el;return el;
+}
+function smShow(b){
+  const el=SM.el||smBuild();
+  el.innerHTML='<div class="smh">'+SM.title[b]+'</div><div class="smr">'+SM.tiles[b].map((t,i)=>'<button class="smt" data-i="'+i+'" title="'+t.n+'">'
+    +(t.g?'<span class="smg">'+t.g.map(v=>'<img alt="" src="models/thumbs/v'+v+'.png">').join('')+'</span>':'<img alt="" src="models/thumbs/v'+t.v+'.png">')+'<span>'+t.n+'</span></button>').join('')+'</div>';
+  const p=rem.btn[b].getWorldPosition(new T.Vector3()).project(cam),sx=(p.x+1)/2*innerWidth,sy=(1-p.y)/2*innerHeight;
+  el.style.visibility='hidden';el.classList.add('open');
+  const w=el.offsetWidth,h=el.offsetHeight,left=sx>innerWidth/2;   // the remote lives at the right edge: the card opens to its left
+  el.style.left=Math.max(8,Math.min(innerWidth-w-8,left?sx-w-46:sx+46))+'px';el.style.top=Math.max(8,Math.min(innerHeight-h-8,sy-h/2))+'px';el.style.visibility='';
+  SM.btn=b;smSync();clearInterval(SM.sync);SM.sync=setInterval(smSync,250);
+}
+function smSync(){if(!SM.el||SM.btn<0)return;SM.el.querySelectorAll('.smt').forEach(b=>b.classList.toggle('on',smOn(SM.tiles[SM.btn][+b.dataset.i])));}
+function smHide(){clearTimeout(SM.showT);clearTimeout(SM.hideT);SM.showT=SM.hideT=0;SM.want=-1;if(SM.btn<0&&!(SM.el&&SM.el.classList.contains('open')))return;SM.btn=-1;SM.over=false;clearInterval(SM.sync);if(SM.el)SM.el.classList.remove('open');}
+function smSchedHide(){clearTimeout(SM.hideT);SM.hideT=setTimeout(smHide,380);}
+function smHover(b){   // b = the remote button under the pointer (-1 = none), called from the canvas pointermove
+  if(b!==3&&b!==5)b=-1;
+  if(b<0){clearTimeout(SM.showT);SM.showT=0;SM.want=-1;if(SM.btn>=0&&!SM.over&&!SM.hideT)smSchedHide();return;}
+  clearTimeout(SM.hideT);SM.hideT=0;
+  if(SM.btn===b||SM.want===b)return;
+  SM.want=b;clearTimeout(SM.showT);SM.showT=setTimeout(()=>{SM.showT=0;if(SM.want===b)smShow(b);},240);
+}
+addEventListener('blur',smHide);
 /* ---------- headphones + cable + plug ---------- */
 /* the cable has no length limit: it starts with NR0 nodes and the segment next to the plug pays out more cable whenever the line goes taut (payOut), so stretching can never pull the plug out */
 const NR0=22,NMAX=140,SEG=.28;
@@ -1855,7 +1916,7 @@ function endPhysGrab(moved){
     const p=grab.pointer;
     if(moved&&p&&dog.ready&&dogAnyOn()){
       const a=wAnchor('hat');
-      if(dogHit(p.x,p.y)||(a&&Math.hypot(p.x-a.x,p.y-a.y)<115)){
+      if(dogHit(p.x,p.y,true)||(a&&Math.hypot(p.x-a.x,p.y-a.y)<115)){
         if(!hpWear())hpRest();
       }else hpRest();
     }else hpRest();
@@ -2813,6 +2874,16 @@ function toonCall2(){   // long press (~3 s): the next two of pikachu / chiikawa
   LS.set(TOON.KEY,(TOON.cast.indexOf(out[out.length-1])+1)%N);
   dogSummon(out);
 }
+/* the hover menu (10-world/03-summon-menu.js): bring in / send away ONE specific puppy or character. puppies are capped at two: the one that has been out the longest leaves */
+const dogOut=v=>{const I=DOGS.byV[v];return !!I&&DOGS.list.includes(I)&&(I.pend||(DS(I).present&&!DS(I).leaving));};
+function dogSummonOne(v){
+  if(dog.failed||!dog.ready)return false;
+  const I=DOGS.byV[v];
+  if(dogOut(v)){dogLeave(I,0);return false;}
+  if(!(DV.v[v]&&DV.v[v].ready)||(I&&DOGS.list.includes(I)))return false;   // not loaded yet / still walking out
+  if(v<DV.NDOG){const act=dogActive();if(act.length>=dogCap())dogLeave(act[0],0);}
+  dogSummon([v]);return true;
+}
 function dogCall2(){    // long press: the next two puppies walk in
   if(dog.failed||!dog.ready)return;
   const room=dogCap()-dogActive().length;if(room<=0)return;
@@ -2827,10 +2898,11 @@ function dogWhoAt(cx,cy){
   if(prev&&DOGS.cur!==prev)dogLoad(prev);
   return hit;
 }
-function dogHit(cx,cy){   // used by the wardrobe / headphones: also makes the puppy under the pointer the focus
+function dogHit(cx,cy,focus){   // is the pointer on any character? only with focus=true (dropping a wardrobe item / the headphones onto one) does the one under it become the focus.
+  // a plain test must NOT change the focus: the headphones come off when the focus changes, and the toy / hover checks run all the time
   if(DOGS.inFrame)return dogHit1(cx,cy);
   if(dogHit1(cx,cy))return true;
-  const I=dogWhoAt(cx,cy);if(I){dogFocus(I);return true;}return false;
+  const I=dogWhoAt(cx,cy);if(I){if(focus)dogFocus(I);return true;}return false;
 }
 function dogPetAt(cx,cy){   // a click: pets whichever puppy is under it (focus does not change)
   const I=dogWhoAt(cx,cy);if(!I)return false;
@@ -2922,7 +2994,23 @@ function dogsFrame(dt,time){
   if(DOGS.blink!==3)remLit(3,dogsOnlyOn());
   if(DOGS.blink!==5)remLit(5,toonActive().length>0);
 }
-window.__dogs={hpWear,hpSpawn,toonCall2,testCd(x){cd=makeCD(0);cd.mode='floor';cd.pos.set(x,FLOOR_Y+.02,FLOOR_Z);cd.flat=1;cd.vel.set(0,0);cdIn=false;},DOGS,DV,dogToggle,dogCall2,toonToggle,TOON,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
+window.__dogs={dogHit,hpWear,hpSpawn,toonCall2,testCd(x){cd=makeCD(0);cd.mode='floor';cd.pos.set(x,FLOOR_Y+.02,FLOOR_Z);cd.flat=1;cd.vel.set(0,0);cdIn=false;},DOGS,DV,dogToggle,dogCall2,toonToggle,TOON,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
+
+/* tool hook (tools/render_thumbs.py): a transparent portrait of variant v for the hover menu, rendered with its own renderer so the game scene is not touched */
+window.__thumb=(v,size)=>{
+  size=size||192;const I=dogInst(v);if(!I)return null;
+  const g=I.st.g,par=g.parent,p0=g.position.clone(),r0=g.rotation.clone(),v0=g.visible,sc=new T.Scene();
+  sc.environment=scene.environment;sc.add(new T.HemisphereLight(0xffffff,0xb9bdc3,1.15));const dl=new T.DirectionalLight(0xffffff,1.6);dl.position.set(2.5,4,5);sc.add(dl);
+  sc.add(g);g.visible=true;g.position.set(0,0,0);g.rotation.set(0,.5,0);g.updateMatrixWorld(true);
+  const bb=new T.Box3().setFromObject(g),c=bb.getCenter(new T.Vector3()),sz=bb.getSize(new T.Vector3());
+  const cam2=new T.PerspectiveCamera(26,1,.1,100),h=Math.max(sz.y,sz.x*.95)*1.12,dist=h/2/Math.tan(13/180*Math.PI);
+  cam2.position.set(c.x,c.y+sz.y*.04,c.z+dist);cam2.lookAt(c.x,c.y,c.z);
+  const r=new T.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});r.setPixelRatio(1);r.setSize(size,size);r.setClearColor(0,0);
+  r.outputColorSpace=T.SRGBColorSpace;r.toneMapping=T.ACESFilmicToneMapping;r.toneMappingExposure=1.12;
+  r.render(sc,cam2);const url=r.domElement.toDataURL('image/png');r.dispose();
+  g.position.copy(p0);g.rotation.copy(r0);g.visible=v0;if(par)par.add(g);else scene.remove(g);
+  return url;
+};
 /* ---------- dog wardrobe ----------
    models/wardrobe/manifest.json (written by tools/build_wardrobe.py) lists the slots (which bone each kind of item hangs on, and where) and the items.
    While the dog is around, an open boutique display shelf slides in from the right edge; each slot has one shelf.
@@ -3118,7 +3206,7 @@ function wDragMove(e){
   const a=wAnchor(d.it.slot);
   d.px=e.clientX;d.py=e.clientY;
   d.near=a?Math.hypot(e.clientX-a.x,e.clientY-a.y):999;
-  d.armed=!d.over&&dog.present&&!dog.leaving&&(dogHit(e.clientX,e.clientY)||d.near<95);
+  d.armed=!d.over&&dog.present&&!dog.leaving&&(dogHit(e.clientX,e.clientY,true)||d.near<95);
 }
 function wEndDrag(){
   const d=W.drag;if(!d)return;W.drag=null;cvs.style.cursor='default';

@@ -193,7 +193,7 @@ function wDragMove(e){
   const a=wAnchor(d.it.slot);
   d.px=e.clientX;d.py=e.clientY;
   d.near=a?Math.hypot(e.clientX-a.x,e.clientY-a.y):999;
-  d.armed=!d.over&&dog.present&&!dog.leaving&&(dogHit(e.clientX,e.clientY)||d.near<95);
+  d.armed=!d.over&&dog.present&&!dog.leaving&&(dogHit(e.clientX,e.clientY,true)||d.near<95);
 }
 function wEndDrag(){
   const d=W.drag;if(!d)return;W.drag=null;cvs.style.cursor='default';

@@ -88,6 +88,16 @@ function toonCall2(){   // long press (~3 s): the next two of pikachu / chiikawa
   LS.set(TOON.KEY,(TOON.cast.indexOf(out[out.length-1])+1)%N);
   dogSummon(out);
 }
+/* the hover menu (10-world/03-summon-menu.js): bring in / send away ONE specific puppy or character. puppies are capped at two: the one that has been out the longest leaves */
+const dogOut=v=>{const I=DOGS.byV[v];return !!I&&DOGS.list.includes(I)&&(I.pend||(DS(I).present&&!DS(I).leaving));};
+function dogSummonOne(v){
+  if(dog.failed||!dog.ready)return false;
+  const I=DOGS.byV[v];
+  if(dogOut(v)){dogLeave(I,0);return false;}
+  if(!(DV.v[v]&&DV.v[v].ready)||(I&&DOGS.list.includes(I)))return false;   // not loaded yet / still walking out
+  if(v<DV.NDOG){const act=dogActive();if(act.length>=dogCap())dogLeave(act[0],0);}
+  dogSummon([v]);return true;
+}
 function dogCall2(){    // long press: the next two puppies walk in
   if(dog.failed||!dog.ready)return;
   const room=dogCap()-dogActive().length;if(room<=0)return;
@@ -102,10 +112,11 @@ function dogWhoAt(cx,cy){
   if(prev&&DOGS.cur!==prev)dogLoad(prev);
   return hit;
 }
-function dogHit(cx,cy){   // used by the wardrobe / headphones: also makes the puppy under the pointer the focus
+function dogHit(cx,cy,focus){   // is the pointer on any character? only with focus=true (dropping a wardrobe item / the headphones onto one) does the one under it become the focus.
+  // a plain test must NOT change the focus: the headphones come off when the focus changes, and the toy / hover checks run all the time
   if(DOGS.inFrame)return dogHit1(cx,cy);
   if(dogHit1(cx,cy))return true;
-  const I=dogWhoAt(cx,cy);if(I){dogFocus(I);return true;}return false;
+  const I=dogWhoAt(cx,cy);if(I){if(focus)dogFocus(I);return true;}return false;
 }
 function dogPetAt(cx,cy){   // a click: pets whichever puppy is under it (focus does not change)
   const I=dogWhoAt(cx,cy);if(!I)return false;
@@ -197,4 +208,20 @@ function dogsFrame(dt,time){
   if(DOGS.blink!==3)remLit(3,dogsOnlyOn());
   if(DOGS.blink!==5)remLit(5,toonActive().length>0);
 }
-window.__dogs={hpWear,hpSpawn,toonCall2,testCd(x){cd=makeCD(0);cd.mode='floor';cd.pos.set(x,FLOOR_Y+.02,FLOOR_Z);cd.flat=1;cd.vel.set(0,0);cdIn=false;},DOGS,DV,dogToggle,dogCall2,toonToggle,TOON,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
+window.__dogs={dogHit,hpWear,hpSpawn,toonCall2,testCd(x){cd=makeCD(0);cd.mode='floor';cd.pos.set(x,FLOOR_Y+.02,FLOOR_Z);cd.flat=1;cd.vel.set(0,0);cdIn=false;},DOGS,DV,dogToggle,dogCall2,toonToggle,TOON,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
+
+/* tool hook (tools/render_thumbs.py): a transparent portrait of variant v for the hover menu, rendered with its own renderer so the game scene is not touched */
+window.__thumb=(v,size)=>{
+  size=size||192;const I=dogInst(v);if(!I)return null;
+  const g=I.st.g,par=g.parent,p0=g.position.clone(),r0=g.rotation.clone(),v0=g.visible,sc=new T.Scene();
+  sc.environment=scene.environment;sc.add(new T.HemisphereLight(0xffffff,0xb9bdc3,1.15));const dl=new T.DirectionalLight(0xffffff,1.6);dl.position.set(2.5,4,5);sc.add(dl);
+  sc.add(g);g.visible=true;g.position.set(0,0,0);g.rotation.set(0,.5,0);g.updateMatrixWorld(true);
+  const bb=new T.Box3().setFromObject(g),c=bb.getCenter(new T.Vector3()),sz=bb.getSize(new T.Vector3());
+  const cam2=new T.PerspectiveCamera(26,1,.1,100),h=Math.max(sz.y,sz.x*.95)*1.12,dist=h/2/Math.tan(13/180*Math.PI);
+  cam2.position.set(c.x,c.y+sz.y*.04,c.z+dist);cam2.lookAt(c.x,c.y,c.z);
+  const r=new T.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});r.setPixelRatio(1);r.setSize(size,size);r.setClearColor(0,0);
+  r.outputColorSpace=T.SRGBColorSpace;r.toneMapping=T.ACESFilmicToneMapping;r.toneMappingExposure=1.12;
+  r.render(sc,cam2);const url=r.domElement.toDataURL('image/png');r.dispose();
+  g.position.copy(p0);g.rotation.copy(r0);g.visible=v0;if(par)par.add(g);else scene.remove(g);
+  return url;
+};

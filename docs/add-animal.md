@@ -83,3 +83,6 @@ B、C、D、E 都是同一位作者的 `xxx_a.dae`：28 根骨頭、名字完全
 - **耳機**：頭兩側的定位點 `HpL/HpR`（`DV.P[*].hpMark`），`hpWear` 優先用它們量頭寬；縮放上限對人形放寬到 32；`fit.hp.pos` 可微調。
 - **打工**：櫃檯有 3 個站位（`JOB.spots[3]`），超過 3 隻的在外面玩；人形不像狗站起來，只墊高 `DOG_JOB.humanRise` 讓頭露出櫃檯。
 - **長按 TOON 按鈕 3 秒**：依 皮卡丘 → 吉伊卡哇 → 小八 → 烏薩奇 的順序叫出下兩隻（`toonCall2`，順序記在 localStorage `chill_hihi.toonNext`）。短按：沒人→皮卡丘；只有皮卡丘→換成三隻；其他→全部離場。
+- **耳機不再自己掉下**：`dogHit(cx,cy,focus)` 預設只判斷「滑鼠有沒有碰到角色」，不再順手換焦點（耳機綁在焦點角色身上，換焦點就會取下）。只有真的把衣物／耳機拖到某隻身上時（`01-wardrobe.js`、`02-pointer-drag.js`）才傳 `true`。
+- **懸停召喚選單**（`src/10-world/03-summon-menu.js` ＋ `index.template.html` 的 `#summonMenu` CSS）：滑鼠停在遙控器的狗按鈕或 TOON 按鈕上約 0.25 秒，在按鈕左邊展開縮圖卡片，點哪隻就單獨叫哪隻進來（已經在場的再點一次就離場，外框橘色代表在場）。狗最多同時 2 隻（超過時最早進來的離場）；TOON 選單多一格「三隻一組」。短按、長按照舊。觸控裝置不顯示（用長按）。選單的項目表在 `SM.tiles`；程式入口 `dogSummonOne(v)`（`03-dogs.js`）。
+- **縮圖**：`models/thumbs/v0..v8.png`（透明背景 192×192）。新增角色後在 `SM.tiles` 加一格，再執行 `python3 tools/render_thumbs.py <node_modules 路徑>` 重新產生（用頁面裡的測試鉤子 `window.__thumb(v)`）。
