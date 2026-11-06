@@ -185,6 +185,7 @@ function dogsFrame(dt,time){
       else if(I.leaveIn!=null){I.leaveIn-=dt;if(I.leaveIn<=0){I.leaveIn=null;dogDoLeave(I);}}
     }
     dogsCdOwner();
+    chairAssign();   // free chairs go to the nearest character (15-wardrobe/05-chair.js)
     for(const I of DOGS.list){
       if(!I.st.present)continue;
       dogLoad(I);DOGS.me=I;
@@ -197,7 +198,7 @@ function dogsFrame(dt,time){
     for(let i=0;i<on.length;i++)for(let j=i+1;j<on.length;j++){
       const A=on[i].st,B=on[j].st;if(A.mode==='job'&&B.mode==='job')continue;   // (two puppies at the counter stand close side by side)
       const ov=A.rad+B.rad-Math.abs(A.x-B.x);
-      if(ov>0){const busy=s=>s.lie.s!=='none'||s.mode==='fetch'||s.mode==='bring'||s.mode==='eat'||s.mode==='chase'||s.mode==='ball';
+      if(ov>0){const busy=s=>s.lie.s!=='none'||(s.mode==='chair'&&s.sit>.5)||s.mode==='fetch'||s.mode==='bring'||s.mode==='eat'||s.mode==='chase'||s.mode==='ball';
         const dir=A.x>=B.x?1:-1,k=Math.min(1,dt*4)*ov;
         if(busy(A)&&!busy(B))B.x-=dir*k;else if(busy(B)&&!busy(A))A.x+=dir*k;else{A.x+=dir*k*.5;B.x-=dir*k*.5;}}}
     if(DOGS.cur)Object.assign(dog,DOGS.cur.st);   // the last one handled is still the loaded one: take over the pushes

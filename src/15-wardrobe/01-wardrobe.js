@@ -230,9 +230,9 @@ cvs.addEventListener('pointerdown',e=>{
   if(!W.ready||e.button>0)return;
   const h=wPick(e.clientX,e.clientY);
   if(h&&W.vis<.5&&h.src!=='worn')return;   // with the cabinet closed only what the dog wears can be grabbed (the cabinet then slides in by itself)
-  if(h&&h.src==='shelf'&&toyIs(h.id)){   // the toy row: a tap picks the toy (or puts it back). the ball and the part-time job set can also be dragged straight out of the cabinet
+  if(h&&h.src==='shelf'&&toyIs(h.id)){   // the toy row: a tap picks the toy (or puts it back). the ball, the chair and the part-time job set can also be dragged straight out of the cabinet
     e.stopImmediatePropagation();e.stopPropagation();
-    if(h.id==='t_ball'||h.id==='t_job'){try{cvs.setPointerCapture(e.pointerId);}catch(_){}W.td={id:h.id,x:e.clientX,y:e.clientY,pid:e.pointerId};}
+    if(h.id==='t_ball'||h.id==='t_job'||h.id==='t_chair'){try{cvs.setPointerCapture(e.pointerId);}catch(_){}W.td={id:h.id,x:e.clientX,y:e.clientY,pid:e.pointerId};}
     else toySelect(h.id);
     return;}
   /* a press on a shelf that has more items than fit: dragging along the row scrolls it (the album shelf's own feel) */
@@ -252,9 +252,10 @@ cvs.addEventListener('pointerdown',e=>{
 function wToyDragMove(e){   // pulled out of the cabinet: the toy appears under the pointer and is carried from there
   const d=W.td;if(Math.hypot(e.clientX-d.x,e.clientY-d.y)<10)return;
   setNDC(e);const q=planeHit(0);if(!q||q.x>W.root.position.x-W.Wc/2-.2)return;
-  const z=d.id==='t_ball'?FLOOR_Z:JOB.z,p=planeHit(z);if(!p)return;
+  const z=d.id==='t_ball'?FLOOR_Z:d.id==='t_chair'?CHAIR.z:JOB.z,p=planeHit(z);if(!p)return;
   W.td=null;TOY.sel=null;toyChip();
   if(d.id==='t_ball'){const b=ballSpawn(W.items.t_ball,p.x,Math.max(p.y,FLOOR_Y+1.2));if(b)ballGrab(b,e,d.pid);}
+  else if(d.id==='t_chair'){const c=chairSpawn(p.x,Math.max(p.y,FLOOR_Y+2.2));if(c){CHAIR.held={c,ox:0,oy:0,id:d.pid};c.st='held';c.vy=0;c.tilt=0;c.fall=1;}}
   else if(jobSpawn(p.x,Math.max(p.y,FLOOR_Y+3))){JOB.held={ox:0,oy:0,id:d.pid};JOB.st='held';JOB.vy=0;JOB.tilt=0;JOB.fall=1;}
 }
 cvs.addEventListener('pointermove',e=>{
@@ -304,7 +305,7 @@ function wardFrame(dt,time){
   if(!W.restored&&dog.ready){W.restored=true;const o=LS.get(W.KEY,{});for(const s in o)if(W.items[o[s]]&&W.items[o[s]].slot===s)wEquip(o[s],true);}
   if(!can&&W.drag){W.drag.armed=false;wEndDrag();}
   if(!can&&W.sd)W.sd=null;
-  const want=can&&(W.hover||W.pin||!!W.drag||!!W.td||!!JOB.held||!!BALL.held)&&(!pd||W.pin)?1:0;
+  const want=can&&(W.hover||W.pin||!!W.drag||!!W.td||!!JOB.held||!!BALL.held||chairHeld())&&(!pd||W.pin)?1:0;
   W.vis+=(want-W.vis)*(1-Math.exp(-dt*(want>W.vis?7:5)));if(Math.abs(want-W.vis)<.003)W.vis=want;
   W.hintEl.classList.toggle('gone',!can||W.vis>.3);
   W.recycleEl.hidden=!can||W.vis<.8||(!Object.keys(W.worn).length&&!hpState.worn);
@@ -423,6 +424,7 @@ function frame(){
   try{wardFrame(dt,time);}catch(e){if(!W.err){W.err=1;console.warn('wardrobe',e);}}
   try{toyFrame(dt,time);}catch(e){if(!TOY.err){TOY.err=1;console.warn('toys',e);}}
   try{jobFrame(dt,time);}catch(e){if(!JOB.err){JOB.err=1;console.warn('job',e);}}
+  try{chairFrame(dt,time);}catch(e){if(!CHAIR.err){CHAIR.err=1;console.warn('chair',e);}}
   if(PET.on)petFrame(dt,time);
   if(!PET.mini){drawDisplay();syncKeys();updateFx(dt,time);}
   renderer.render(scene,cam);

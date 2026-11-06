@@ -165,6 +165,54 @@ def parse_dae(path):
             'groups': groups if len(texs) > 1 else []}
 
 
+def parse_obj(path):
+    """讀 Wavefront .obj（+ 同名 .mtl 的 map_Kd 當貼圖），回傳格式與 parse_dae 相同。
+    三角形／多邊形（扇形切開）、v/vt/vn；座標已是 Y 向上；貼圖用 repeat、最近鄰（像素貼圖）。單一材質。"""
+    P, UV, N = [], [], []
+    verts, key2i, idx = [], {}, []
+    mtl = None
+    with open(path, encoding='utf-8') as f:
+        for line in f:
+            t = line.split()
+            if not t:
+                continue
+            if t[0] == 'mtllib':
+                mtl = line.split(None, 1)[1].strip()
+            elif t[0] == 'v':
+                P.append([float(x) for x in t[1:4]])
+            elif t[0] == 'vt':
+                UV.append([float(x) for x in t[1:3]])
+            elif t[0] == 'vn':
+                N.append([float(x) for x in t[1:4]])
+            elif t[0] == 'f':
+                face = []
+                for tok in t[1:]:
+                    a = (tok.split('/') + ['', ''])[:3]
+                    vi = int(a[0]) - 1 if int(a[0]) > 0 else len(P) + int(a[0])
+                    ti = (int(a[1]) - 1 if int(a[1]) > 0 else len(UV) + int(a[1])) if a[1] else -1
+                    ni = (int(a[2]) - 1 if int(a[2]) > 0 else len(N) + int(a[2])) if a[2] else -1
+                    key = (vi, ti, ni)
+                    if key not in key2i:
+                        key2i[key] = len(verts)
+                        verts.append((P[vi], N[ni] if ni >= 0 else [0, 1, 0], UV[ti] if ti >= 0 else [0, 0]))
+                    face.append(key2i[key])
+                for k in range(1, len(face) - 1):
+                    idx += [face[0], face[k], face[k + 1]]
+    img = None
+    mp = os.path.join(os.path.dirname(path), mtl.replace('\\', '/')) if mtl else None
+    if mp is None or not os.path.exists(mp):                 # 找不到 .mtl 就試同名
+        mp = os.path.splitext(path)[0] + '.mtl'
+    if os.path.exists(mp):
+        for line in open(mp, encoding='utf-8'):
+            if line.strip().lower().startswith('map_kd'):
+                img = os.path.basename(line.split(None, 1)[1].strip().replace('\\', '/'))
+    if not img:
+        die(path + ' 的 .mtl 沒有 map_Kd 貼圖')
+    tex = {'file': img, 'wrapS': 'wrap', 'wrapT': 'wrap', 'filter': 'nearest', 'alpha': False}
+    return {'pos': [round(a, 4) for v in verts for a in v[0]], 'nor': [round(a, 3) for v in verts for a in v[1]],
+            'uv': [round(a, 4) for v in verts for a in v[2]], 'idx': idx, 'tex': tex, 'texs': [tex], 'groups': []}
+
+
 def bbox(pos):
     xs, ys, zs = pos[0::3], pos[1::3], pos[2::3]
     return [[min(a) for a in (xs, ys, zs)], [max(a) for a in (xs, ys, zs)]]
@@ -229,10 +277,10 @@ def build(check):
         meta = load_json(os.path.join(d, 'item.json'), {})
         if meta.get('slot') not in slot_ids:
             die('src/%s/item.json 的 slot 必須是 %s 其中之一（現在是「%s」）' % (iid, slot_ids, meta.get('slot', '')))
-        daes = [f for f in os.listdir(d) if f.lower().endswith('.dae')]
+        daes = [f for f in os.listdir(d) if f.lower().endswith(('.dae', '.obj'))]
         if len(daes) != 1:
-            die('src/%s/ 需要剛好一個 .dae（現在有 %d 個）' % (iid, len(daes)))
-        info = parse_dae(os.path.join(d, daes[0]))
+            die('src/%s/ 需要剛好一個 .dae 或 .obj（現在有 %d 個）' % (iid, len(daes)))
+        info = (parse_obj if daes[0].lower().endswith('.obj') else parse_dae)(os.path.join(d, daes[0]))
         texs = info['texs']
         out_names = [iid + ('.png' if k == 0 else '.%d.png' % k) for k in range(len(texs))]   # 主貼圖 <id>.png，其餘 <id>.1.png …
         for t in texs:
