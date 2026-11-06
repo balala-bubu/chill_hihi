@@ -31,10 +31,10 @@ CHARS = {
     'usagi': dict(cx=-0.52, meshes=['Usagi_body.002_0', 'Usagi_Ear_0', 'Usagi_hAIR.001_0', 'Usagi_Material.003_0', 'Eyes.002_Eyes.002_0']),
 }
 # 材質名稱 -> 怎麼畫
-# 顏色是 glTF 的線性值換成 sRGB 後的十六進位（three 的 color 以 sRGB 解讀）。描邊原本是柔和的深棕色，不是黑色。
+# 顏色：描邊用原模型的柔和深棕（線性值換成 sRGB）；小八的藍、烏薩奇的米黃和粉紅，直接換成 sRGB 會被打光洗得太淡，所以刻意調得飽和一點。
 MATS = {
-    'body': dict(color='#ffffff'), 'body.001': dict(color='#ffffff'), 'body.002': dict(color='#fdedce'),
-    'hAIR': dict(color='#86b8dd'), 'hAIR.001': dict(color='#e7e7e7'), 'material': dict(color='#ffc2ca'),
+    'body': dict(color='#ffffff'), 'body.001': dict(color='#ffffff'), 'body.002': dict(color='#f6cf8e'),
+    'hAIR': dict(color='#3b7cc2'), 'hAIR.001': dict(color='#d4d4d4'), 'material': dict(color='#ff8d9a'),
     'Material.001': dict(color='#4f2e24', outline=True), 'Material.002': dict(color='#4f2e24', outline=True), 'Material.003': dict(color='#4f2e24', outline=True),
     'Eyes': dict(face=True, cutoff=.303), 'Eyes.001': dict(face=True, cutoff=.181), 'Eyes.002': dict(face=True, cutoff=.06),
 }
@@ -193,12 +193,14 @@ def main():
             return o
 
         mats = {}
+        body_P, body_W = [], []
         yr = [1e9, -1e9]
         for gname in C['meshes']:
             M = mesh[gname]
             P = M['P'].copy()
             P[:, 0] -= C['cx']
             mname = M['mat']
+            P_orig = P.copy()
             if MATS[mname].get('outline'):
                 P = P + M['N'] * OUTLINE_IN
             mats[mname] = MATS[mname]
@@ -225,6 +227,19 @@ def main():
             s = W.sum(1, keepdims=True)
             assert (s > 1e-6).all(), gname
             W /= s
+            if MATS[mname].get('outline'):
+                # 描邊殼的權重必須和身體一模一樣，否則尾巴一擺、頭一轉，殼就和身體分開（黑影、線條穿出來）：
+                # 每個殼頂點直接沿用「最近的身體頂點」（身體、頭髮、耳朵、尾巴）的權重。
+                Pb = np.concatenate(body_P)
+                Wb = np.concatenate(body_W)
+                near = np.empty(len(P), dtype=int)
+                for i0 in range(0, len(P), 256):
+                    d = ((P[i0:i0 + 256, None, :] - Pb[None, :, :]) ** 2).sum(2)
+                    near[i0:i0 + 256] = d.argmin(1)
+                W = Wb[near]
+            elif kind != 'face':
+                body_P.append(P_orig)
+                body_W.append(W.copy())
             # 取最大的四個
             top = np.argsort(-W, axis=1)[:, :4]
             s4 = np.take_along_axis(np.tile(np.arange(len(BONES)), (len(W), 1)), top, 1).astype(np.uint16)

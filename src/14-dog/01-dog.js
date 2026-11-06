@@ -189,7 +189,7 @@ function dogFrame(dt,time){
     dog.g.scale.setScalar(dog.scale*Math.max(.001,dog.pop));
   }else{
     dog.crouch=dog.human?Math.max(bow,bPitch*.8)*.32:0;
-    dog.g.position.set(dog.x,FLOOR_Y+dog.footLift*dog.scale+bob+hopY-dog.sit*DOG_SIT.drop-eo*DOG_LIE.drop-dog.crouch+dog.job*DOG_JOB.rise,dog.z);dog.g.rotation.x=-dog.job*DOG_JOB.pitch;
+    dog.g.position.set(dog.x,FLOOR_Y+dog.footLift*dog.scale+bob+hopY-dog.sit*DOG_SIT.drop-eo*DOG_LIE.drop-dog.crouch+dog.job*(dog.human?DOG_JOB.humanRise:DOG_JOB.rise),dog.z);dog.g.rotation.x=dog.human?0:-dog.job*DOG_JOB.pitch;   // people stay upright (lifted a bit so the head clears the counter), puppies rise on their hind legs
   }
   dog.g.rotation.y=dog.ry;if(dog.rg)dog.rg.rotation.z=Lc.sign*(DOG_LIE.ang*eo+Math.sin(performance.now()/1000*2.2)*.05*eo*(nowS-Lc.petT<.6?2:1));
 dog.g.updateMatrixWorld(true);
@@ -273,7 +273,7 @@ dog.g.updateMatrixWorld(true);
     dogAdd('UplidL','r',.7*eo*DOG_LID);dogAdd('UplidR','r',.7*eo*DOG_LID);}
   dogApply();
 }
-const DOG_JOB={rise:.42,pitch:.42,sh:-1.1,clav:-.2,leg:0,neck:.25,head:.1,bust:0};   // 'job' pose: rise = body lift, pitch = whole body tipped nose-up, the rest are bone angles (front paws forward onto the counter)
+const DOG_JOB={humanRise:.85,rise:.42,pitch:.42,sh:-1.1,clav:-.2,leg:0,neck:.25,head:.1,bust:0};   // 'job' pose: rise = body lift, pitch = whole body tipped nose-up, the rest are bone angles (front paws forward onto the counter)
 const DOG_PERCH={dx:0,z:0,drop:.6,ry:.9,hip:0,waist:0,bust:0,clav:.5,sh:.6,leg:1.2,neck:0,head:0,tail:0};   // desktop pet: dx/z = where on the player's top face, drop = how far the belly sinks, ry = facing, the rest are bone angles
 const DOG_LIE={ang:2.6,drop:.75,arm:.9,leg:-.5},DOG_LID=1,DOG_JAW=1,DOG_LEG=1,DOG_SIT={hip:.8,front:1,leg:.9,tail:0,drop:.3};
 /* fetching a CD: mx/my/mz = the lips in model space; stand = how far in front of the hips the CD should lie when the dog bites it (and when it is held out to the pointer);

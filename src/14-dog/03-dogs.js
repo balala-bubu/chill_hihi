@@ -9,7 +9,8 @@ const dogCap=()=>(PET.perch||PET.mini)?1:2;
 const isToon=I=>I.v>=DV.NDOG;   // the cartoon characters (pikachu, chiikawa, hachiware, usagi) belong to the TOON button, the puppies to the dog button
 const dogActive=()=>DOGS.list.filter(I=>!isToon(I)&&(I.pend||(DS(I).present&&!DS(I).leaving)));
 const toonActive=()=>DOGS.list.filter(I=>isToon(I)&&(I.pend||(DS(I).present&&!DS(I).leaving)));
-const dogAnyOn=()=>dog.ready?dogActive().length>0:dog.wantShow;
+const dogAnyOn=()=>dog.ready?DOGS.list.some(I=>I.pend||(DS(I).present&&!DS(I).leaving)):dog.wantShow;   // any character at all (toys, headphones, the TV ... ask this)
+const dogsOnlyOn=()=>dog.ready?dogActive().length>0:dog.wantShow;   // puppies only (the dog button's lamp)
 function dogSave(I){for(const k in dog)I.st[k]=dog[k];I.restored=W.restored;I.worn=W.worn;}
 function dogLoad(I){
   if(!I||DOGS.cur===I)return;
@@ -40,7 +41,7 @@ function dogsNext(n){
 }
 function dogSummon(vs,t0){
   let t=t0||0;
-  for(const v of vs){const I=dogInst(v);if(!I)continue;I.pend=true;I.delay=t;t+=DOGS.stagger;DOGS.list.push(I);}
+  for(const v of vs){const I=dogInst(v);if(!I||DOGS.list.includes(I))continue;I.pend=true;I.delay=t;t+=DOGS.stagger;DOGS.list.push(I);}
 }
 function dogEnter(I){
   dogLoad(I);
@@ -65,19 +66,27 @@ function dogToggle(){   // short press
   const act=dogActive();
   if(act.length)act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));
   else dogSummon(dogsNext(1));
-  remLit(3,dogAnyOn());
+  remLit(3,dogsOnlyOn());
 }
 /* ---------- the TOON button (remote button 6): 1st press -> pikachu walks in, 2nd press -> pikachu leaves and chiikawa + hachiware + usagi walk in together, 3rd press -> they all leave.
    They are ordinary entries of DOGS.list, so they share everything with the puppies: the floor lane, collisions (nobody stands inside another), the CD, apples, balls, the TV, petting. */
-const TOON={q:0,trio:[6,7,8]};
-function toonStage(){const a=toonActive();return !a.length?0:a.some(I=>I.v===5)?1:2;}
-function toonToggle(){
+const TOON={q:0,trio:[6,7,8],cast:[5,6,7,8],KEY:'chill_hihi.toonNext'};
+const toonReady=vs=>vs.filter(v=>DV.v[v]&&DV.v[v].ready);
+function toonToggle(){   // short press
   if(dog.failed)return;
   if(!dog.ready){TOON.q=1;return;}   // pressed before the models have loaded: runs as soon as they are there
-  const st=toonStage(),act=toonActive();
-  if(st===0)dogSummon([5].filter(v=>DV.v[v]&&DV.v[v].ready));
-  else if(st===1){act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));dogSummon(TOON.trio.filter(v=>DV.v[v]&&DV.v[v].ready),.9);}
-  else act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));
+  const act=toonActive();
+  if(!act.length)dogSummon(toonReady([5]));                                                   // nobody: pikachu walks in
+  else if(act.every(I=>I.v===5)){act.forEach(I=>dogLeave(I,0));dogSummon(toonReady(TOON.trio),.9);}   // only pikachu: it leaves and the three friends walk in together
+  else act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));                                        // otherwise: everybody leaves
+}
+function toonCall2(){   // long press (~3 s): the next two of pikachu / chiikawa / hachiware / usagi (in that order) walk in, one after the other
+  if(dog.failed||!dog.ready)return;
+  const N=TOON.cast.length;let s=LS.get(TOON.KEY,0)|0;if(s<0||s>=N)s=0;const out=[];
+  for(let k=0;k<N&&out.length<2;k++){const v=TOON.cast[(s+k)%N];if(DV.v[v]&&DV.v[v].ready&&!DOGS.list.some(I=>I.v===v))out.push(v);}
+  if(!out.length)return;
+  LS.set(TOON.KEY,(TOON.cast.indexOf(out[out.length-1])+1)%N);
+  dogSummon(out);
 }
 function dogCall2(){    // long press: the next two puppies walk in
   if(dog.failed||!dog.ready)return;
@@ -141,14 +150,14 @@ function dogRestoreWear(){
     if(DOGS.list.some(x=>x!==DOGS.me&&Object.values(x.worn).some(w=>w.id===id)))continue;   // the other puppy already wears it
     wEquip(id,true);}
 }
-function dogsLongPress(){
-  const hold=pd&&pd.kind==='phys'&&grab.kind==='rem'&&grab.btn===3&&!pd.moved,now=performance.now();
+function dogsLongPress(){   // hold the dog button (3) or the TOON button (5) for ~3 s: two more come in
+  const hold=pd&&pd.kind==='phys'&&grab.kind==='rem'&&(grab.btn===3||grab.btn===5)&&!pd.moved,now=performance.now();
   if(hold){
-    if(!grab.t0)grab.t0=now;
+    const bt=grab.btn;if(!grab.t0)grab.t0=now;
     const h=(now-grab.t0)/3000;
     if(!grab.long){
-      if(h>=1){grab.long=true;DOGS.blink=false;dogCall2();}
-      else{DOGS.blink=true;remLit(3,(((now-grab.t0)/(320-220*h))|0)%2===0);}   // the lamp blinks faster and faster until it triggers
+      if(h>=1){grab.long=true;DOGS.blink=false;if(bt===3)dogCall2();else toonCall2();}
+      else{DOGS.blink=bt;remLit(bt,(((now-grab.t0)/(320-220*h))|0)%2===0);}   // the lamp blinks faster and faster until it triggers
     }
   }else{DOGS.blink=false;grab.t0=0;}
 }
@@ -185,7 +194,7 @@ function dogsFrame(dt,time){
     if(DOGS.focus&&!DOGS.list.includes(DOGS.focus))DOGS.focus=DOGS.list.find(I=>I.st.present&&!I.st.leaving)||DOGS.list[0]||null;
   }finally{DOGS.inFrame=false;DOGS.me=null;}
   dogLoad(DOGS.focus||DOGS.byV[0]);
-  if(!DOGS.blink)remLit(3,dogAnyOn());
-  remLit(5,toonActive().length>0);
+  if(DOGS.blink!==3)remLit(3,dogsOnlyOn());
+  if(DOGS.blink!==5)remLit(5,toonActive().length>0);
 }
-window.__dogs={testCd(x){cd=makeCD(0);cd.mode='floor';cd.pos.set(x,FLOOR_Y+.02,FLOOR_Z);cd.flat=1;cd.vel.set(0,0);cdIn=false;},DOGS,DV,dogToggle,dogCall2,toonToggle,TOON,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
+window.__dogs={hpWear,hpSpawn,toonCall2,testCd(x){cd=makeCD(0);cd.mode='floor';cd.pos.set(x,FLOOR_Y+.02,FLOOR_Z);cd.flat=1;cd.vel.set(0,0);cdIn=false;},DOGS,DV,dogToggle,dogCall2,toonToggle,TOON,dogsNext,rem,cam,get grab(){return grab;}};   // test hook

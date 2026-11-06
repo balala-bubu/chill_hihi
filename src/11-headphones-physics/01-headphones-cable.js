@@ -76,7 +76,7 @@ function hpSpawn(){   // headphones swoop in from above the screen, cable whippi
    The headset model uses the same convention (cups on +-X, band arc over +Y), so it is worn with no rotation; only its size and
    offset are fitted to the ear roots (LearA/RearA sit at x=+-7.2, y=2.7, z=-8.5 in this space). */
 function hpWear(){
-  const h=hpState,brow=wBone('Brow_group'),left=wBone('LearA'),right=wBone('RearA');
+  const h=hpState,brow=wBone('Brow_group'),left=wBone('HpL')||wBone('LearA'),right=wBone('HpR')||wBone('RearA');   // HpL/HpR: markers at the sides of a cartoon character's head (02-dog2.js hpMark)
   if(!h.body||!dog.ready||!dog.present||dog.leaving||!brow||!left||!right)return false;
   brow.updateWorldMatrix(true,true);
   const a=brow.worldToLocal(left.getWorldPosition(new V3()));
@@ -85,7 +85,7 @@ function hpWear(){
   if(span<.001)return false;
   if(W.worn.hat)wUnequip('hat');   // hat and headphones are mutually exclusive: the hat goes back to its shelf
   const mid=a.add(b).multiplyScalar(.5);
-  const fitScale=clamp((span+5.2)/2.5,4.5,9.5);
+  const fitScale=clamp((span+5.2)/2.5,4.5,dog.human?32:9.5);
   h.worn=true;brow.add(hpRoot);hpRoot.traverse(o=>o.layers.enable(1));
   // Cup centres sit on the ear roots, band arcs over the top of the skull.
   hpSetBandLean(0);
@@ -93,6 +93,7 @@ function hpWear(){
   hpRoot.rotation.set(0,0,0);
   hpRoot.position.set(mid.x,mid.y+.3,mid.z+.9);
   hpRoot.scale.setScalar(fitScale);
+  {const ha=dog.fitAdj&&dog.fitAdj.hp;if(ha&&ha.pos)hpRoot.position.add(new V3().fromArray(ha.pos));}   // per-character nudge
   h.dragNear=0;h.grab=false;Body.setVelocity(h.body,{x:0,y:0});Body.setAngularVelocity(h.body,0);
   W.recycleKey='';Au.snap();buzz(10);return true;
 }
