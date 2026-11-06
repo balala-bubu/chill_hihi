@@ -2,7 +2,7 @@
 const dogFresh=()=>({pop:1,pet2:0,g:new T.Group(),ready:false,failed:false,present:false,leaving:false,wantShow:false,
   x:-20,z:2.6,ry:.4,mode:'idle',move:0,gait:0,sit:0,hop:0,hopT:0,lookYaw:0,lookPitch:0,blinkT:2,blink:0,earT:3,earL:0,earR:0,earWear:0,wag:0,fd:1,job:0,grab:null,mouthL:null,
   bones:{},acc:{},scale:2.3/53.7,footLift:.75,nextHop:0,ptr:{x:0,y:.05,t:0,cx:0,cy:0},
-  lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null,watchT:0,trotX:null,glT:4,glance:0});
+  lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null,watchT:0,trotX:null,glT:4,glance:0,play:null,ballBored:0,ballSince:0,ballMax:0});
 const dog=dogFresh();
 dog.g.visible=false;scene.add(dog.g);
 addEventListener('pointermove',e=>{dog.ptr.x=e.clientX/innerWidth*2-1;dog.ptr.y=-(e.clientY/innerHeight*2-1);dog.ptr.cx=e.clientX;dog.ptr.cy=e.clientY;dog.ptr.t=performance.now();},{passive:true});
@@ -93,7 +93,7 @@ function dogFrame(dt,time){
   if(dog.grab&&!(cd&&(cd.mode==='floor'||cd.mode==='carried')))dog.grab=null;          // someone else took the CD mid-bite
   /* 1. what is the dog doing? */
   const soc=dogSocial(dt,hw);
-  let tx=home,tz=1.9,spd=4.2,mode='idle';
+  let tx=home,tz=1.9,spd=4.2,mode='idle',BP=null;
   if(PET.perch){mode='perch';tx=dog.x;tz=dog.z;}   // lying on top of the player: it does not walk anywhere
   else if(dog.leaving){tx=-(hw+3.4);spd=8;mode='out';}
   else if(dragging){mode='chase';tx=clamp(cd.pos.x,-hw+1.1,hw-1.1);tz=1.9;spd=8.5;}
@@ -106,6 +106,7 @@ function dogFrame(dt,time){
   else if(toyTarget()){   // an apple (see 15-wardrobe/02-toys.js): run to where it lies right in front of the lips, like fetching a CD. it only walks forward, otherwise it turns around
     mode='eat';const ap=toyTarget();let a=(ap.x-dog.x)*dog.fd;if(a<-.3){dog.fd=-dog.fd;a=-a;}
     tz=FLOOR_Z;spd=7.5;tx=(dog.eat||a<=DOG_BITE.stand)?dog.x:clamp(ap.x-dog.fd*DOG_BITE.stand,-hw+1.1,hw-1.1);}
+  else if(!dog.eat&&(BP=ballPick())){mode='ball';tx=BP.tx;spd=BP.spd;tz=FLOOR_Z;}   // a ball (see 15-wardrobe/04-ball.js): chase it, nudge it, head it; with two puppies: play catch
   else if(soc&&soc.mode){mode=soc.mode;tx=soc.tx;spd=soc.spd;}   // the other puppy is busy / has left (03-dogs.js)
   else if(jobSpot(rank,dogCount())){const js=jobSpot(rank,dogCount());mode='job';tx=js.x;tz=js.z;spd=5.5;}   // the part-time job set stands: go behind the counter (15-wardrobe/03-job.js)
   else if(tvOn){mode='tv';tx=tv.b.position.x/PXU-1.3-3.4*rank;tz=2.9;spd=5.2;}
@@ -128,7 +129,8 @@ function dogFrame(dt,time){
   let jfinal=mode==='job';
   if(mode!=='lie'){const rt=jobRoute(tx,tz);if(rt){tx=rt[0];tz=rt[1];jfinal=false;}}   // the counter is in the way: round its left end
   dog.mode=mode;
-  if(dog.eat&&mode!=='eat')toyEatCancel();   // something more important came up: the apple stays where it is
+  if(dog.eat&&mode!=='eat')toyEatCancel();
+  if(mode!=='ball'&&dog.play&&dog.play.k){dog.play.k='';dog.play.fl=0;}   // something more important came up: the apple stays where it is
   if(PET.perch){   // pops in and out (a quick scale) instead of running in from the side
     dog.pop+=((dog.leaving?0:1)-dog.pop)*(1-Math.exp(-dt*(dog.leaving?14:8)));
     if(dog.leaving&&dog.pop<.03){dog.present=false;dog.leaving=false;dog.g.visible=false;dog.pop=0;return;}
@@ -151,7 +153,9 @@ function dogFrame(dt,time){
     if(!G.at&&p>=.45&&cd.mode==='floor'){G.at=true;cd.mode='carried';cd.att=0;cd.fp0.copy(cd.pos);Au.click(1.5,.8);}   // snatched: from here on the CD travels with the mouth
     if(p>=1)dog.grab=null;}
   let eatJaw=0;
-  if(mode==='eat'){const E=toyEat(dt,moving,tz,toyTarget());bow=Math.max(bow,E.bow);eatJaw=E.jaw;}   // 2c. the apple: bow, take it into the mouth, chew
+  if(mode==='eat'){const E=toyEat(dt,moving,tz,toyTarget());bow=Math.max(bow,E.bow);eatJaw=E.jaw;}
+  let bPitch=0;
+  if(mode==='ball'){const E=ballDog(dt,moving,tz,BP);bPitch=E.pitch;eatJaw=Math.max(eatJaw,E.jaw);}   // 2d. the ball: bow to it, nudge or head it   // 2c. the apple: bow, take it into the mouth, chew
   /* 3. sit when parked in front of the TV */
   const sitWant=((mode==='tv'||mode==='sitby')&&!moving&&Math.abs(dog.z-tz)<.15)?1:0;
   dog.sit+=(sitWant-dog.sit)*(1-Math.exp(-dt*(sitWant?5:9)));
@@ -165,6 +169,7 @@ function dogFrame(dt,time){
   else if(mode==='job'&&dog.job>.3){ryT=0;}   // behind the counter, facing the customers (= the camera)
   else if(mode==='tv'&&dog.sit>.5){ryT=Math.PI-.4;look=DOGX.v2.set(tv.b.position.x/PXU,-tv.b.position.y/PXU+.3,0);}
   else if(mode==='fetch'||mode==='bring'||mode==='eat'){ryT=dog.fd*1.2;if(mode==='fetch')look=DOGX.v2.set(cd.pos.x,cd.pos.y,cd.pos.z);else if(mode==='eat'){const ap=toyTarget();if(ap)look=DOGX.v2.set(ap.x,ap.y+.3,ap.z);}}
+  else if(mode==='ball'){ryT=dog.fd*1.2;look=DOGX.v2.set(BP.b.x,BP.b.y,BP.b.z);}
   else if(moving)ryT=vx>0?1.2:-1.2;
   else if(mode==='chase'){ryT=clamp(Math.atan2(cd.pos.x-dog.x,4),-1,1);look=DOGX.v2.set(cd.pos.x,cd.pos.y,.8);}
   else if(soc&&soc.look){ryT=clamp(Math.atan2(soc.look.x-dog.x,3.2),-1.2,1.2);look=DOGX.v2.set(soc.look.x,soc.look.y,soc.look.z);}   // watching / glancing at the other puppy
@@ -197,7 +202,7 @@ dog.g.updateMatrixWorld(true);
   const yawT=clamp(Math.atan2(ddx,ddz),-1.25,1.25),pitT=clamp(Math.atan2(ddy,Math.hypot(ddx,ddz)),-.55,.75);
   const kl=1-Math.exp(-dt*(mode==='chase'?14:9));dog.lookYaw+=(yawT-dog.lookYaw)*kl;dog.lookPitch+=(pitT-dog.lookPitch)*kl;
   const playing=status==='playing',bpm=(Au.alb&&Au.alb.bpm)||90,beat=playing?Math.sin(time*Math.PI*bpm/60):0;
-  const happy=Math.max(pw,playing?.55:0,mode==='chase'||mode==='fetch'||mode==='bring'||mode==='eat'||mode==='follow'?1:0,moving?.7:0,eo);
+  const happy=Math.max(pw,playing?.55:0,mode==='chase'||mode==='fetch'||mode==='bring'||mode==='eat'||mode==='ball'||mode==='follow'?1:0,moving?.7:0,eo);
   if(pw>0)dogAdd('Head','u',Math.sin(time*16)*.14*pw);
   dogAdd('Neck','u',dog.lookYaw*.42*(1-eo));dogAdd('Head','u',dog.lookYaw*.58*(1-eo));
   dogAdd('Neck','r',(-dog.lookPitch*.4+beat*.03)*(1-eo));dogAdd('Head','r',(-dog.lookPitch*.6+beat*.05)*(1-eo));
@@ -227,6 +232,7 @@ dog.g.updateMatrixWorld(true);
   dogAdd('UplidL','r',bl*DOG_LID);dogAdd('UplidR','r',bl*DOG_LID);
   dogAdd('Bust','r',Math.sin(time*2.2)*.012);
   dogAdd('jawA','r',(eatJaw>0?eatJaw:(carrying||dog.grab)?jawX:(moving||playing?.12+.08*Math.sin(time*9):0))*DOG_JAW);   // mouth open for the bite, then closed round the rim
+  if(bPitch){dogAdd('Neck','r',.7*bPitch);dogAdd('Head','r',.5*bPitch);dogAdd('Bust','r',.22*bPitch);}
   if(bow>.001){dogAdd('Neck','r',.7*bow);dogAdd('Head','r',.5*bow);dogAdd('Bust','r',.22*bow);}   // bows down to the CD
   /* 9. legs: trot while moving, folded when sitting */
   const g=dog.gait,A=dog.move*.75;

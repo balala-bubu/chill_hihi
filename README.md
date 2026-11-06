@@ -160,6 +160,7 @@ tools/                     build.py（組 index.html）、build_wardrobe.py、va
 - 飾品模型和貼圖放 `models/wardrobe/`（一件飾品可以有多個材質、多張貼圖，例如生日蛋糕帽 `head_l`），新增流程見 `.claude/skills/wardrobe-accessory-import/SKILL.md`（丟 `.dae` 進 `inbox/`，執行 `python3 tools/build_wardrobe.py`）。
 - 單件飾品的大小與位置調 `models/wardrobe/src/<id>/item.json` 的 `fit`，不要動 `slots.json`，免得影響其他物品。
 - **物品排（最下面一排）**：不是穿的，是點一下選起來（下方會出現小提示），再點畫面空白處使用。第一個是蘋果：從點的位置掉下來，蘋果之間會互相堆疊，碰撞時有果凍般的彈跳（物理是 `02-toys.js` 裡自己的一個 matter-js 小世界）；狗會跑過去吃（先吃地上的，上面的會掉下來）（低頭、叼進嘴裡、咬三口）；沒有狗的話 6 秒後消失。再點一次蘋果、點提示上的 ✕ 或按 Esc 取消選取。這一排在 `slots.json` 是 `"tool": true`（沒有骨頭、不能穿，`rowH` 是這排的高度比例），程式在 `src/15-wardrobe/02-toys.js`，狗吃東西的動作在 `src/14-dog/01-dog.js` 的 `mode==='eat'`。新增這類物品：`.dae` 丟進 `inbox/`、`item.json` 的 `slot` 填 `toy`，再到 `toySpawn`／`toyFrame` 補它的行為。
+- **球（物品排第二個）**：點空白處放下，會彈跳、滾動（`src/15-wardrobe/04-ball.js`，和蘋果共用 `02-toys.js` 的 matter-js 小世界，圓形剛體）。**一隻狗**：追著球跑，用鼻子把球推著滾，或低頭把球頂起來再用頭連頂幾下，最後把球頂遠；**兩隻狗**：每一下都是拋給對方的弧線，對方走到球落點下面用頭頂回來（傳接），兩隻自動保持約 7 個單位的距離。玩 14～23 秒會膩（25 秒內不理球），放新球會重新喚醒。狗的部分是 `dogFrame` 的 `mode==='ball'`（`ballPick()` 決定做什麼、`ballDog()` 做動作和擊球）。貼圖 `t_ball.png` 目前是暫代的（原檔 Ball_c.png 沒附），換掉 `models/wardrobe/src/t_ball/t_ball.png` 後跑 `python3 tools/build_wardrobe.py` 即可。測試鉤子：`window.__ball`（`spawn(x,y)`、`BALL`）。
 - **帽子和耳機一次只能戴一個**：戴耳機時帽子自動收回衣櫃，戴帽子時耳機自動摘下。眼鏡、項圈可以和耳機同時戴。
 
 ### 皮克敏（物品排）

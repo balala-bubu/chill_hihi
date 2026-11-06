@@ -224,6 +224,13 @@
       "tex": "items/coller_d.png"
     },
     {
+      "id": "t_ball",
+      "slot": "toy",
+      "name": "球",
+      "mesh": "items/t_ball.json",
+      "tex": "items/t_ball.png"
+    },
+    {
       "id": "t_fg_apple",
       "slot": "toy",
       "name": "蘋果",
