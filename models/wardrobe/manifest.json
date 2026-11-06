@@ -229,6 +229,13 @@
       "name": "蘋果",
       "mesh": "items/t_fg_apple.json",
       "tex": "items/t_fg_apple.png"
+    },
+    {
+      "id": "t_fg_pear",
+      "slot": "toy",
+      "name": "梨子",
+      "mesh": "items/t_fg_pear.json",
+      "tex": "items/t_fg_pear.png"
     }
   ]
 }
