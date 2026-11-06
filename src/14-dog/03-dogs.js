@@ -153,7 +153,7 @@ function dogsFrame(dt,time){
     /* two puppies never stand inside each other: the idle one gives way */
     const on=DOGS.list.filter(I=>I.st.present&&!I.st.leaving);
     if(on.length===2&&!(on[0].st.mode==='job'&&on[1].st.mode==='job')){const [a,b]=on,A=a.st,B=b.st,ov=2.6-Math.abs(A.x-B.x);   // (two puppies at the counter stand close side by side)
-      if(ov>0){const busy=s=>s.lie.s!=='none'||s.mode==='fetch'||s.mode==='bring'||s.mode==='eat'||s.mode==='chase';
+      if(ov>0){const busy=s=>s.lie.s!=='none'||s.mode==='fetch'||s.mode==='bring'||s.mode==='eat'||s.mode==='chase'||s.mode==='ball';
         const dir=A.x>=B.x?1:-1,k=Math.min(1,dt*4)*ov;
         if(busy(A)&&!busy(B))B.x-=dir*k;else if(busy(B)&&!busy(A))A.x+=dir*k;else{A.x+=dir*k*.5;B.x-=dir*k*.5;}}}
     DOGS.list=DOGS.list.filter(I=>I.pend||I.st.present);

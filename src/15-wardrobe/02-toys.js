@@ -50,6 +50,7 @@ function toyBodyAdd(a,x,y){
   b.apple=a;a.body=b;Composite.add(TOY.eng.world,b);return b;
 }
 function toySpawn(it,x,y){
+  if(it.id==='t_ball'){ballSpawn(it,x,y);return;}   // the ball (15-wardrobe/04-ball.js)
   if(it.id==='t_job'){if(jobSpawn(x,y)){TOY.sel=null;toyChip();}return;}   // the part-time job set (15-wardrobe/03-job.js): not an apple
   const g=it.geo;if(!g.boundingBox)g.computeBoundingBox();const b=g.boundingBox,k=TOY.H/(b.max.y-b.min.y);
   const mat=TOY.mats[it.id]||(TOY.mats[it.id]=(()=>{const m=it.mat.clone();m.transparent=false;m.depthWrite=true;m.alphaTest=.02;return m;})());   // the texture is fully opaque: no sorting trouble
@@ -99,7 +100,7 @@ function toyFrame(dt,time){
   try{pkFrame(dt);}catch(e){if(!PK.err){PK.err=1;console.warn('pikmin',e);}}
   if(!PHYS||!TOY.eng)return;
   const can=toyDogCan();toyBounds();
-  if(TOY.apples.some(a=>a.body)){TOY.acc+=Math.min(dt,.05);let n=0;while(TOY.acc>=1/120&&n<6){Engine.update(TOY.eng,1000/120);TOY.acc-=1/120;n++;}}else TOY.acc=0;
+  if(TOY.apples.some(a=>a.body)||BALL.list.length){TOY.acc+=Math.min(dt,.05);let n=0;while(TOY.acc>=1/120&&n<6){Engine.update(TOY.eng,1000/120);TOY.acc-=1/120;n++;}}else TOY.acc=0;
   for(let i=TOY.apples.length-1;i>=0;i--){
     const a=TOY.apples[i];a.t+=dt;
     if(a.body){
@@ -120,4 +121,5 @@ function toyFrame(dt,time){
     const h=Math.max(0,a.y-TOY.R-FLOOR_Y),lift=a.st==='eat'?clamp(h/1.5,0,1):0,sz=TOY.H*1.35/(1+h*.22)*(1-lift)*fade*appear*a.r;
     a.sh.visible=sz>.01&&h<3;a.sh.position.set(a.x,FLOOR_Y+.012,a.z);a.sh.scale.set(Math.max(.001,sz),1,Math.max(.001,sz*.55));
   }
+  try{ballFrame(dt,time);}catch(e){if(!BALL.err){BALL.err=1;console.warn('ball',e);}}
 }
