@@ -4,11 +4,11 @@
    With TWO puppies out they play catch: every hit is a lob to the other puppy, which walks under it, heads it back, and so on. They keep about BALL.S between them.
    After 14-23 seconds a puppy gets bored (25 s) and goes back to its normal things; dropping a new ball wakes them up.
    Dog side: dogFrame calls ballPick() (what should I do?) and, in mode 'ball', ballDog() (animation + the actual hit). Units: world units / seconds; matter velocity is px per 1/60 s, BALL.K converts. */
-const BALL={list:[],R:.5,MAX:3,LIFE:9,K:60/PXU,mats:{},err:0,sndT:0,S:7.4};
+const BALL={held:null,list:[],R:.5,MAX:3,LIFE:9,K:60/PXU,mats:{},err:0,sndT:0,S:7.4};
 const ballG=()=>TOY.eng?TOY.eng.gravity.y*TOY.eng.gravity.scale*1e6/PXU:26;   // gravity in world units per second squared
 const ballVel=b=>({x:b.body.velocity.x*BALL.K,y:-b.body.velocity.y*BALL.K});
 function ballSpawn(it,x,y){
-  if(!PHYS||!TOY.eng)return;
+  if(!PHYS||!TOY.eng)return null;
   const g=it.geo;if(!g.boundingBox)g.computeBoundingBox();const bb=g.boundingBox,k=BALL.R*2/(bb.max.y-bb.min.y);
   const mat=BALL.mats[it.id]||(BALL.mats[it.id]=(()=>{const m=it.mat.clone();m.transparent=false;m.depthWrite=true;m.alphaTest=.02;return m;})());
   const m=new T.Mesh(g,mat);m.scale.setScalar(k);m.position.set(-(bb.min.x+bb.max.x)/2*k,-(bb.min.y+bb.max.y)/2*k,-(bb.min.z+bb.max.z)/2*k);   // pivot = the middle of the ball
@@ -22,6 +22,7 @@ function ballSpawn(it,x,y){
   Body.setVelocity(body,{x:(Math.random()-.5)/BALL.K*.8,y:0});Body.setAngularVelocity(body,(Math.random()-.5)*.1);
   BALL.list.push(b);Au.click(1.6,.4);
   for(const I of DOGS.list){const s=DS(I);s.ballBored=0;s.ballSince=0;}   // a new ball wakes everybody up
+  return b;
 }
 function ballRemove(b){
   if(b.body){Composite.remove(TOY.eng.world,b.body);b.body=null;}
@@ -57,7 +58,7 @@ function ballPick(){
   const me=DOGS.me,bu=ballBuddy(),buI=bu&&DOGS.list.find(o=>o!==me&&DS(o)===bu),MD=DOG_BITE.mz*dog.scale,hw=L.hw;
   let sb=null,ss=1e9,wb=null,ws=1e9,sp=null;
   for(const b of BALL.list){
-    if(b.t<.25)continue;
+    if(b.t<.25||b.held)continue;
     const pr=ballPred(b),dm=Math.abs(pr.x-dog.x)-(b.own===me?1.2:0);
     let wait=false;
     if(bu){
@@ -125,12 +126,13 @@ function ballFrame(dt,time){
   const can=toyDogCan(),lim=L.hw-.15-BALL.R,fl=FLOOR_Y+.02+BALL.R;
   for(let i=BALL.list.length-1;i>=0;i--){
     const b=BALL.list[i];b.t+=dt;
+    if(b.held){const H=BALL.held,fl2=FLOOR_Y+.02+BALL.R;b.x=clamp(H.x,-lim,lim);b.y=Math.max(H.y,fl2);Body.setPosition(b.body,{x:mxp(b.x),y:myp(b.y)});Body.setVelocity(b.body,{x:0,y:0});Body.setAngularVelocity(b.body,0);b.calm=0;b.left=BALL.LIFE;b.air=true;b.vx=b.vy=0;}
     const p=b.body.position;let x=p.x/PXU,y=-p.y/PXU;
     if(Math.abs(x)>lim+.3||y<fl-.4){x=clamp(x,-lim,lim);y=Math.max(y,fl);Body.setPosition(b.body,{x:mxp(x),y:myp(y)});}   // safety: never outside the room
     b.x=x;b.y=y;const v=ballVel(b);b.vx=v.x;b.vy=v.y;
-    const h=y-BALL.R-FLOOR_Y;b.air=h>.22&&(Math.abs(v.y)>.8||h>.5);
+    const h=y-BALL.R-FLOOR_Y;if(!b.held)b.air=h>.22&&(Math.abs(v.y)>.8||h>.5);
     if(!b.air&&Math.hypot(v.x,v.y)<.4&&Math.abs(b.body.angularVelocity)<.03)b.calm+=dt;else b.calm=0;
-    if(can)b.left=BALL.LIFE;
+    if(can||b.held)b.left=BALL.LIFE;
     else if(b.calm>.5){b.left-=dt;if(b.left<=0){ballRemove(b);continue;}}   // nobody to play with: gone after a while
     for(let k=0;k<2;k++){const hh=dt/2;b.jv+=(-300*b.j-9*b.jv)*hh;b.j+=b.jv*hh;}   // jelly spring, same as the apples
     b.j=clamp(b.j,-.25,.3);
@@ -141,4 +143,44 @@ function ballFrame(dt,time){
     b.sh.visible=sz>.01&&h<3;b.sh.position.set(b.x,FLOOR_Y+.012,b.z);b.sh.scale.set(Math.max(.001,sz),1,Math.max(.001,sz*.55));
   }
 }
-window.__ball={BALL,ballSpawn,ballG,ballVel,ballPred,TOY,spawn:(x,y)=>ballSpawn(W.items.t_ball,x,y)};   // test hook
+window.__ball={BALL,ballAt,ballGrab,ballSpawn,ballG,ballVel,ballPred,TOY,spawn:(x,y)=>ballSpawn(W.items.t_ball,x,y)};   // test hook
+
+/* ---------- picking the ball up: grab it, carry it, let go (a flick throws it); let go over the cabinet / right edge and it is put away ---------- */
+function ballAt(e){   // the ball under the pointer (nearest to the camera first)
+  const r=cvs.getBoundingClientRect();JOB.nd.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);JOB.rc.setFromCamera(JOB.nd,cam);
+  let best=null,bd=1e9;
+  for(const b of BALL.list){if(b.t<.15)continue;const h=JOB.rc.intersectObject(b.g,true)[0];if(h&&h.distance<bd){bd=h.distance;best=b;}}
+  return best;
+}
+function ballGrab(b,e,id){   // also used when a ball is dragged straight out of the cabinet
+  const q=(setNDC(e),planeHit(b.z));if(!q)return;
+  b.held=true;BALL.held={b,ox:b.x-q.x,oy:b.y-q.y,x:b.x,y:b.y,vx:0,vy:0,t:performance.now(),id};
+  b.last=null;b.own=null;Au.click(1.5,.4);buzz(6);cvs.style.cursor='grabbing';
+}
+function ballHeldMove(e){
+  const H=BALL.held;if(!H)return;
+  setNDC(e);const q=planeHit(H.b.z);if(!q)return;
+  const nx=q.x+H.ox,ny=q.y+H.oy,now=performance.now(),dt=Math.max(.008,(now-H.t)/1000);
+  H.vx=lerp(H.vx,(nx-H.x)/dt,.5);H.vy=lerp(H.vy,(ny-H.y)/dt,.5);H.x=nx;H.y=ny;H.t=now;
+}
+function ballLetGo(e){
+  const H=BALL.held;if(!H)return;BALL.held=null;const b=H.b;b.held=false;
+  try{cvs.releasePointerCapture(H.id);}catch(_){}
+  cvs.style.cursor='default';
+  if(e&&jobOverCabinet(e)){ballRemove(b);Au.click(1.1,.45);buzz(8);return;}   // put away
+  if(!b.body)return;
+  const k=performance.now()-H.t>90?0:1,vx=clamp(H.vx*k,-22,22),vy=clamp(H.vy*k,-22,22);
+  Body.setVelocity(b.body,{x:vx/BALL.K,y:-vy/BALL.K});b.air=true;b.jv+=.8;b.jn.x=b.jn.y=.6;
+  for(const I of DOGS.list){const s=DS(I);s.ballBored=0;s.ballSince=0;}
+}
+cvs.addEventListener('pointerdown',e=>{
+  if(e.button>0||BALL.held||!BALL.list.length||W.drag||W.sd||pd||busy)return;
+  const b=ballAt(e);if(!b)return;
+  const I=typeof dogWhoAt==='function'?dogWhoAt(e.clientX,e.clientY):null;if(I&&DS(I).z>b.z+1.1)return;   // a puppy standing in front of it gets the click
+  e.stopImmediatePropagation();e.stopPropagation();try{cvs.setPointerCapture(e.pointerId);}catch(_){}
+  ballGrab(b,e,e.pointerId);
+},{capture:true});
+cvs.addEventListener('pointermove',e=>{if(BALL.held){e.stopImmediatePropagation();ballHeldMove(e);cvs.style.cursor='grabbing';}},{capture:true});
+cvs.addEventListener('pointerup',e=>{if(BALL.held){e.stopImmediatePropagation();ballLetGo(e);}},{capture:true});
+cvs.addEventListener('pointercancel',e=>{if(BALL.held)ballLetGo(null);},{capture:true});
+cvs.addEventListener('pointermove',e=>{if(!BALL.held&&!JOB.held&&!TOY.sel&&!W.drag&&!pd&&BALL.list.length&&ballAt(e))cvs.style.cursor='grab';});

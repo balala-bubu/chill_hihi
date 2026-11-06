@@ -13,7 +13,7 @@ const toyDogCan=()=>dog.ready&&dogAnyOn()&&!PET.perch&&!PET.mini;
 function toyBlank(e){
   if(!TOY.sel||!PHYS||PET.mini||busy||pd||W.drag||W.sd||(state!=='home'&&state!=='stage'))return false;
   setNDC(e);
-  if(pick()||wPick(e.clientX,e.clientY)||onShelf()||dogHit(e.clientX,e.clientY)||jobHit(e))return false;
+  if(pick()||wPick(e.clientX,e.clientY)||onShelf()||dogHit(e.clientX,e.clientY)||jobHit(e)||ballAt(e))return false;
   const q=planeHit(0);if(W.vis>.3&&q&&q.x>W.root.position.x-W.Wc/2)return false;
   return true;
 }
