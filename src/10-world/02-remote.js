@@ -1,12 +1,14 @@
 /* ---------- the remote control ---------- */
 const RW=.95,RH=2.6;
-const rem={g:new T.Group(),body:null,btn:[],ic:[],hit:[],lit:[false,false,false,false],z:2.6,pressTok:[0,0,0,0]};
-const RB=['tv','shake','phones','plug'],RBP=[[-.215,.7],[.215,.7],[-.215,.2],[.215,.2]];
+const rem={g:new T.Group(),body:null,btn:[],ic:[],hit:[],lit:[false,false,false,false,false],z:2.6,pressTok:[0,0,0,0,0]};
+const RB=['tv','shake','phones','plug','clock'],RBP=[[-.215,.7],[.215,.7],[-.215,.2],[.215,.2],[0,-.3]];
 function remIconTex(kind,lit){return mkTex(128,128,(x,w)=>{const c=w/2;x.strokeStyle=x.fillStyle=lit?'#ee5a2c':'#3a3d41';x.lineWidth=9;x.lineCap=x.lineJoin='round';
   if(kind==='tv'){x.beginPath();x.roundRect?x.roundRect(c-38,c-22,76,54,12):x.rect(c-38,c-22,76,54);x.stroke();x.beginPath();x.moveTo(c-18,c-26);x.lineTo(c-30,c-46);x.moveTo(c+18,c-26);x.lineTo(c+30,c-46);x.stroke();}
   else if(kind==='shake'){x.beginPath();x.moveTo(c-40,c-18);x.lineTo(c-22,c+18);x.lineTo(c,c-18);x.lineTo(c+22,c+18);x.lineTo(c+40,c-18);x.stroke();}
   else if(kind==='phones'){x.beginPath();x.arc(c,c+4,34,Math.PI,TAU);x.stroke();   // headphones: band over the top, two ear cups
     x.beginPath();x.roundRect?x.roundRect(c-45,c+2,18,34,7):x.rect(c-45,c+2,18,34);x.fill();x.beginPath();x.roundRect?x.roundRect(c+27,c+2,18,34,7):x.rect(c+27,c+2,18,34);x.fill();}
+  else if(kind==='clock'){x.beginPath();x.arc(c,c+2,34,0,TAU);x.stroke();x.beginPath();x.moveTo(c,c+2);x.lineTo(c,c-18);x.moveTo(c,c+2);x.lineTo(c+15,c+10);x.stroke();   // clock face with two hands
+    x.beginPath();x.moveTo(c-20,c-38);x.lineTo(c-30,c-30);x.moveTo(c+20,c-38);x.lineTo(c+30,c-30);x.stroke();}   // + the two little alarm bells
   else{ /* dog face as a solid silhouette: floppy ears, round head, eyes + nose cut out */
     const ear=s=>{x.beginPath();x.moveTo(c+s*15,c-19);x.quadraticCurveTo(c+s*50,c-26,c+s*45,c+16);x.quadraticCurveTo(c+s*43,c+38,c+s*31,c+33);x.quadraticCurveTo(c+s*23,c+17,c+s*21,c-6);x.closePath();x.fill();};
     ear(-1);ear(1);
@@ -21,8 +23,8 @@ const remTexN=RB.map(k=>remIconTex(k,false)),remTexL=RB.map(k=>remIconTex(k,true
   const rb=new T.Mesh(rrBox(RW,RH,.24,.3,.05),remM);rb.castShadow=true;rb.userData.phys='rem';rem.g.add(rb);rem.hit.push(rb);
   const lab=new T.Mesh(new T.PlaneGeometry(RW-.06,RH-.06),new T.MeshBasicMaterial({transparent:true,toneMapped:false,map:mkTex(190,520,(x,w,h)=>{
     x.fillStyle='#6a7076';x.font='700 15px '+MONO;x.textAlign='center';x.textBaseline='middle';
-    RBP.forEach((p,i)=>x.fillText(['TV','SHAKE','BT','DOG'][i],w/2+p[0]*200,(1.3-(p[1]-.3))*200));
-    x.fillStyle='#b4b7bb';for(let r=0;r<4;r++)for(let c=0;c<5;c++){x.beginPath();x.arc(w/2+(c-2)*20,350+r*20,4.2,0,TAU);x.fill();}
+    RBP.forEach((p,i)=>x.fillText(['TV','SHAKE','BT','DOG','CLK'][i],w/2+p[0]*200,(1.3-(p[1]-.3))*200));
+    x.fillStyle='#b4b7bb';for(let r=0;r<3;r++)for(let c=0;c<5;c++){x.beginPath();x.arc(w/2+(c-2)*20,424+r*18,4.2,0,TAU);x.fill();}
     x.fillStyle='#8d9399';x.font='700 12px '+MONO;x.fillText('BalaBuBu',w/2,h-26);x.font='500 9px '+MONO;x.fillText('REMOTE · MT-1',w/2,h-12);
     x.fillStyle='#ee5a2c';x.beginPath();x.arc(w/2,52,7,0,TAU);x.fill();})}));
   lab.position.z=.123;lab.userData.phys='rem';rem.g.add(lab);rem.hit.push(lab);

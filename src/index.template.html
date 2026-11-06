@@ -138,6 +138,38 @@ html.pet-embed #petDogBtn{display:grid;position:fixed;left:8px;bottom:8px;z-inde
 html.pet-embed #petDogBtn:hover,html.pet-embed #petDogBtn[aria-pressed="true"]{opacity:1}
 /* while nothing needs the picture, YouTube plays in a small player so it picks a low-resolution stream (set from petFrame) */
 #ytbox.lite #ytp,#ytbox.lite iframe{left:0;width:320px;height:180px}
+/* pixel clock: stuck to the bottom-left of the screen, above everything. Same recipe as the player: frosted matte body (soft top-to-bottom falloff, lit rim top/left, shaded rim bottom/right, fine grain), glossy orange key, dark OLED behind a glass pane (scanlines, pixel columns, diagonal glare) */
+#clockW{position:fixed;left:max(18px,env(safe-area-inset-left,0px));bottom:max(18px,env(safe-area-inset-bottom,0px));z-index:12;width:178px;padding:12px 13px 14px;border-radius:32px;border:1px solid rgba(255,255,255,.85);background:linear-gradient(180deg,#f4f5f6 0%,#e7e9eb 45%,#d8dbde 100%);box-shadow:inset 2px 2px 0 rgba(255,255,255,.8),inset -2px -3px 0 rgba(60,66,76,.2),0 5px 0 #aeb3b9,0 18px 26px rgba(45,48,51,.3);font:600 11px/1 "JetBrains Mono",ui-monospace,"PingFang TC",sans-serif;color:var(--ink);-webkit-user-select:none;user-select:none;touch-action:manipulation;transform-origin:0 100%;transition:opacity .22s,transform .38s cubic-bezier(.2,.9,.3,1.25),visibility 0s .38s}
+#clockW::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.55;mix-blend-mode:multiply;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 .25  0 0 0 0 .27  0 0 0 0 .3  0 0 0 .2 0'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>")}
+#clockW:not(.on){opacity:0;visibility:hidden;pointer-events:none;transform:translate(-26px,26px) scale(.55)}
+#clockW.on{transition:opacity .22s,transform .38s cubic-bezier(.2,.9,.3,1.25)}
+/* the keys feel like the player's: they drop the instant you press and spring back past rest (same overshoot as the 3D keys), the face flashes, the body dips a hair */
+#clockW .k3{transition:transform .34s cubic-bezier(.34,1.8,.5,1),box-shadow .34s cubic-bezier(.34,1.8,.5,1),background .2s}
+#clockW .k3:active{transition:transform .035s ease-out,box-shadow .035s ease-out}
+#clockW .k3:hover{transform:translateY(-1px)}
+#clockW .k3:active,#clockW .k3.on{transform:translateY(calc(var(--lift) - 1px))}
+#ckGo{flex:1;height:34px!important;border-radius:12px!important;--lift:5px;--foot:#9d2c0c}
+#ckGo svg{display:block;margin:auto;width:18px;height:18px;fill:#fff;filter:drop-shadow(0 1px 0 rgba(120,30,5,.45))}
+#ckGo.run{box-shadow:0 var(--lift) 0 var(--foot),0 calc(var(--lift) + 5px) 12px rgba(45,48,51,.28),inset 0 1px 0 rgba(255,255,255,.7),0 0 16px 3px rgba(255,120,70,.6)}
+#ckGo:active{box-shadow:0 1px 0 var(--foot),0 3px 5px rgba(45,48,51,.3),inset 0 2px 5px rgba(120,30,5,.4)}
+#clockW.on.press{transform:translateY(2px);transition:transform .035s ease-out}
+#ckFace{transition:filter .35s ease-out}#ckFace.hit{filter:brightness(1.45);transition:filter .03s}
+#ckTop{display:flex;align-items:center;gap:6px;margin-bottom:11px}
+#ckSeg{display:flex;flex:1;gap:3px;padding:3px;border-radius:12px;background:rgba(60,66,76,.12);box-shadow:inset 0 1px 3px rgba(45,48,51,.22)}
+#ckSeg .k3{flex:1;height:22px;padding:0;border-radius:9px;font:600 10px/1 "JetBrains Mono",ui-monospace,"PingFang TC",sans-serif;--lift:2px;color:var(--mute)}
+#ckSeg .k3.on{color:var(--ink)}
+#ckReset{flex:0 0 28px;height:28px;padding:0;border-radius:10px;font:600 15px/1 "JetBrains Mono",ui-monospace,sans-serif;--lift:3px}
+#ckReset[disabled]{opacity:.4;pointer-events:none}
+#ckX{flex:0 0 18px;width:18px;height:28px;padding:0;border:0;background:none;color:var(--mute);font:600 14px/28px "JetBrains Mono",ui-monospace,sans-serif;opacity:.45;cursor:pointer}
+#ckX:hover{opacity:1}
+#ckFace{position:relative;width:150px;height:150px;margin:0 auto;border-radius:50%;background:#101112;box-shadow:0 0 0 5px #cfd2d6,0 0 0 6px rgba(255,255,255,.9),inset 0 3px 8px rgba(0,0,0,.7),0 2px 0 6px rgba(60,66,76,.18);overflow:hidden}
+#ckFace canvas{display:block;width:150px;height:150px}
+#ckFace::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;background:linear-gradient(125deg,rgba(255,255,255,.2) 0%,rgba(255,255,255,.04) 34%,rgba(255,255,255,0) 35%),repeating-linear-gradient(0deg,rgba(255,255,255,.06) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px);box-shadow:inset 0 0 14px rgba(0,0,0,.55)}
+#ckRow{display:flex;gap:7px;margin-top:14px;align-items:center}
+#ckRow .k3{height:28px;padding:0;border-radius:9px;font:600 11px/1 "JetBrains Mono",ui-monospace,"PingFang TC",sans-serif;--lift:3px;letter-spacing:.04em}
+#ckM,#ckP{flex:0 0 38px}
+#ckRow .k3[disabled]{opacity:.4;pointer-events:none}
+html.pet #clockW{display:none}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -185,6 +217,11 @@ html.pet-embed #petDogBtn:hover,html.pet-embed #petDogBtn[aria-pressed="true"]{o
       <button id="pbVp" class="k3" type="button" aria-label="音量加">＋</button>
     </div>
   </div>
+</div>
+<div id="clockW" role="group" aria-label="時鐘與番茄鐘">
+  <div id="ckTop"><div id="ckSeg"><button id="ckSegC" class="k3 on" type="button" aria-label="時鐘">時鐘</button><button id="ckSegP" class="k3" type="button" aria-label="番茄鐘">番茄鐘</button></div><button id="ckReset" class="k3" type="button" aria-label="重置番茄鐘" title="重置">↺</button><button id="ckX" type="button" aria-label="關閉時鐘">×</button></div>
+  <div id="ckFace"><canvas id="ckCv" width="150" height="150"></canvas></div>
+  <div id="ckRow"><button id="ckM" class="k3" type="button" aria-label="減少時間">−</button><button id="ckGo" class="k3 hot" type="button" aria-label="開始"></button><button id="ckP" class="k3" type="button" aria-label="增加時間">＋</button></div>
 </div>
 <div id="ytbox" aria-hidden="true"><div id="ytp"></div></div>
 <div id="err" hidden>這個瀏覽器無法啟動 WebGL，沒辦法顯示 3D 播放器。</div>
