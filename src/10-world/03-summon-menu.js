@@ -1,13 +1,13 @@
 /* ---------- the summon menu: hover the dog button (3) or the TOON button (5) on the remote and pick WHO comes; hover the BG button (1) and pick WHERE ----------
    A small card with one thumbnail per puppy / character (models/thumbs/v<N>.png, made by tools/render_thumbs.py). Click a tile: that one walks in (or, if it is already out, leaves).
-   The TOON menu also has a "three friends" tile (chiikawa + hachiware + usagi together; toad is only picked on his own). Highlighted tiles are the ones that are out now. Pressing the remote button works as before.
+   The TOON menu also has a "three friends" tile (chiikawa + hachiware + usagi together; toad and stitch are only picked on their own). Highlighted tiles are the ones that are out now. Pressing the remote button works as before.
    The BG menu lists the backgrounds (models/thumbs/bg<N>.png): click one to switch to it (it is highlighted while shown; click it again to turn the background off). The BG button itself
    only switches the background on/off (the last one picked, the meadow at first). A new background = one more tile in SM.tiles[1] plus its scene in BG.scenes (04-scenery.js).
    The menu opens after the pointer has rested on the button for a moment and stays while the pointer is on the button or on the menu. */
 const SM={el:null,btn:-1,want:-1,showT:0,hideT:0,over:false,sync:0,
   tiles:{
     3:[{v:0,n:'米格魯'},{v:1,n:'柴犬'},{v:2,n:'巴哥'},{v:3,n:'吉娃娃'},{v:4,n:'哈士奇'}],
-    5:[{v:5,n:'皮卡丘'},{v:6,n:'吉伊卡哇'},{v:7,n:'小八'},{v:8,n:'烏薩奇'},{v:9,n:'奇諾比奧'},{g:[6,7,8],n:'三隻一組'}]},
+    5:[{v:5,n:'皮卡丘'},{v:6,n:'吉伊卡哇'},{v:7,n:'小八'},{v:8,n:'烏薩奇'},{v:9,n:'奇諾比奧'},{v:10,n:'史迪奇'},{g:[6,7,8],n:'三隻一組'}]},
   title:{1:'背景',3:'狗狗',5:'卡通人物'}};
 SM.tiles[1]=[{m:1,n:'草地',img:'bg1'},{m:2,n:'咖啡廳',img:'bg2'},{m:3,n:'博物館',img:'bg3'},{m:4,n:'月亮',img:'bg4'},{m:5,n:'劇場',img:'bg5'}];   // m = BG.mode (04-scenery.js)
 const smOn=t=>t.m?BG.mode===t.m:t.g?t.g.some(dogOut):dogOut(t.v);

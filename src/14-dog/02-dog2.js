@@ -2,8 +2,8 @@
    The dog button brings the puppies in turn: 1st press -> puppy A, next press (when none is out) -> puppy B, then C, then D, then E, then F, then A again ...; a long press brings the next two.
    Every puppy has its own model group and state (03-dogs.js); they all run the same behaviour code (dogFrame). A variant is the skinned model, the bone table
    (dog1's bone names -> this model's joints), a few pose numbers, and which wardrobe outfit is on (each puppy keeps its own, localStorage key per variant). */
-const DV={cur:0,v:[null,null,null,null,null,null,null,null,null,null],KEY:'chill_hihi.dogNext',NDOG:5,   // variants 0..NDOG-1 are the puppies (the dog button's rotation); 5.. are the cartoon characters (the TOON button: 5 = pikachu, then 6/7/8/9 = chiikawa / hachiware / usagi / toad together)
-  WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3','chill_hihi.wear4','chill_hihi.wear5','chill_hihi.wear6','chill_hihi.wear7','chill_hihi.wear8','chill_hihi.wear9','chill_hihi.wear10'],
+const DV={cur:0,v:[null,null,null,null,null,null,null,null,null,null,null],KEY:'chill_hihi.dogNext',NDOG:5,   // variants 0..NDOG-1 are the puppies (the dog button's rotation); 5.. are the cartoon characters (the TOON button: 5 = pikachu, then 6/7/8/9/10 = chiikawa / hachiware / usagi / toad / stitch)
+  WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3','chill_hihi.wear4','chill_hihi.wear5','chill_hihi.wear6','chill_hihi.wear7','chill_hihi.wear8','chill_hihi.wear9','chill_hihi.wear10','chill_hihi.wear11'],
   base:null,   // pose numbers of puppy A, to restore
   /* per-puppy numbers, index = variant (0 = puppy A, kept in DV.base). Each entry:
      map  how its joints answer dog1's bone names (null = not driven)
@@ -67,6 +67,13 @@ DV.P[9]=Object.assign({},HUMANOID,{rad:1.3,tvGap:3,hit:{C:[0,26,-2],R:[24,28,22]
   bite:{mx:0,my:15,mz:14,stand:1.15},
   brow:[0,25,10],hpMark:[23,11.5,-3],   // the painted eyes sit at x=+-7, y=25, z=9..10 (K=50); the headphone cups go under the cap at the sides of the face
   fit:{hat:{pos:[0,23,-3],s:1.5},glasses:{pos:[0,0,2],s:1.25},hp:{pos:[0,0,0]}}});
+/* stitch (models/stitch.*, from models/stitch/src/Stitch_rigged.dae by tools/build_stitch.py): a rigid-part skeleton collapsed to the same 12-joint names (arms, legs, head, big ears, a tail nub, the body blended
+   between hip / waist / chest), so he moves like chiikawa (HUMANOID) and his ears flap like usagi's. Four painted pixel textures (head, belly, skin, eyes; meta.tex), skin + head are double sided (the ears are flat sheets).
+   Big head and thin T-pose arms (lowered in the converter); K=4.2 so he is about as tall as the others, the ears reach x=+-37. All numbers are first guesses: tune after looking at it. */
+DV.P[10]=Object.assign({},HUMANOID,{map:Object.assign({LearA:'Lear1',RearA:'Rear1'},HUMANOID.map),ak:{Neck:.8,Head:.8,Bust:1,LearA:.5,RearA:.5},rad:1.4,tvGap:3,hit:{C:[0,24,0],R:[22,30,20]},
+  bite:{mx:0,my:14,mz:14,stand:1.15},
+  brow:[0,41,12],hpMark:[12.5,9.5,-.5],   // eyes at y~38..46, z~12 (K=4.2); the headphone cups (head space) sit on the sides of the head under the ears
+  fit:{hat:{pos:[0,2,0],s:1.3},glasses:{pos:[0,1,6],s:1.1},hp:{pos:[0,0,0]},collar:{no:true}}});   // collar:{no:true} = he does not wear the collar (it looked sideways on him)
 DV.P[5].rad=1;DV.P[5].tvGap=2.8;
 function dogVarReg0(){   // called by loadDog when puppy A is built
   DV.v[0]={bones:dog.bones,mouthL:dog.mouthL,fix:dog.fix,footLift:dog.footLift,ak:undefined,fitAdj:undefined,ready:true};
@@ -104,6 +111,7 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
       const [ta,th,te]=await Promise.all([lt('models/'+name+'_all.png'),lt('models/'+name+'_hand.png'),lt('models/'+name+'_eye.png')]);
       mats={[name+'_all']:mk(ta),[name+'_hand']:mk(th),[name+'_eye']:mk(te)};
     }
+    if(meta.double)meta.double.forEach(k=>{if(mats[k])mats[k].side=T.DoubleSide;});   // flat sheets (ears, hair) seen from both sides
     const attr=(m,k,Arr)=>{const a=m.attrs[k];return new T.BufferAttribute(new Arr(buf,a.off,a.count*a.size),a.size);};
     const byNode=new Map(meta.meshes.map(m=>[m.node,m]));
     const objs=meta.nodes.map((n,i)=>{
@@ -147,3 +155,4 @@ loadDogV(6,'chiikawa');
 loadDogV(7,'hachiware');
 loadDogV(8,'usagi');
 loadDogV(9,'toad');
+loadDogV(10,'stitch');
