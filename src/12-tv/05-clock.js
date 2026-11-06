@@ -9,7 +9,7 @@ const CK_G3={'0':'111,101,101,101,111','1':'010,110,010,010,111','2':'111,001,11
  '/':'001,001,010,100,100',':':'000,010,000,010,000','-':'000,000,111,000,000',' ':'000,000,000,000,000',
  A:'111,101,111,101,101',B:'110,101,110,101,110',C:'111,100,100,100,111',D:'110,101,101,101,110',E:'111,100,110,100,111',F:'111,100,110,100,100',H:'101,101,111,101,101',I:'111,010,010,010,111',K:'101,101,110,101,101',M:'101,111,111,101,101',N:'110,101,101,101,101',O:'111,101,101,101,111',P:'111,101,111,100,100',R:'110,101,110,101,101',S:'111,100,111,001,111',T:'111,010,010,010,010',U:'101,101,101,101,111',W:'101,101,111,111,101'};
 const CK_DAY=['SUN','MON','TUE','WED','THU','FRI','SAT'];
-const ckEl={w:document.getElementById('clockW'),face:document.getElementById('ckFace'),cv:document.getElementById('ckCv'),go:document.getElementById('ckGo'),x:document.getElementById('ckX'),m:document.getElementById('ckM'),p:document.getElementById('ckP'),segC:document.getElementById('ckSegC'),segP:document.getElementById('ckSegP'),reset:document.getElementById('ckReset')};
+const ckEl={w:document.getElementById('clockW'),face:document.getElementById('ckFace'),cv:document.getElementById('ckCv'),go:document.getElementById('ckGo'),x:document.getElementById('ckX'),m:document.getElementById('ckM'),p:document.getElementById('ckP'),seg:document.getElementById('ckSeg'),thumb:document.getElementById('ckThumb'),segC:document.getElementById('ckSegC'),segP:document.getElementById('ckSegP'),reset:document.getElementById('ckReset')};
 const CK_PLAY='<svg viewBox="0 0 24 24"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg>',CK_PAUSE='<svg viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1.4"/><rect x="14" y="4" width="5" height="16" rx="1.4"/></svg>';
 const ckCtx=ckEl.cv.getContext('2d'),CK_DPR=Math.min(window.devicePixelRatio||1,2);
 ckEl.cv.width=ckEl.cv.height=150*CK_DPR;
@@ -50,7 +50,8 @@ function ckDraw(){
   if(pomo&&ck.run){x.fillStyle='#ee5a2c';x.shadowColor='rgba(238,90,44,.9)';x.shadowBlur=8;x.fillRect(71,108,8,8);x.shadowBlur=0;}   // the same orange "playing" square the player shows
 }
 function ckUI(){   // buttons follow the state: the selected mode segment stays pressed in, the big key shows what it will do next
-  const pomo=ck.mode==='pomo';ckEl.segC.classList.toggle('on',!pomo);ckEl.segP.classList.toggle('on',pomo);
+  const pomo=ck.mode==='pomo',m=pomo?'p':'c';ckEl.segC.classList.toggle('on',!pomo);ckEl.segP.classList.toggle('on',pomo);
+  if(ckEl.seg.dataset.m!==m){ckEl.seg.dataset.m=m;if(ckEl.w.classList.contains('on')){ckEl.thumb.classList.remove('goo');void ckEl.thumb.offsetWidth;ckEl.thumb.classList.add('goo');}}   // the glass thumb slides over and stretches like a droplet
   ckEl.m.disabled=ckEl.p.disabled=!(pomo&&!ck.run);ckEl.reset.disabled=!pomo;
   ckEl.go.innerHTML=ck.run?CK_PAUSE:CK_PLAY;ckEl.go.setAttribute('aria-label',ck.run?'暫停':'開始');ckEl.go.classList.toggle('run',ck.run);
   ckEl.w.classList.toggle('on',ck.on);remLit(4,ck.on);
