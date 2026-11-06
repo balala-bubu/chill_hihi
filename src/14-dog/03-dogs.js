@@ -44,7 +44,7 @@ function dogEnter(I){
   dogLoad(I);
   dog.present=true;dog.leaving=false;dog.g.visible=true;dog.x=-(L.hw+3.2);dog.z=1.9;dog.sit=0;dog.pop=PET.perch?0:1;dog.watchT=0;dog.trotX=null;dog.lie.s='none';dog.lie.amt=0;
   I.pend=false;if(!DOGS.focus||!DS(DOGS.focus).present||DS(DOGS.focus).leaving)DOGS.focus=I;
-  dogSave(I);
+  Au.whoosh();dogSave(I);
 }
 function dogLeave(I,delay){
   if(I.pend){I.pend=false;DOGS.list=DOGS.list.filter(o=>o!==I);return;}   // had not walked in yet
@@ -53,7 +53,7 @@ function dogLeave(I,delay){
 function dogDoLeave(I){
   const s=DS(I);if(!s.present||s.leaving)return;
   if(hpState.worn&&DOGS.focus===I)hpUnwear();
-  s.leaving=true;
+  s.leaving=true;Au.whoosh();
   for(const o of DOGS.list)if(o!==I){const t=DS(o);if(t.present&&!t.leaving){t.watchT=2.2+Math.random()*1.4;t.trotX=Math.random()<.4?t.x-2.6:null;}}   // the other one looks after it, sometimes trots a few steps
   if(DOGS.focus===I){const o=DOGS.list.find(x=>x!==I&&DS(x).present&&!DS(x).leaving);if(o)DOGS.focus=o;}
 }
