@@ -3,8 +3,8 @@
    warm sky + sun, three layers of hazy mountains, rolling grass, big trees (models/scenery/tree.json),
    a notice board and a tent. Press again: the wall slides back up. State is remembered in localStorage.
    Everything lives in one group (BG.g) far behind the action, so it never touches the physics world.
-   The BG button cycles three states: off -> meadow (BG.mode 1) -> cafe (BG.mode 2, 10-world/05-cafe.js) -> off. Changing between the two scenes draws the cloth back down and up again.
-   localStorage 'chill_hihi.bg' holds the mode: '0' / '1' / '2'. */
+   Backgrounds: BG.mode 1 = meadow (this file), 2 = cafe (10-world/05-cafe.js). The BG button switches the last picked one on/off; the hover menu on the button (03-summon-menu.js) picks which.
+   Changing between two scenes draws the cloth back down and up again. localStorage 'chill_hihi.bg' = the mode shown ('0' off), 'chill_hihi.bgPick' = the last one picked. */
 const BG={on:false,mode:0,k:0,wall:0,ready:false,job:null,g:new T.Group(),trees:[],clouds:[],props:{},t:0,hw:-1,tok:0,
   litSun:null,litFill:null,p:0,cu:{uK:{value:-1},uT:{value:0},uFold:{value:0},uRes:{value:new T.Vector2(1,1)}}};
 BG.g.visible=false;scene.add(BG.g);
@@ -168,7 +168,7 @@ const bgShowFloor=()=>{floorMesh.visible=PET.on?PET.shadow:true;grid.visible=cat
 async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe (true/false also work: meadow / off)
   if(!BG_OK)return;m=m===true?1:!m?0:clamp(m|0,0,2);if(m===BG.mode&&!instant)return;
   const prev=BG.mode;BG.mode=m;BG.on=m>0;remLit(1,m>0);
-  try{localStorage.setItem('chill_hihi.bg',String(m));}catch(e){}
+  try{localStorage.setItem('chill_hihi.bg',String(m));if(m)localStorage.setItem('chill_hihi.bgPick',String(m));}catch(e){}
   const tok=++BG.tok;
   if(m===1)await bgBuild();else if(m===2)await cfBuild();
   if(tok!==BG.tok)return;
@@ -189,7 +189,9 @@ async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe (true/false als
     if(BG.tok===tok){show(0);BG.k=0;bgApply();bgCurtain(0);bgShowFloor();}
   }
 }
-function bgToggle(){bgSet((BG.mode+1)%3);}
+function bgToggle(){   // the BG button: off <-> the last background picked (menu on hover, see 03-summon-menu.js); meadow at first
+  if(BG.mode)bgSet(0);else{let m=1;try{m=+localStorage.getItem('chill_hihi.bgPick')||1;}catch(e){}bgSet(m);}
+}
 function bgFrame(dt,time){
   if(CF.g.visible&&CF.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);cfFrame(dt,time);return;}
   if(!BG.ready||!BG.g.visible)return;bgLayout(false);
