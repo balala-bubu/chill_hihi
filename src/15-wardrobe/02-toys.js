@@ -20,6 +20,7 @@ function toyBlank(e){
 function toyPlace(e){
   if(!toyBlank(e))return false;
   const it=W.items[TOY.sel];if(!it)return false;
+  if(it.id==='t_pikmin')return pkRelease();   // 03-pikmin.js: the pikmin hanging from the pointer lets go
   const q=planeHit(FLOOR_Z);if(!q)return false;
   toySpawn(it,q.x,q.y);return true;
 }
@@ -95,6 +96,7 @@ function toyEat(dt,moving,tz,a0){
 }
 function toyFrame(dt,time){
   toyChip();
+  try{pkFrame(dt);}catch(e){if(!PK.err){PK.err=1;console.warn('pikmin',e);}}
   if(!PHYS||!TOY.eng)return;
   const can=toyDogCan();toyBounds();
   if(TOY.apples.some(a=>a.body)){TOY.acc+=Math.min(dt,.05);let n=0;while(TOY.acc>=1/120&&n<6){Engine.update(TOY.eng,1000/120);TOY.acc-=1/120;n++;}}else TOY.acc=0;

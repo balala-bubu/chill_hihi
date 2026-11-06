@@ -259,6 +259,17 @@
       "mesh": "items/t_job_counter.json",
       "tex": "items/t_job_counter.png",
       "hide": true
+    },
+    {
+      "id": "t_pikmin",
+      "slot": "toy",
+      "name": "皮克敏",
+      "mesh": "items/t_pikmin.json",
+      "tex": "items/t_pikmin.png",
+      "texs": [
+        "items/t_pikmin.png",
+        "items/t_pikmin.1.png"
+      ]
     }
   ]
 }
