@@ -1653,7 +1653,7 @@ const SM={el:null,btn:-1,want:-1,showT:0,hideT:0,over:false,sync:0,
     3:[{v:0,n:'米格魯'},{v:1,n:'柴犬'},{v:2,n:'巴哥'},{v:3,n:'吉娃娃'},{v:4,n:'哈士奇'}],
     5:[{v:5,n:'皮卡丘'},{v:6,n:'吉伊卡哇'},{v:7,n:'小八'},{v:8,n:'烏薩奇'},{v:9,n:'奇諾比奧'},{g:[6,7,8],n:'三隻一組'}]},
   title:{1:'背景',3:'狗狗',5:'卡通人物'}};
-SM.tiles[1]=[{m:1,n:'草地',img:'bg1'},{m:2,n:'咖啡廳',img:'bg2'},{m:3,n:'博物館',img:'bg3'},{m:4,n:'月亮',img:'bg4'}];   // m = BG.mode (04-scenery.js)
+SM.tiles[1]=[{m:1,n:'草地',img:'bg1'},{m:2,n:'咖啡廳',img:'bg2'},{m:3,n:'博物館',img:'bg3'},{m:4,n:'月亮',img:'bg4'},{m:5,n:'劇場',img:'bg5'}];   // m = BG.mode (04-scenery.js)
 const smOn=t=>t.m?BG.mode===t.m:t.g?t.g.some(dogOut):dogOut(t.v);
 function smBuild(){
   const el=document.createElement('div');el.id='summonMenu';el.setAttribute('role','menu');document.body.appendChild(el);
@@ -1697,7 +1697,7 @@ addEventListener('blur',smHide);
    warm sky + sun, three layers of hazy mountains, rolling grass, big trees (models/scenery/tree.json),
    a notice board and a tent. Press again: the wall slides back up. State is remembered in localStorage.
    Everything lives in one group (BG.g) far behind the action, so it never touches the physics world.
-   Backgrounds: BG.mode 1 = meadow (this file), 2 = cafe (10-world/05-cafe.js), 3 = museum (06-museum.js), 4 = moon (06-moon.js). The BG button switches the last picked one on/off; the hover menu on the button (03-summon-menu.js) picks which.
+   Backgrounds: BG.mode 1 = meadow (this file), 2 = cafe (10-world/05-cafe.js), 3 = museum (06-museum.js), 4 = moon (06-moon.js), 5 = theater (06-bti-theater.js). The BG button switches the last picked one on/off; the hover menu on the button (03-summon-menu.js) picks which.
    Changing between two scenes draws the cloth back down and up again. localStorage 'chill_hihi.bg' = the mode shown ('0' off), 'chill_hihi.bgPick' = the last one picked. */
 const BG={on:false,mode:0,k:0,wall:0,ready:false,job:null,g:new T.Group(),trees:[],clouds:[],props:{},t:0,hw:-1,tok:0,
   litSun:null,litFill:null,p:0,cu:{uK:{value:-1},uT:{value:0},uFold:{value:0},uRes:{value:new T.Vector2(1,1)}}};
@@ -1859,18 +1859,18 @@ function bgApply(){   // lighting warms up with the reveal
   sun.color.copy(BG.litSun.c).lerp(new T.Color(BG.mode===4?0xb8c8ff:0xffdca0),k);sun.intensity=BG.litSun.i*(BG.mode===4?1-.12*k:1+.1*k);fill.intensity=BG.litFill*(1-.4*k);   // moonlight is cool and a little dimmer
 }
 const bgShowFloor=()=>{floorMesh.visible=PET.on?PET.shadow:true;grid.visible=catcher.visible=true;};
-async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe, 3 museum, 4 moon (true/false also work: meadow / off)
-  if(!BG_OK)return;m=m===true?1:!m?0:clamp(m|0,0,4);if(m===BG.mode&&!instant)return;
+async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe, 3 museum, 4 moon, 5 theater (true/false also work: meadow / off)
+  if(!BG_OK)return;m=m===true?1:!m?0:clamp(m|0,0,5);if(m===BG.mode&&!instant)return;
   const prev=BG.mode;BG.mode=m;BG.on=m>0;remLit(1,m>0);
   try{localStorage.setItem('chill_hihi.bg',String(m));if(m)localStorage.setItem('chill_hihi.bgPick',String(m));}catch(e){}
   const tok=++BG.tok;
-  if(m===1)await bgBuild();else if(m===2)await cfBuild();else if(m===3)await muBuild();else if(m===4)await mnBuild();
+  if(m===1)await bgBuild();else if(m===2)await cfBuild();else if(m===3)await muBuild();else if(m===4)await mnBuild();else if(m===5)await btBuild();
   if(tok!==BG.tok)return;
-  if(m&&!([0,BG,CF,MU,MN][m].ready)){BG.mode=0;BG.on=false;remLit(1,false);try{localStorage.setItem('chill_hihi.bg','0');}catch(e){}return;}   // the scene failed to load: stay off
-  const show=n=>{BG.g.visible=n===1;CF.g.visible=n===2;MU.g.visible=n===3;MN.g.visible=n===4;};
-  const lay=()=>{if(BG.mode===1)bgLayout(true);else if(BG.mode===2)cfLayout(true);else if(BG.mode===3)muLayout(true);else if(BG.mode===4)mnLayout(true);};
+  if(m&&!([0,BG,CF,MU,MN,BT][m].ready)){BG.mode=0;BG.on=false;remLit(1,false);try{localStorage.setItem('chill_hihi.bg','0');}catch(e){}return;}   // the scene failed to load: stay off
+  const show=n=>{BG.g.visible=n===1;CF.g.visible=n===2;MU.g.visible=n===3;MN.g.visible=n===4;BT.g.visible=n===5;};
+  const lay=()=>{if(BG.mode===1)bgLayout(true);else if(BG.mode===2)cfLayout(true);else if(BG.mode===3)muLayout(true);else if(BG.mode===4)mnLayout(true);else if(BG.mode===5)btLayout(true);};
   const run=(from,to,sec,tk)=>tween(sec,k=>{if(BG.tok===tk){const p=lerp(from,to,k);bgCurtain(p);BG.k=clamp(p*1.3,0,1);bgApply();}},ease.io2);
-  if(instant||(!m&&!BG.g.visible&&!CF.g.visible&&!MU.g.visible&&!MN.g.visible)){
+  if(instant||(!m&&!BG.g.visible&&!CF.g.visible&&!MU.g.visible&&!MN.g.visible&&!BT.g.visible)){
     if(m){show(m);lay();BG.k=1;bgApply();bgCurtain(1);}else{show(0);BG.k=0;bgApply();bgCurtain(0);bgShowFloor();}return;}
   Au.whoosh&&Au.whoosh();
   const p0=BG.p;bgShowFloor();
@@ -1883,11 +1883,12 @@ async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe, 3 museum, 4 mo
     if(BG.tok===tok){show(0);BG.k=0;bgApply();bgCurtain(0);bgShowFloor();}
   }
 }
-function bgToggle(){   // the BG button: grey <-> a background, cycling meadow / cafe / museum / moon, one per press (menu on hover picks one directly, see 03-summon-menu.js); meadow first
-  if(BG.mode){try{localStorage.setItem('chill_hihi.bgPick',String(BG.mode%4+1));}catch(e){}bgSet(0);}   // turning off: the next press brings the OTHER background (grey -> meadow -> grey -> cafe -> grey ...)
+function bgToggle(){   // the BG button: grey <-> a background, cycling meadow / cafe / museum / moon / theater, one per press (menu on hover picks one directly, see 03-summon-menu.js); meadow first
+  if(BG.mode){try{localStorage.setItem('chill_hihi.bgPick',String(BG.mode%5+1));}catch(e){}bgSet(0);}   // turning off: the next press brings the OTHER background (grey -> meadow -> grey -> cafe -> grey ...)
   else{let m=1;try{m=+localStorage.getItem('chill_hihi.bgPick')||1;}catch(e){}bgSet(m);}
 }
 function bgFrame(dt,time){
+  if(BT.g.visible&&BT.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);btFrame(dt,time);return;}
   if(MN.g.visible&&MN.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);mnFrame(dt,time);return;}
   if(MU.g.visible&&MU.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);muLayout(false);return;}
   if(CF.g.visible&&CF.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);cfFrame(dt,time);return;}
@@ -1994,6 +1995,74 @@ function cfFrame(dt,time){
   if(CF.hands.length===2){const d=new Date(),mi=d.getMinutes()+d.getSeconds()/60,hr=(d.getHours()%12)+mi/60;CF.hands[0].g.rotation.z=-hr/12*TAU;CF.hands[1].g.rotation.z=-mi/60*TAU;}
 }
 window.__cf={CF,cfBuild,cfLayout};   // test hook
+/* ---------- theater background (remote button "BG", mode 5) ----------
+   Fifth background after the meadow (04-scenery.js), the cafe (05-cafe.js), the museum (06-museum.js) and the moon (06-moon.js); the state machine is bgSet in 04-scenery.js.
+   The stage is models/bti.json (from models/bti/src/bti_04.dae, built by tools/build_bti.py, textures models/bti/*.png): a small theater stage with red curtains and gold trim,
+   a gold proscenium frame, hanging stage lights, a row of foot lights along the front edge and a couple of rows of red seats. Everything keeps the model's baked vertex-colour lighting.
+   Model units are the original ones (stage x -35..35, floor y = 0, back wall z = -10.5, proscenium frame z = 9.5..10, audience floor y = -5, seats z 12.7 ...).
+   The room is scaled (BT.s) so the frame opening is about as wide as the window at the stage's front edge (world z = BT.front, behind the player), then tipped back by BT.pitch about the point
+   where the player stands, exactly like the museum, so the audience floor (dark red carpet, drawn here) continues into the player's floor. The player and the dogs stand in the "audience",
+   in front of the stage; the stage is raised behind them. Outside the frame everything is black (like the original's mask), so any window shape is filled.
+   The foot lights run a chase and the stage lights' glows breathe a little. While the grey cloth is drawn up / down, the stage shows only BELOW the cloth's edge (same hook as the museum),
+   so the parts standing in front of the grey wall never poke through it. */
+const BT={s:.3,front:-3,fit:.96,hfit:30,tint:0x88827c,pitch:.1,keep:3,ready:false,job:null,g:new T.Group(),room:new T.Group(),inner:new T.Group(),hk:'',shadow:null,den:null,glow:null,chairs:[],ph:0,t:0,V:[0,.4,.7],vi:null};
+BT.g.visible=false;BT.inner.position.set(0,5,-10);BT.room.add(BT.inner);BT.g.add(BT.room);scene.add(BT.g);   // inner: the audience floor (y -5) and the stage's front edge (z 10) become the room's origin
+async function btBuild(){
+  if(BT.ready)return;if(BT.job)return BT.job;
+  BT.job=(async()=>{
+    const mj=await fetch('models/bti.json').then(r=>{if(!r.ok)throw new Error('bti '+r.status);return r.json();});
+    const ld=new T.TextureLoader(),R=BT.inner,TX={};
+    const tx=n=>{if(TX[n])return TX[n];const t=ld.load('models/bti/'+n+'.png');t.colorSpace=T.SRGBColorSpace;t.magFilter=T.NearestFilter;t.minFilter=T.NearestMipmapLinearFilter;t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=4;return TX[n]=t;};   // pixel art: crisp when big, mip-mapped when far
+    const mb=(map,o)=>{const m=new T.MeshBasicMaterial(Object.assign({map,alphaTest:.4,side:T.DoubleSide,toneMapped:false},o||{}));
+      m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,BG.cu);
+        sh.fragmentShader=sh.fragmentShader.replace('void main() {','uniform float uK,uT,uFold;uniform vec2 uRes;\nvoid main() {')
+          .replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\nfloat cuX=gl_FragCoord.x/uRes.x,cuY=gl_FragCoord.y/uRes.y;\nfloat cuHem=uK+(sin(cuX*9.0+uT*1.2)*.016+sin(cuX*23.0-uT*.9)*.007+sin(cuX*3.1+uT*.5)*.02)*uFold;\nif(cuY>=cuHem)discard;');};
+      m.customProgramCacheKey=()=>'btcurtain';return m;};
+    const tint=new T.Color(BT.tint);   // the stage is a little too bright next to the player: a gentle warm multiply
+    const geo=m=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(m.p,3));g.setAttribute('uv',new T.Float32BufferAttribute(m.u,2));
+      if(m.c)g.setAttribute('color',new T.Float32BufferAttribute(m.c,4));g.setIndex(m.i);return g;};
+    mj.meshes.forEach(m=>{
+      const g=geo(m);let mat;
+      if(m.tex==='light')mat=mb(tx('light'),{vertexColors:true,alphaTest:0,transparent:true,blending:T.AdditiveBlending,depthWrite:false});   // glow discs on the stage lights
+      else if(m.tr)mat=mb(m.tex==='none'?null:tx(m.tex),{vertexColors:true,color:tint,alphaTest:0,transparent:true,depthWrite:false});            // soft shadows / half-transparent bits (vertex alpha)
+      else mat=mb(m.tex==='none'?null:tx(m.tex),{vertexColors:true,color:tint});
+      const me=new T.Mesh(g,mat);
+      if(m.tex==='light'){me.renderOrder=3;BT.glow=mat;}
+      else if(m.tr)me.renderOrder=2;
+      if(m.tex==='isu'){me.userData.z=m.p[2];BT.chairs.push(me);}
+      if(m.tex==='denki'){BT.den=me;const uv=g.attributes.uv;BT.vi=new Uint8Array(uv.count);for(let i=0;i<uv.count;i++){const v=uv.getY(i);BT.vi[i]=Math.abs(v-.4)<.15?1:v>.55?2:0;}}
+      R.add(me);});
+    BT.chairs.sort((a,b)=>a.userData.z-b.userData.z);   // nearest to the stage first
+    /* continuations: black around the frame (the original's mask), the black wall above, and the dark red carpet of the audience floor towards the camera */
+    const W=3000,quad=(x0,x1,y0,y1,z0,z1,uv)=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute([x0,y0,z1,x1,y0,z1,x1,y1,z0,x0,y1,z0],3));
+      g.setAttribute('uv',new T.Float32BufferAttribute(uv||[0,0,1,0,1,1,0,1],2));g.setIndex([0,1,2,0,2,3]);return g;};
+    const bm=mb(null,{color:0x000000,alphaTest:0});
+    [[35.3,W,-5,40],[-W,-35.3,-5,40],[-W,W,25,3000]].forEach(([x0,x1,y0,y1])=>{const me=new T.Mesh(quad(x0,x1,y0,y1,9.35,9.35),bm);R.add(me);});
+    const cu=x=>x*.1413,cv=z=>5.1-z*.132;   // the original carpet's texture density (bti_kyaku_yuka)
+    const carpet=new T.Mesh(quad(-W,W,-5,-5,8,700,[cu(-W),cv(700),cu(W),cv(700),cu(W),cv(8),cu(-W),cv(8)]),mb(tx('katen'),{color:0x5a5a5a,alphaTest:0}));   // a plane facing up: its far edge is the stage front (z 10)
+    carpet.renderOrder=-1;R.add(carpet);
+    /* the player's shadow falls on the floor: an invisible plane that only shows shadows */
+    const sh=new T.Mesh(new T.PlaneGeometry(120,50),new T.ShadowMaterial({opacity:.28}));sh.rotation.x=-Math.PI/2;sh.receiveShadow=true;sh.renderOrder=-1;BT.g.add(sh);BT.shadow=sh;
+    bgLitInit();btLayout(true);BT.ready=true;
+  })().catch(e=>{console.warn('theater failed to load',e);BT.failed=true;BT.job=null;});
+  return BT.job;
+}
+/* place the room: the frame opening is as wide as the window at the stage's front (but the whole stage also has to fit the window height); the audience floor sits on FLOOR_Y */
+function btLayout(force){
+  if(!BT.inner.children.length)return;const hk=Math.round(L.hw*10)+'|'+Math.round(FLOOR_Y*10)+'|'+Math.round(L.d*10);if(!force&&hk===BT.hk)return;BT.hk=hk;
+  const Wf=2*L.hw*(L.d-BT.front)/L.d,sW=BT.fit*Wf/61,sH=(bgY(BT.front,1)-FLOOR_Y)*.97/BT.hfit;   // 61 = width of the frame opening, BT.hfit = model height (above the audience floor) that has to fit the window: the frame's top (34) may be cut off a little
+  BT.s=Math.min(sW,sH);BT.room.scale.setScalar(BT.s);BT.room.rotation.x=BT.pitch;
+  {const dy=-.02,dz=BT.front-FLOOR_Z,c=Math.cos(BT.pitch),sn=Math.sin(BT.pitch);   // tip the room about the point on the floor where the player stands (same as the museum)
+    BT.room.position.set(0,FLOOR_Y+dy*c-dz*sn,FLOOR_Z+dy*sn+dz*c);}
+  BT.chairs.forEach((m,i)=>{m.visible=i<BT.keep;});
+  if(BT.shadow)BT.shadow.position.set(0,FLOOR_Y-.01,FLOOR_Z);
+}
+function btFrame(dt,time){
+  btLayout(false);
+  BT.t+=dt;if(BT.den&&BT.t>.24){BT.t=0;BT.ph=(BT.ph+1)%3;const a=BT.den.geometry.attributes.uv;for(let i=0;i<a.count;i++)a.setY(i,BT.V[(BT.vi[i]+BT.ph)%3]);a.needsUpdate=true;}   // foot lights: a three-step chase
+  if(BT.glow)BT.glow.opacity=.82+.14*Math.sin(time*1.3);
+}
+window.__bt={BT,btBuild,btLayout};   // test hook
 /* ---------- moon background (remote button "BG", mode 4) ----------
    Fourth background after the meadow (04-scenery.js), the cafe (05-cafe.js) and the museum (06-museum.js); the state machine is bgSet in 04-scenery.js.
    Made from the "moo_04" night-sky model (models/moon/src/moo_04.dae -> models/moon.json by tools/build_moon.py) and its textures (models/moon/*.png):
