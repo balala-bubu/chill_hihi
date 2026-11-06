@@ -169,6 +169,24 @@
       }
     },
     {
+      "id": "pika_hat",
+      "slot": "hat",
+      "name": "派對帽（皮卡丘）",
+      "mesh": "items/pika_hat.json",
+      "tex": "items/pika_hat.png",
+      "texs": [
+        "items/pika_hat.png",
+        "items/pika_hat.1.png"
+      ],
+      "fit": {
+        "pos": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
       "id": "glass_c",
       "slot": "glasses",
       "name": "眼鏡 C",

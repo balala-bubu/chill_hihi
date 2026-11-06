@@ -13,7 +13,7 @@ function dogLoad(I){
   if(!I||DOGS.cur===I)return;
   if(DOGS.cur)dogSave(DOGS.cur);
   const st=I.st;for(const k in dog)if(!(k in st))delete dog[k];Object.assign(dog,st);
-  const P=I.v>0?DV.P[I.v]:DV.base;Object.assign(DOG_SIT,P.sit);Object.assign(DOG_LIE,P.lie);Object.assign(DOG_PERCH,P.perch);Object.assign(DOG_BITE,P.bite);
+  const P=I.v>0?DV.P[I.v]:DV.base;Object.assign(DOG_SIT,P.sit);Object.assign(DOG_LIE,P.lie);Object.assign(DOG_PERCH,P.perch);Object.assign(DOG_BITE,DV.base.bite,P.bite);
   W.worn=I.worn;W.KEY=I.wkey;W.restored=I.restored;W.recycleKey='';
   DOGS.cur=I;
 }
@@ -25,7 +25,7 @@ function dogInst(v){   // the instance of variant v (built the first time it is 
   const st=dogFresh(),g=st.g,SPN=1.1/st.scale,pv=new T.Group(),rg=new T.Group(),inn=new T.Group();pv.position.y=SPN;inn.position.y=-SPN;
   inn.add(V.fix);rg.add(inn);pv.add(rg);g.add(pv);g.scale.setScalar(st.scale);g.visible=false;scene.add(g);g.updateMatrixWorld(true);
   const b=DV.P[v].bite;if(!V.mouthL)V.mouthL=V.bones.Head.o.worldToLocal(g.localToWorld(new T.Vector3(b.mx,b.my,b.mz)));
-  Object.assign(st,{rg,inn,fix:V.fix,bones:V.bones,mouthL:V.mouthL,ak:V.ak,fitAdj:V.fitAdj,footLift:V.footLift,ptr:dog.ptr,ready:true});
+  Object.assign(st,{rg,inn,fix:V.fix,bones:V.bones,mouthL:V.mouthL,ak:V.ak,fitAdj:V.fitAdj,faceFx:V.faceFx,footLift:V.footLift,ptr:dog.ptr,ready:true});
   g.traverse(o=>o.layers.enable(1));
   I={v,st,worn:{},restored:false,wkey:DV.WK[v]};DOGS.byV[v]=I;return I;
 }

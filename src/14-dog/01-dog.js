@@ -230,6 +230,7 @@ dog.g.updateMatrixWorld(true);
   dog.blinkT-=dt;if(dog.blinkT<=0){dog.blinkT=2.2+Math.random()*3.5;dog.blink=.0001;}
   let bl=0;if(dog.blink>0){dog.blink+=dt;const k=dog.blink/.16;if(k>=1)dog.blink=0;else bl=Math.sin(k*Math.PI);}
   dogAdd('UplidL','r',bl*DOG_LID);dogAdd('UplidR','r',bl*DOG_LID);
+  if(dog.faceFx)dog.faceFx(bl,eatJaw>0?eatJaw:(carrying||dog.grab)?jawX:0,mode,eo,playing,Lc.s);   // painted-face puppies (pikachu): swap eye / mouth textures
   dogAdd('Bust','r',Math.sin(time*2.2)*.012);
   dogAdd('jawA','r',(eatJaw>0?eatJaw:(carrying||dog.grab)?jawX:(moving||playing?.12+.08*Math.sin(time*9):0))*DOG_JAW);   // mouth open for the bite, then closed round the rim
   if(bPitch){dogAdd('Neck','r',.7*bPitch);dogAdd('Head','r',.5*bPitch);dogAdd('Bust','r',.22*bPitch);}
