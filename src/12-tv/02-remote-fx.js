@@ -11,7 +11,7 @@ function shakeWorld(){
 function remoteFx(i){
   Au.ensure();
   if(i===0)tvToggle();
-  else if(i===1)shakeWorld();
+  else if(i===1)bgToggle();   // 10-world/04-scenery.js: the wall drops, a sunny meadow shows (shakeWorld() is kept for tests)
   else if(i===2)btButton();
   else if(i===3){
     dogToggle();
