@@ -154,7 +154,7 @@ html.pet-embed #petDogBtn:hover,html.pet-embed #petDogBtn[aria-pressed="true"]{o
   <div id="menu" role="menu" hidden>
     <button class="k3" type="button" role="menuitem" data-act="add"><b>＋</b>新增</button>
     <button class="k3" type="button" role="menuitem" data-act="sort"><b>⇅</b>編輯排序</button>
-    <button class="k3" type="button" role="menuitem" data-act="widget"><b>▣</b>懸浮播放器</button>
+    <button class="k3" type="button" role="menuitem" data-act="widget" hidden style="display:none"><b>▣</b>懸浮播放器</button>
     <button class="k3 danger" type="button" role="menuitem" data-act="del"><b>×</b>刪除</button>
   </div>
 </div>
@@ -329,14 +329,15 @@ const buzz=ms=>{try{navigator.vibrate&&navigator.vibrate(ms);}catch(e){}};
 
 /* ---------- albums: data + procedural artwork ---------- */
 /* Default shelf = these YouTube playlists. Title and artist are fixed here (not read from YouTube);
-   the track list and the cover are filled in later in the background (see src/09-playlist). */
+   the track list and the cover are filled in later in the background (see src/09-playlist).
+   Optional img:'https://...' (or a path in this repo, e.g. 'covers/x.jpg') = cover image to use instead of the first track's thumbnail. */
 const DEFAULT_LISTS=[
  {list:'PL09drhUwnd9l4d_4jNonOhI8iXy_5DfV6',title:'更好',author:'Gummy B'},
  {list:'OLAK5uy_l4EaHd6QNtsgR6DfUfNa1F1PLQYoyftRM',title:'如果每天都可以 happy happy 誰想要sad:))',author:'陳嫻靜'},
  {list:'OLAK5uy_moBn9equTZCqNmY8BzAOHkZA9UptKDzDM',title:'月光',author:'蛋堡'},
  {list:'OLAK5uy_l63K1oKt-WcVxkgyJJJAU5jDYKjJ37Teg',title:'吉他手',author:'陳綺貞'},
- {list:'OLAK5uy_kayjlU3SJ4QiIRWihJtCW6R9Hi9sFpU3c',title:'Sent',author:'9m88'},
- {list:'OLAK5uy_nAgtspFo6LJ1V25viuFzYsapwIqgVvtXY',title:'橙月',author:'方大同'},
+ {list:'OLAK5uy_kayjlU3SJ4QiIRWihJtCW6R9Hi9sFpU3c',title:'Sent',author:'9m88',img:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTxJqU747ZThXDeKFT8CJgK7aQMOiFV4s7dHVtIQvNdOg&s=10'},
+ {list:'OLAK5uy_nAgtspFo6LJ1V25viuFzYsapwIqgVvtXY',title:'橙月',author:'方大同',img:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTpquRRtXWGWrpHbPI3L6JDNxAgo7dL8kBIqPhjAFGyaQ&s=10'},
  {list:'OLAK5uy_lfNo3ANxH0bxNC6gS7WtSmR9gRkZpog04',title:'木眼鏡同名專輯',author:'木眼鏡'},
  {list:'OLAK5uy_n9Fsvc257NW36XlPHXduZesadQaPSIjmM',title:'Requiem (Deluxe)',author:'keshi'},
  {list:'OLAK5uy_lfueuQkROx_bShckk3aFVYxZoSrN4Zkzc',title:'The Secret of Us',author:'Gracie Abrams'}
@@ -349,7 +350,7 @@ function ytAlbum(o,cov){
   return {t:o.title||'PLAYLIST',a:(o.author||'YOUTUBE').toUpperCase(),m:['orbit','tiles','sun','wave','grid','stripe'][h%6],seed:h%997+1,c,img:cov?cov.im:null,yt:{list:o.list,ids:o.ids},bpm:80,root:55,lead:'triangle',prog:[]};
 }
 /* def:true = built-in (can't be renamed or deleted, comes back on reload); starts with a generated cover and no track list */
-const ALBUMS=DEFAULT_LISTS.map(o=>Object.assign(ytAlbum({list:o.list,ids:[],title:o.title,author:o.author},null),{def:true}));
+const ALBUMS=DEFAULT_LISTS.map(o=>Object.assign(ytAlbum({list:o.list,ids:[],title:o.title,author:o.author},null),{def:true,coverUrl:o.img||''}));
 let N=ALBUMS.length;
 
 function art(x,S,alb,txt){
@@ -394,10 +395,25 @@ function art(x,S,alb,txt){
     x.font='700 '+(S*.05)+'px '+MONO;x.textAlign='left';x.fillText(fitText(x,alb.t,S*.6),S*.05,S*.94);
     x.font='500 '+(S*.032)+'px '+MONO;x.textAlign='right';x.fillText(fitText(x,alb.a,S*.26),S*.95,S*.94);x.restore();}
 }
-const coverTex=a=>mkTex(512,512,(x,w)=>art(x,w,a,true));
-function spineTex(a){return mkTex(80,750,(x,w,h)=>{x.fillStyle='#ecebe6';x.fillRect(0,0,w,h);x.fillStyle=a.c[2];x.fillRect(0,0,w,58);x.fillStyle=a.c[0];x.fillRect(0,h-44,w,44);
-  x.fillStyle='#24272a';x.textBaseline='middle';x.save();x.translate(w/2,90);x.rotate(Math.PI/2);let fs=36;x.font='700 '+fs+'px '+MONO;while(x.measureText(a.t).width>560&&fs>18){fs-=2;x.font='700 '+fs+'px '+MONO;}x.textAlign='left';x.fillText(fitText(x,a.t,560),0,0);x.restore();});}
-const trayTex=()=>mkTex(256,256,(x,w)=>{x.fillStyle='#cdd0d3';x.fillRect(0,0,w,w);x.strokeStyle='#b9bdc1';x.lineWidth=5;x.beginPath();x.arc(w/2,w/2,116,0,TAU);x.stroke();x.beginPath();x.arc(w/2,w/2,22,0,TAU);x.stroke();});
+const coverTex=a=>mkTex(512,512,(x,w)=>art(x,w,a,false));   // front = artwork only, the title and artist live on the spine
+function spineTex(a){return mkTex(96,900,(x,w,h)=>{
+  x.fillStyle='#ecebe6';x.fillRect(0,0,w,h);x.fillStyle=a.c[2];x.fillRect(0,0,w,70);x.fillStyle=a.c[0];x.fillRect(0,h-52,w,52);
+  x.fillStyle='rgba(0,0,0,.07)';x.fillRect(0,0,3,h);x.fillRect(w-3,0,3,h);   // faint edge lines where the paper meets the case
+  x.textBaseline='middle';x.textAlign='left';
+  /* artist sits at the foot of the spine (right-aligned, lighter), the song/album title takes whatever length is left above it */
+  x.font='500 32px '+MONO;const art_=fitText(x,a.a||'',250),aw=x.measureText(art_).width,aEnd=h-52-24;
+  x.save();x.translate(w/2,aEnd-aw);x.rotate(Math.PI/2);x.fillStyle='#6a6f75';x.fillText(art_,0,0);x.restore();
+  const tMax=Math.max(120,aEnd-aw-26-100);let fs=44;x.font='700 '+fs+'px '+MONO;while(x.measureText(a.t).width>tMax&&fs>22){fs-=2;x.font='700 '+fs+'px '+MONO;}
+  x.save();x.translate(w/2,100);x.rotate(Math.PI/2);x.fillStyle='#24272a';x.fillText(fitText(x,a.t,tMax),0,0);x.restore();
+  x.fillStyle=a.c[2];x.globalAlpha=.7;x.beginPath();x.arc(w/2,aEnd-aw-14,4,0,TAU);x.fill();x.globalAlpha=1;});}   // little dot between title and artist
+const trayTex=()=>mkTex(512,512,(x,w)=>{   // black slim-case tray: soft sheen, a round recess for the disc, fine concentric moulding lines
+  const c=w/2,g=x.createRadialGradient(c,c,0,c,c,w*.72);g.addColorStop(0,'#26282c');g.addColorStop(1,'#111214');x.fillStyle=g;x.fillRect(0,0,w,w);
+  x.lineWidth=1.2;for(let r=50;r<236;r+=7){x.strokeStyle='rgba(255,255,255,'+(.025+.02*((r/7)%2))+')';x.beginPath();x.arc(c,c,r,0,TAU);x.stroke();}
+  x.strokeStyle='#08090a';x.lineWidth=9;x.beginPath();x.arc(c,c,234,0,TAU);x.stroke();                       // recess wall
+  x.strokeStyle='rgba(255,255,255,.16)';x.lineWidth=2.5;x.beginPath();x.arc(c,c,226,0,TAU);x.stroke();        // lit lip inside it
+  x.strokeStyle='rgba(255,255,255,.06)';x.lineWidth=2;x.beginPath();x.arc(c,c,262,0,TAU);x.stroke();
+  x.fillStyle='#0c0d0e';x.beginPath();x.arc(c,c,46,0,TAU);x.fill();x.strokeStyle='rgba(255,255,255,.12)';x.lineWidth=2;x.beginPath();x.arc(c,c,46,0,TAU);x.stroke();   // hub well
+});
 function cdTex(a){return mkTex(1024,1024,(x)=>{const S=1024;x.save();x.beginPath();x.arc(512,512,508,0,TAU);x.clip();art(x,S,a,false);
   const g=x.createRadialGradient(512,512,60,512,512,190);g.addColorStop(0,'#f2f4f6');g.addColorStop(.6,'#cdd2d7');g.addColorStop(1,'#e8ebee');x.fillStyle=g;x.beginPath();x.arc(512,512,190,0,TAU);x.fill();
   x.strokeStyle='rgba(60,64,70,.35)';x.lineWidth=3;x.beginPath();x.arc(512,512,190,0,TAU);x.stroke();x.restore();
@@ -564,18 +580,49 @@ const shelfShade=new T.Mesh(new T.PlaneGeometry(70,SHADE_H),new T.MeshBasicMater
 /* back panel: lit like everything else (catches the albums' shadows), starts exactly at the plank and runs up past the top of the screen, so it has no loose lower edge */
 const BACK_H=12,shelfBack=new T.Mesh(new T.PlaneGeometry(70,BACK_H),new T.MeshStandardMaterial({color:0xaeb2b7,roughness:.95}));shelfBack.position.z=-.46;shelfBack.receiveShadow=true;scene.add(shelfBack);
 const albums=[];const albumMeshes=[];
-const edgeM=new T.MeshPhysicalMaterial({color:0xd9dbde,roughness:.42,clearcoat:.5,clearcoatRoughness:.3,envMapIntensity:.9});   // jewel-case plastic
-const CASE_D=.16,COV_T=.025,TRAY_Z=CASE_D/2+.02;   // slim jewel case; TRAY_Z = height at which a CD rests in the open case
+/* ---- slim jewel case (modelled on a real one): black tray with a raised rim, round recess, hub with prongs and four disc clips;
+   a clear hinged lid whose frame, hinge knuckles and latch hooks are see-through, with the artwork sheet sitting inside it.
+   everything below that doesn't depend on the album is built once and shared by every case (flagged keep so disposeAlbum leaves it alone) ---- */
+const CASE_D=.16,COV_T=.025,TRAY_Z=CASE_D/2+.02;   // TRAY_Z = height at which a CD rests in the open case (CD radius in case units is 1.2/1.8 ≈ .667)
+const RIM_H=.014,TZ=CASE_D/2,keep=o=>{o.userData.keep=true;return o;};
+const darkM=keep(new T.MeshPhysicalMaterial({color:0x191a1d,roughness:.3,clearcoat:.8,clearcoatRoughness:.18,envMapIntensity:1}));   // black tray plastic (edges, rim, hub, clips)
+const trayM=keep(new T.MeshPhysicalMaterial({map:trayTex(),roughness:.36,clearcoat:.55,clearcoatRoughness:.25,envMapIntensity:.9}));
+const clearM=keep(new T.MeshPhysicalMaterial({color:0xe3edf2,transparent:true,opacity:.38,roughness:.07,clearcoat:1,clearcoatRoughness:.04,depthWrite:false,envMapIntensity:1.8}));   // clear lid frame, hinge, hooks
+/* same recipe as the player's lid: tinted double-sided glass (no depth write, strong env reflection) + a baked diagonal glare streak that doesn't depend on the lighting */
+const paneM=keep(new T.MeshPhysicalMaterial({color:0xdde8ee,transparent:true,opacity:.2,roughness:.08,clearcoat:1,clearcoatRoughness:.05,side:T.DoubleSide,depthWrite:false,envMapIntensity:1.6}));
+const shineM=keep(new T.MeshBasicMaterial({transparent:true,depthWrite:false,toneMapped:false,side:T.DoubleSide,map:mkTex(256,256,(x,w)=>{
+  const g=x.createLinearGradient(0,0,w,w);g.addColorStop(0,'rgba(255,255,255,.5)');g.addColorStop(.2,'rgba(255,255,255,.06)');g.addColorStop(.26,'rgba(255,255,255,.3)');g.addColorStop(.36,'rgba(255,255,255,0)');
+  g.addColorStop(.64,'rgba(255,255,255,0)');g.addColorStop(.7,'rgba(255,255,255,.18)');g.addColorStop(.76,'rgba(255,255,255,.02)');g.addColorStop(1,'rgba(255,255,255,.08)');x.fillStyle=g;x.fillRect(0,0,w,w);})}));
+const rectPath=(sh,x0,y0,x1,y1)=>{sh.moveTo(x0,y0);sh.lineTo(x1,y0);sh.lineTo(x1,y1);sh.lineTo(x0,y1);sh.closePath();};
+const ext=(sh,depth,z0)=>{const g=new T.ExtrudeGeometry(sh,{depth,bevelEnabled:false,curveSegments:32});g.translate(0,0,z0);g.userData.keep=true;return g;};
+const rimGeo=(()=>{const sh=new T.Shape();rectPath(sh,-.75,-.75,.75,.75);const h=new T.Path();h.absarc(0,0,.7,0,TAU,true);sh.holes.push(h);return ext(sh,RIM_H,TZ);})();   // raised tray plate with a round hole: the well the disc sits in (CD radius .667)
+const hubBaseGeo=(()=>{const sh=new T.Shape();sh.absarc(0,0,.115,0,TAU,false);return ext(sh,.006,TZ);})();
+const hubGeo=(()=>{const a=[];for(let k=0;k<6;k++){const a0=k*TAU/6+.12,a1=(k+1)*TAU/6-.12,sh=new T.Shape();sh.absarc(0,0,.078,a0,a1,false);sh.absarc(0,0,.05,a1,a0,true);sh.closePath();a.push(sh);}return ext(a,.026,TZ+.006);})();   // six prongs the disc snaps onto
+const clipGeo=(()=>{const a=[];for(let k=0;k<4;k++){const an=Math.PI/4+k*Math.PI/2,c=Math.cos(an),s=Math.sin(an),P=(r,t)=>new T.Vector2(c*r-s*t,s*r+c*t),sh=new T.Shape([P(.675,-.04),P(.8,-.07),P(.8,.07),P(.675,.04)]);a.push(sh);}return ext(a,.026,TZ);})();   // four tabs at the corners that hold the disc's edge
+const frameGeo=(()=>{const sh=new T.Shape();rectPath(sh,.006,-.744,1.494,.744);const h=new T.Path();rectPath(h,.056,-.714,1.464,.714);sh.holes.push(h);const g=new T.ExtrudeGeometry(sh,{depth:COV_T-.012,bevelEnabled:true,bevelThickness:.006,bevelSize:.006,bevelSegments:2,curveSegments:8});g.translate(0,0,-(COV_T-.012)/2);g.userData.keep=true;return g;})();   // lid frame: hinge side a little thicker
+const artGeo=keep(new T.BoxGeometry(1.42,1.44,COV_T*.6));
+const paneGeo=keep(new T.PlaneGeometry(1.5,1.5));
+const paperEdgeM=keep(new T.MeshStandardMaterial({color:0xf1efe8,roughness:.8}));   // the paper's cut edge
+const knuckleGeo=keep(new T.CylinderGeometry(.03,.03,.13,16));
+const hookGeo=keep(new T.BoxGeometry(.14,.034,COV_T+.012));
+const trayDetail=(geo,m)=>{const o=new T.Mesh(geo,m||darkM);o.receiveShadow=true;return o;};
 function buildAlbum(d,i){
   const g=new T.Group();scene.add(g);
   const sp=spineTex(d);
-  const bodyM=new T.Mesh(new T.BoxGeometry(1.5,1.5,CASE_D),[edgeM,new T.MeshPhysicalMaterial({map:sp,roughness:.5,clearcoat:.4,clearcoatRoughness:.35}),edgeM,edgeM,new T.MeshPhysicalMaterial({map:trayTex(),roughness:.75,bumpMap:GR2,bumpScale:.004}),edgeM]);
+  /* box face order: +x, -x (spine, with its paper label), +y, -y, +z (tray, facing the lid), -z (back) */
+  const bodyM=new T.Mesh(new T.BoxGeometry(1.5,1.5,CASE_D),[darkM,new T.MeshPhysicalMaterial({map:sp,roughness:.45,clearcoat:.5,clearcoatRoughness:.25}),darkM,darkM,trayM,darkM]);
   bodyM.castShadow=bodyM.receiveShadow=true;bodyM.userData.album=i;g.add(bodyM);
-  const piv=new T.Group();piv.position.set(-.75,0,CASE_D/2+COV_T/2);g.add(piv);
+  g.add(trayDetail(rimGeo),trayDetail(hubBaseGeo),trayDetail(hubGeo),trayDetail(clipGeo));
+  const piv=new T.Group();piv.position.set(-.75,0,TZ+.044+COV_T/2);g.add(piv);   // the lid sits above the hub and clips, so nothing on the tray pokes through the artwork
   const cm=new T.MeshPhysicalMaterial({map:coverTex(d),roughness:.35,clearcoat:.6,clearcoatRoughness:.2});
-  const cedge=new T.MeshStandardMaterial({color:new T.Color(d.c[0]),roughness:.5});   // cover edge takes the artwork's colour so the cover reads as one sheet
-  const cover=new T.Mesh(new T.BoxGeometry(1.5,1.5,COV_T),[cedge,cedge,cedge,cedge,cm,new T.MeshStandardMaterial({color:0xcfd2d5,roughness:.7})]);
-  cover.position.x=.75;cover.castShadow=true;cover.userData.album=i;piv.add(cover);
+    const cover=new T.Mesh(artGeo,[paperEdgeM,paperEdgeM,paperEdgeM,paperEdgeM,cm,new T.MeshStandardMaterial({color:0xcfd2d5,roughness:.7})]);
+  cover.position.set(.76,0,-COV_T*.1);cover.castShadow=true;cover.userData.album=i;piv.add(cover);
+  const fr=new T.Mesh(frameGeo,clearM);piv.add(fr);
+  const pane=new T.Mesh(paneGeo,paneM);pane.position.set(.75,0,COV_T/2);pane.renderOrder=3;piv.add(pane);   // outer clear shell over the paper
+  const pane2=new T.Mesh(paneGeo,paneM);pane2.position.set(.75,0,-COV_T/2);pane2.renderOrder=3;piv.add(pane2);   // inner sheet of the shell, facing the tray: the paper sits between the two
+  const shine=new T.Mesh(paneGeo,shineM);shine.position.set(.75,0,COV_T/2+.003);shine.renderOrder=4;piv.add(shine);
+  [-.62,.62].forEach(y=>{const k=new T.Mesh(knuckleGeo,clearM);k.position.set(.02,y,0);piv.add(k);});   // hinge knuckles
+  [-1,1].forEach(sy=>{const hk=new T.Mesh(hookGeo,clearM);hk.position.set(sy<0?.2:1.36,.745,0);piv.add(hk);const lw=new T.Mesh(hookGeo,clearM);lw.position.set(sy<0?.2:1.36,-.745,0);piv.add(lw);});   // latch hooks on the top and bottom edges
   albums.push({g,d,piv,k:0,open:0,sel:false,mag:0,dock:false,born:1,hv:0,tx:0,ty:0,meshes:[bodyM,cover]});albumMeshes.push(bodyM,cover);
 }
 ALBUMS.forEach((d,i)=>buildAlbum(d,i));
@@ -1267,14 +1314,16 @@ cvs.addEventListener('wheel',e=>{if(state!=='home'&&state!=='stage')return;e.pre
 const $id=i=>document.getElementById(i);
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 function loadImg(src){return new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>res(null);im.src=src;});}
+function coverOf(im){   // cover image -> {im, avg colour}; null if it has no CORS headers (cannot be used as a texture)
+  try{const c=document.createElement('canvas');c.width=c.height=8;const x=c.getContext('2d');x.drawImage(im,0,0,8,8);const d=x.getImageData(0,0,8,8).data;let r=0,g=0,b=0;
+    for(let i=0;i<d.length;i+=4){r+=d[i];g+=d[i+1];b+=d[i+2];}const n=d.length/4;return {im,avg:[r/n,g/n,b/n]};}
+  catch(e){return null;}
+}
+async function loadCoverUrl(u){const im=await loadImg(u);return im&&im.naturalWidth>50?coverOf(im):null;}
 async function loadCover(id){
   for(const q of ['hq720','mqdefault']){
     const im=await loadImg('https://i.ytimg.com/vi/'+id+'/'+q+'.jpg');
-    if(im&&im.naturalWidth>200){
-      try{const c=document.createElement('canvas');c.width=c.height=8;const x=c.getContext('2d');x.drawImage(im,0,0,8,8);const d=x.getImageData(0,0,8,8).data;let r=0,g=0,b=0;
-        for(let i=0;i<d.length;i+=4){r+=d[i];g+=d[i+1];b+=d[i+2];}const n=d.length/4;return {im,avg:[r/n,g/n,b/n]};}
-      catch(e){return null;}   // image has no CORS headers: cannot be used as a texture
-    }
+    if(im&&im.naturalWidth>200)return coverOf(im);
   }
   return null;
 }
@@ -1321,11 +1370,15 @@ const defCache=LS.get('mt1.defids',{});
 ALBUMS.forEach(d=>{if(d.def&&Array.isArray(defCache[d.yt.list]))d.yt.ids=defCache[d.yt.list];});
 const defIdle=()=>!cd&&!busy&&state==='home'&&status==='empty';
 async function defCover(d){   // swap the generated cover for the real one, only while nothing is lifted off the shelf
-  if(!d.yt.ids.length)return;
-  const cov=await loadCover(d.yt.ids[0]);if(!cov)return;
-  while(ALBUMS.indexOf(d)>=0&&!(state==='home'&&!cd&&!busy&&sel<0&&!shelfDrag))await sleep(600);
-  const i=ALBUMS.indexOf(d);if(i<0)return;
-  Object.assign(d,ytAlbum({list:d.yt.list,ids:d.yt.ids,title:d.t,author:d.a},cov));rebuildAt(i);
+  if(d.coverDone||d.coverBusy)return;d.coverBusy=true;
+  try{
+    let cov=d.coverUrl?await loadCoverUrl(d.coverUrl):null;   // DEFAULT_LISTS img first, then the first track's thumbnail
+    if(!cov&&d.yt.ids.length)cov=await loadCover(d.yt.ids[0]);
+    if(!cov)return;
+    while(ALBUMS.indexOf(d)>=0&&!(state==='home'&&!cd&&!busy&&sel<0&&!shelfDrag))await sleep(600);
+    const i=ALBUMS.indexOf(d);if(i<0)return;
+    Object.assign(d,ytAlbum({list:d.yt.list,ids:d.yt.ids,title:d.t,author:d.a},cov));rebuildAt(i);d.coverDone=true;
+  }finally{d.coverBusy=false;}
 }
 async function defLoad(d){
   if(!d.yt.ids.length){
@@ -1339,12 +1392,12 @@ async function defLoad(d){
 }
 (async()=>{
   const defs=ALBUMS.filter(d=>d.def);
-  defs.filter(d=>d.yt.ids.length).forEach(defCover);
+  defs.filter(d=>d.yt.ids.length||d.coverUrl).forEach(defCover);
   for(const d of defs.filter(d=>!d.yt.ids.length)){if(YTA.failed)break;await defLoad(d);}
 })();
 
 /* ---------- edit / reset playlist shelf ---------- */
-function disposeAlbum(a){scene.remove(a.g);a.g.traverse(o=>{if(o.geometry&&o.geometry!==cdGeo)o.geometry.dispose();if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m.map)m.map.dispose();m.dispose();});}});}
+function disposeAlbum(a){scene.remove(a.g);a.g.traverse(o=>{if(o.geometry&&o.geometry!==cdGeo&&!o.geometry.userData.keep)o.geometry.dispose();if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m.userData.keep)return;if(m.map)m.map.dispose();m.dispose();});}});}
 function reindexAlbums(){albumMeshes.length=0;albums.forEach((a,i)=>{a.meshes.forEach(m=>{m.userData.album=i;albumMeshes.push(m);});});}
 function canEdit(){if(busy||cd||state!=='home'){say('請先把 CD 放回專輯櫃，再編輯清單。',4000);return false;}return true;}
 function removeAlbumAt(i){disposeAlbum(albums[i]);albums.splice(i,1);ALBUMS.splice(i,1);N=ALBUMS.length;reindexAlbums();sxTarget=clamp(Math.round(Math.min(sxTarget,N-1)),0,N-1);}

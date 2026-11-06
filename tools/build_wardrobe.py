@@ -28,7 +28,7 @@ W = os.path.join(ROOT, 'models', 'wardrobe')
 INBOX, SRC, ITEMS = (os.path.join(W, d) for d in ('inbox', 'src', 'items'))
 SLOTS, MANIFEST = os.path.join(W, 'slots.json'), os.path.join(W, 'manifest.json')
 
-GUESS = [('glass', 'glasses'), ('coller', 'collar'), ('collar', 'collar'), ('head', 'hat'), ('hat', 'hat'), ('cap', 'hat'), ('apple', 'toy')]
+GUESS = [('glass', 'glasses'), ('coller', 'collar'), ('collar', 'collar'), ('head', 'hat'), ('hat', 'hat'), ('cap', 'hat'), ('apple', 'toy'), ('pear', 'toy')]
 NS = '{http://www.collada.org/2005/11/COLLADASchema}'
 
 
