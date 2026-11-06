@@ -1706,7 +1706,7 @@ function startPhysGrab(hit){
   else if(kind==='plug'){body=endB();stiff=.3;if(hpState.s==='seek'){hpState.drive=null;hpState.s='free';hpState.seek=0;}}
   else if(kind==='tv'){body=tv.b;stiff=.07;}
   if(!body)return false;
-  grab.kind=kind;grab.body=body;grab.z=hit.point.z;grab.pointer=null;grab.btn=kind==='rem'&&o.userData.rbtn!==undefined?o.userData.rbtn:-1;
+  grab.kind=kind;grab.body=body;grab.z=hit.point.z;grab.pointer=null;grab.long=false;grab.t0=0;grab.btn=kind==='rem'&&o.userData.rbtn!==undefined?o.userData.rbtn:-1;
   const px=mxp(hit.point.x),py=myp(hit.point.y),dx=px-body.position.x,dy=py-body.position.y,ca=Math.cos(-body.angle),sa=Math.sin(-body.angle);
   grab.c=Constraint.create({pointA:{x:px,y:py},bodyB:body,pointB:{x:dx*ca-dy*sa,y:dx*sa+dy*ca},stiffness:stiff,damping:.18,length:0});
   Composite.add(wld,grab.c);
@@ -1718,10 +1718,10 @@ function moveGrab(e){if(!grab.c)return;grab.pointer={x:e.clientX,y:e.clientY};se
 function endPhysGrab(moved){
   if(!grab.c)return;Composite.remove(wld,grab.c);grab.c=null;
   const k=grab.kind,btn=grab.btn;grab.kind=null;hpState.grab=false;
-  if(k==='rem'&&btn>=0){if(!moved){remPressAnim(btn);remoteFx(btn);}else remRelease(btn);}
+  if(k==='rem'&&btn>=0){if(!moved&&!grab.long){remPressAnim(btn);remoteFx(btn);}else remRelease(btn);}   // a long press on the dog button (03-dogs.js) already did its job
   if(k==='hp'){
     const p=grab.pointer;
-    if(moved&&p&&dog.ready&&dog.present&&!dog.leaving){
+    if(moved&&p&&dog.ready&&dogAnyOn()){
       const a=wAnchor('hat');
       if(dogHit(p.x,p.y)||(a&&Math.hypot(p.x-a.x,p.y-a.y)<115)){
         if(!hpWear())hpRest();
@@ -1951,7 +1951,7 @@ function ytLayout(show){
   if(ytboxEl.style.opacity!=='1')ytboxEl.style.opacity='1';
   if(dogOverlayRenderer){const el=dogOverlayRenderer.domElement;
     el.style.clipPath='polygon('+P.map(p=>p[0].toFixed(1)+'px '+p[1].toFixed(1)+'px').join(',')+')';
-    el.style.display=dog.ready&&dog.present&&!dog.leaving?'block':'none';}
+    el.style.display=dog.ready&&dogAnyOn()?'block':'none';}
 }
 
 /* ---------- per-frame sync: physics -> meshes ---------- */
@@ -2070,15 +2070,16 @@ function updateFx(dt,time){
 /* ---------- loop ---------- */
 const clock=new T.Clock();let fpsAvg=60;
 /* ---------- dog: a rigged puppy that runs in from the left, watches the pointer, chases a dragged CD and sits in front of the TV ---------- */
-const dog={pop:1,pet2:0,g:new T.Group(),ready:false,failed:false,present:false,leaving:false,wantShow:false,
+const dogFresh=()=>({pop:1,pet2:0,g:new T.Group(),ready:false,failed:false,present:false,leaving:false,wantShow:false,
   x:-20,z:2.6,ry:.4,mode:'idle',move:0,gait:0,sit:0,hop:0,hopT:0,lookYaw:0,lookPitch:0,blinkT:2,blink:0,earT:3,earL:0,earR:0,earWear:0,wag:0,fd:1,grab:null,mouthL:null,
   bones:{},acc:{},scale:2.3/53.7,footLift:.75,nextHop:0,ptr:{x:0,y:.05,t:0,cx:0,cy:0},
-  lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null};
+  lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null,watchT:0,trotX:null,glT:4,glance:0});
+const dog=dogFresh();
 dog.g.visible=false;scene.add(dog.g);
 addEventListener('pointermove',e=>{dog.ptr.x=e.clientX/innerWidth*2-1;dog.ptr.y=-(e.clientY/innerHeight*2-1);dog.ptr.cx=e.clientX;dog.ptr.cy=e.clientY;dog.ptr.t=performance.now();},{passive:true});
 /* petting: a click on the dog (ray vs. a body-sized ellipsoid in the dog's own space) makes it flop over for belly rubs */
 const dogHitX={r:new T.Raycaster(),n:new T.Vector2(),inv:new T.Matrix4(),o:new T.Vector3(),d:new T.Vector3(),C:new T.Vector3(0,22,2),R:new T.Vector3(30,34,54)};
-function dogHit(cx,cy){
+function dogHit1(cx,cy){   // is the pointer on THIS (loaded) puppy? (03-dogs.js: dogHit also looks at the other one)
   if(!dog.ready||!dog.present||dog.leaving)return false;
   dogHitX.n.set(cx/innerWidth*2-1,-(cy/innerHeight*2-1));dogHitX.r.setFromCamera(dogHitX.n,cam);
   dog.g.updateMatrixWorld();dogHitX.inv.copy(dog.g.matrixWorld).invert();
@@ -2094,7 +2095,7 @@ function dogPet(){
   else if(Lc.s==='up'){Lc.s='down';Lc.fast=false;}
   Lc.petT=performance.now()/1000;
 }
-addEventListener('pointerdown',e=>{if(e.target&&e.target.tagName==='CANVAS'&&grab.kind!=='hp'&&!(typeof wPick==='function'&&W.ready&&wPick(e.clientX,e.clientY))&&dogHit(e.clientX,e.clientY))dogPet();},{passive:true});
+addEventListener('pointerdown',e=>{if(e.target&&e.target.tagName==='CANVAS'&&grab.kind!=='hp'&&!(typeof wPick==='function'&&W.ready&&wPick(e.clientX,e.clientY))&&dogPetAt(e.clientX,e.clientY));},{passive:true});
 const DOGX={AX:{u:new T.Vector3(0,1,0),r:new T.Vector3(1,0,0),f:new T.Vector3(0,0,1)},q:new T.Quaternion(),q2:new T.Quaternion(),v:new T.Vector3(),v2:new T.Vector3(),p:new T.Vector3(),pt:new T.Vector3(),pd:new T.Vector3(),mw:new T.Vector3()};
 /* the pointer projected onto the vertical plane at depth z (where the dog stands) */
 function dogPtrAt(z,out){out.set(dog.ptr.x,dog.ptr.y,.5).unproject(cam);DOGX.pd.copy(out).sub(cam.position).normalize();
@@ -2150,25 +2151,19 @@ function dogApply(){
     b.o.quaternion.copy(DOGX.q);}
   dog.acc={};
 }
-function dogToggle(){
-  if(dog.failed)return;
-  if(!dog.ready){dog.wantShow=!dog.wantShow;remLit(3,dog.wantShow);return;}
-  if(!dog.present){dogPick();dog.present=true;dog.leaving=false;dog.g.visible=true;dog.x=-(L.hw+3.2);dog.z=1.9;dog.sit=0;dog.pop=PET.perch?0:1;remLit(3,true);Au.whoosh();}
-  else if(dog.leaving){dog.leaving=false;remLit(3,true);}
-  else{if(hpState.worn)hpUnwear();dog.leaving=true;remLit(3,false);Au.whoosh();}
-}
 const angDiff=(a,b)=>{let d=(b-a)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU;return d;};
 function dogFrame(dt,time){
   if(!dog.ready||!dog.present)return;
-  const hw=L.hw,home=PET.mini?0:-clamp(hw-1.6,2.4,3.3);   // mini desktop pet: the dog stands in the middle
-  const dragging=!!(cd&&cd.mode==='drag'&&cd.committed&&cd.pos);
+  const hw=L.hw,rank=dogRank(),isOwner=DOGS.cdOwn===DOGS.me,home=clamp((PET.mini?0:-clamp(hw-1.6,2.4,3.3))+(dogCount()-1-rank)*DOGS.gap,-hw+1.4,hw-1.4);   // the newcomer walks in from the left and takes the left spot, the one already there moves right   // mini desktop pet: the dog stands in the middle; with two puppies each has its own spot
+  const dragging=!!(isOwner&&cd&&cd.mode==='drag'&&cd.committed&&cd.pos);
   const tvOn=tv.b&&(tv.state==='on'||(tv.state==='falling'&&tv.landed));
   const ptA=dogPtrAt(dog.z,DOGX.pt);                                                   // the pointer on the dog's depth plane
-  if(dog.leaving&&cd&&cd.mode==='carried'){cd.mode='floor';cd.vel.set(0,0);dog.grab=null;}   // leaving: it puts the CD down where it stands
-  const cdFloor=!!(cd&&cd.mode==='floor'&&cd.flat>.6&&dog.lie.s==='none'&&!dog.leaving);   // a CD lies on the floor and the dog is free to fetch it
-  const carrying=!!(cd&&cd.mode==='carried');
+  if(dog.leaving&&isOwner&&cd&&cd.mode==='carried'){cd.mode='floor';cd.vel.set(0,0);dog.grab=null;}   // leaving: it puts the CD down where it stands
+  const cdFloor=!!(isOwner&&cd&&cd.mode==='floor'&&cd.flat>.6&&dog.lie.s==='none'&&!dog.leaving);   // a CD lies on the floor and the dog is free to fetch it
+  const carrying=!!(isOwner&&cd&&cd.mode==='carried');
   if(dog.grab&&!(cd&&(cd.mode==='floor'||cd.mode==='carried')))dog.grab=null;          // someone else took the CD mid-bite
   /* 1. what is the dog doing? */
+  const soc=dogSocial(dt,hw);
   let tx=home,tz=1.9,spd=4.2,mode='idle';
   if(PET.perch){mode='perch';tx=dog.x;tz=dog.z;}   // lying on top of the player: it does not walk anywhere
   else if(dog.leaving){tx=-(hw+3.4);spd=8;mode='out';}
@@ -2182,7 +2177,8 @@ function dogFrame(dt,time){
   else if(toyTarget()){   // an apple (see 15-wardrobe/02-toys.js): run to where it lies right in front of the lips, like fetching a CD. it only walks forward, otherwise it turns around
     mode='eat';const ap=toyTarget();let a=(ap.x-dog.x)*dog.fd;if(a<-.3){dog.fd=-dog.fd;a=-a;}
     tz=FLOOR_Z;spd=7.5;tx=(dog.eat||a<=DOG_BITE.stand)?dog.x:clamp(ap.x-dog.fd*DOG_BITE.stand,-hw+1.1,hw-1.1);}
-  else if(tvOn){mode='tv';tx=tv.b.position.x/PXU-1.3;tz=2.9;spd=5.2;}
+  else if(soc&&soc.mode){mode=soc.mode;tx=soc.tx;spd=soc.spd;}   // the other puppy is busy / has left (03-dogs.js)
+  else if(tvOn){mode='tv';tx=tv.b.position.x/PXU-1.3-3.4*rank;tz=2.9;spd=5.2;}
   /* belly-up state machine: down -> lie (as long as it is being petted) -> up (slowly; now and then it flops back) */
   const Lc=dog.lie,nowS=performance.now()/1000;
   if(dog.leaving&&Lc.s!=='none'){Lc.s='none';}
@@ -2224,7 +2220,7 @@ function dogFrame(dt,time){
   let eatJaw=0;
   if(mode==='eat'){const E=toyEat(dt,moving,tz,toyTarget());bow=Math.max(bow,E.bow);eatJaw=E.jaw;}   // 2c. the apple: bow, take it into the mouth, chew
   /* 3. sit when parked in front of the TV */
-  const sitWant=(mode==='tv'&&!moving&&Math.abs(dog.z-tz)<.15)?1:0;
+  const sitWant=((mode==='tv'||mode==='sitby')&&!moving&&Math.abs(dog.z-tz)<.15)?1:0;
   dog.sit+=(sitWant-dog.sit)*(1-Math.exp(-dt*(sitWant?5:9)));
   /* 4. facing */
   DOGX.p.set(dog.ptr.x,dog.ptr.y,.5).unproject(cam);DOGX.v.copy(DOGX.p).sub(cam.position).normalize();
@@ -2237,6 +2233,7 @@ function dogFrame(dt,time){
   else if(mode==='fetch'||mode==='bring'||mode==='eat'){ryT=dog.fd*1.2;if(mode==='fetch')look=DOGX.v2.set(cd.pos.x,cd.pos.y,cd.pos.z);else if(mode==='eat'){const ap=toyTarget();if(ap)look=DOGX.v2.set(ap.x,ap.y+.3,ap.z);}}
   else if(moving)ryT=vx>0?1.2:-1.2;
   else if(mode==='chase'){ryT=clamp(Math.atan2(cd.pos.x-dog.x,4),-1,1);look=DOGX.v2.set(cd.pos.x,cd.pos.y,.8);}
+  else if(soc&&soc.look){ryT=clamp(Math.atan2(soc.look.x-dog.x,3.2),-1.2,1.2);look=DOGX.v2.set(soc.look.x,soc.look.y,soc.look.z);}   // watching / glancing at the other puppy
   else ryT=clamp(Math.atan2(DOGX.p.x-dog.x,4.5),-.95,.95)*.8;
   dog.ry+=angDiff(dog.ry,ryT)*(1-Math.exp(-dt*(moving?10:5)));
   /* 5. hops: when the dragged CD is just above, the dog jumps for it */
@@ -2255,7 +2252,7 @@ function dogFrame(dt,time){
   dog.g.rotation.y=dog.ry;if(dog.rg)dog.rg.rotation.z=Lc.sign*(DOG_LIE.ang*eo+Math.sin(performance.now()/1000*2.2)*.05*eo*(nowS-Lc.petT<.6?2:1));
 dog.g.updateMatrixWorld(true);
   /* 6b. the CD hangs from the lips: its rim in the mouth, its centre a little way out in front, tipped up so it can be seen; right after the bite it glides up from the floor */
-  if(cd&&cd.mode==='carried'&&dog.mouthL){
+  if(isOwner&&cd&&cd.mode==='carried'&&dog.mouthL){
     DOGX.mw.copy(dog.mouthL);dog.bones.Head.o.localToWorld(DOGX.mw);
     const R=CDR*FLAT_S*DOG_BITE.reach;DOGX.mw.x+=Math.sin(dog.ry)*R;DOGX.mw.z+=Math.cos(dog.ry)*R;DOGX.mw.y+=DOG_BITE.lift;
     cd.att=Math.min(1,cd.att+dt/.4);const e=ease.io2(cd.att);
@@ -2266,7 +2263,7 @@ dog.g.updateMatrixWorld(true);
   const yawT=clamp(Math.atan2(ddx,ddz),-1.25,1.25),pitT=clamp(Math.atan2(ddy,Math.hypot(ddx,ddz)),-.55,.75);
   const kl=1-Math.exp(-dt*(mode==='chase'?14:9));dog.lookYaw+=(yawT-dog.lookYaw)*kl;dog.lookPitch+=(pitT-dog.lookPitch)*kl;
   const playing=status==='playing',bpm=(Au.alb&&Au.alb.bpm)||90,beat=playing?Math.sin(time*Math.PI*bpm/60):0;
-  const happy=Math.max(pw,playing?.55:0,mode==='chase'||mode==='fetch'||mode==='bring'||mode==='eat'?1:0,moving?.7:0,eo);
+  const happy=Math.max(pw,playing?.55:0,mode==='chase'||mode==='fetch'||mode==='bring'||mode==='eat'||mode==='follow'?1:0,moving?.7:0,eo);
   if(pw>0)dogAdd('Head','u',Math.sin(time*16)*.14*pw);
   dogAdd('Neck','u',dog.lookYaw*.42*(1-eo));dogAdd('Head','u',dog.lookYaw*.58*(1-eo));
   dogAdd('Neck','r',(-dog.lookPitch*.4+beat*.03)*(1-eo));dogAdd('Head','r',(-dog.lookPitch*.6+beat*.05)*(1-eo));
@@ -2323,9 +2320,9 @@ const DOG_BITE={mx:0,my:35.5,mz:38,stand:1.65,dur:.7,reach:.85,lift:.05};
 loadDog();
 
 /* ---------- more puppies: B = Sib_a (models/dog2.*), C = pug (models/pug.*) ----------
-   The dog button brings the puppies in turn: 1st press -> puppy A, it goes home, next press -> puppy B, then C, then A again ...
-   All share one `dog` (same behaviour code). A variant only swaps the skinned model under dog.inn, the bone table (dog1's bone names -> this model's joints),
-   a few pose numbers, and which wardrobe outfit is on (each puppy keeps its own, localStorage key per variant). */
+   The dog button brings the puppies in turn: 1st press -> puppy A, next press (when none is out) -> puppy B, then C, then A again ...; a long press brings the next two.
+   Every puppy has its own model group and state (03-dogs.js); they all run the same behaviour code (dogFrame). A variant is the skinned model, the bone table
+   (dog1's bone names -> this model's joints), a few pose numbers, and which wardrobe outfit is on (each puppy keeps its own, localStorage key per variant). */
 const DV={cur:0,v:[null,null,null],KEY:'chill_hihi.dogNext',WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3'],
   base:null,   // pose numbers of puppy A, to restore
   /* per-puppy numbers, index = variant (0 = puppy A, kept in DV.base). Each entry:
@@ -2389,32 +2386,175 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
     root.traverse(o=>o.layers.enable(1));
     /* the mouth: the bite point, remembered in the head's own space (same trick as puppy A) */
     DV.v[vi]={bones,fix,mouthL:null,footLift:.02,ak:P.ak,fitAdj:P.fit,ready:true};
-    if(DV.cur===vi)dogSetVariant(vi,true);
   }catch(e){console.warn(name+' failed to load',e);}
-}
-/* the next puppy in line (or puppy A when that one did not load); called when a puppy walks in */
-function dogPick(){
-  const N=DV.v.length;let next=LS.get(DV.KEY,0)|0;if(next<0||next>=N)next=0;
-  const pick=DV.v[next]&&DV.v[next].ready?next:0;
-  dogSetVariant(pick);LS.set(DV.KEY,(pick+1)%N);
-}
-function dogSetVariant(i,force){
-  const V=DV.v[i];if(!V||!V.ready||(!force&&DV.cur===i&&dog.fix===V.fix))return;
-  const was=DV.cur;
-  /* outfit: what puppy A wears stays saved under its key; the clothes go back on the shelf and puppy B's own outfit is put on */
-  for(const s of Object.keys(W.worn)){const w=W.worn[s];if(w.sg.parent)w.sg.parent.remove(w.sg);delete W.worn[s];const it=W.items[w.id];if(it)it.away=false;}
-  W.KEY=DV.WK[i];W.restored=false;W.recycleKey='';
-  dog.inn.remove(dog.fix);dog.inn.add(V.fix);dog.fix=V.fix;dog.bones=V.bones;dog.acc={};dog.ak=V.ak;dog.fitAdj=V.fitAdj;dog.footLift=V.footLift;dog.shk=0;
-  const P=i>0?DV.P[i]:DV.base;
-  Object.assign(DOG_SIT,P.sit);Object.assign(DOG_LIE,P.lie);Object.assign(DOG_PERCH,P.perch);Object.assign(DOG_BITE,P.bite);
-  if(i>0&&!V.mouthL){   // first time: work out the lips in the head's space
-    dog.g.updateMatrixWorld(true);
-    V.mouthL=V.bones.Head.o.worldToLocal(dog.g.localToWorld(new T.Vector3(DOG_BITE.mx,DOG_BITE.my,DOG_BITE.mz)));}
-  dog.mouthL=V.mouthL;DV.cur=i;
-  if(was!==i)console.info('puppy',i);
 }
 loadDogV(1,'dog2');
 loadDogV(2,'pug');
+/* ---------- several puppies at once (max 2) ----------
+   Every puppy is an instance {v,st,worn,restored,wkey}. `dog` stays the one state object all the old code reads and writes: dogLoad(I) copies an instance's state into it,
+   dogSave(I) copies it back. dogsFrame runs dogFrame once per present puppy; after the frame `dog` is the FOCUS puppy again (the one the wardrobe / headphones / toys talk to).
+   Short press of the dog button: none out -> next puppy in the rotation walks in; some out -> all leave (one after the other).
+   Long press (~3 s): the next two puppies in the rotation walk in, one after the other. */
+const DOGS={byV:[],list:[],cur:null,focus:null,me:null,inFrame:false,gap:3.8,stagger:.7,cdOwn:null,blink:false};
+const DS=I=>I===DOGS.cur?dog:I.st;                       // live state of an instance (the loaded one lives in `dog`)
+const dogCap=()=>(PET.perch||PET.mini)?1:2;
+const dogActive=()=>DOGS.list.filter(I=>I.pend||(DS(I).present&&!DS(I).leaving));
+const dogAnyOn=()=>dog.ready?dogActive().length>0:dog.wantShow;
+function dogSave(I){for(const k in dog)I.st[k]=dog[k];I.restored=W.restored;I.worn=W.worn;}
+function dogLoad(I){
+  if(!I||DOGS.cur===I)return;
+  if(DOGS.cur)dogSave(DOGS.cur);
+  const st=I.st;for(const k in dog)if(!(k in st))delete dog[k];Object.assign(dog,st);
+  const P=I.v>0?DV.P[I.v]:DV.base;Object.assign(DOG_SIT,P.sit);Object.assign(DOG_LIE,P.lie);Object.assign(DOG_PERCH,P.perch);Object.assign(DOG_BITE,P.bite);
+  W.worn=I.worn;W.KEY=I.wkey;W.restored=I.restored;W.recycleKey='';
+  DOGS.cur=I;
+}
+function dogInst(v){   // the instance of variant v (built the first time it is needed)
+  if(DOGS.byV[v])return DOGS.byV[v];
+  const V=DV.v[v];if(!V||!V.ready||!dog.ready)return null;
+  let I;
+  if(v===0){I={v,st:Object.assign({},dog),worn:W.worn,restored:W.restored,wkey:DV.WK[0]};DOGS.cur=I;DOGS.byV[0]=I;return I;}   // puppy A is the original `dog`
+  const st=dogFresh(),g=st.g,SPN=1.1/st.scale,pv=new T.Group(),rg=new T.Group(),inn=new T.Group();pv.position.y=SPN;inn.position.y=-SPN;
+  inn.add(V.fix);rg.add(inn);pv.add(rg);g.add(pv);g.scale.setScalar(st.scale);g.visible=false;scene.add(g);g.updateMatrixWorld(true);
+  const b=DV.P[v].bite;if(!V.mouthL)V.mouthL=V.bones.Head.o.worldToLocal(g.localToWorld(new T.Vector3(b.mx,b.my,b.mz)));
+  Object.assign(st,{rg,inn,fix:V.fix,bones:V.bones,mouthL:V.mouthL,ak:V.ak,fitAdj:V.fitAdj,footLift:V.footLift,ptr:dog.ptr,ready:true});
+  g.traverse(o=>o.layers.enable(1));
+  I={v,st,worn:{},restored:false,wkey:DV.WK[v]};DOGS.byV[v]=I;return I;
+}
+/* the next n puppies in the rotation that are ready and not already out */
+function dogsNext(n){
+  const N=DV.v.length;let s=LS.get(DV.KEY,0)|0;if(s<0||s>=N)s=0;const out=[];
+  for(let k=0;k<N&&out.length<n;k++){const v=(s+k)%N;if(DV.v[v]&&DV.v[v].ready&&!DOGS.list.some(I=>I.v===v))out.push(v);}
+  if(out.length)LS.set(DV.KEY,(out[out.length-1]+1)%N);
+  return out;
+}
+function dogSummon(vs){
+  let t=0;
+  for(const v of vs){const I=dogInst(v);if(!I)continue;I.pend=true;I.delay=t;t+=DOGS.stagger;DOGS.list.push(I);}
+}
+function dogEnter(I){
+  dogLoad(I);
+  dog.present=true;dog.leaving=false;dog.g.visible=true;dog.x=-(L.hw+3.2);dog.z=1.9;dog.sit=0;dog.pop=PET.perch?0:1;dog.watchT=0;dog.trotX=null;dog.lie.s='none';dog.lie.amt=0;
+  I.pend=false;if(!DOGS.focus||!DS(DOGS.focus).present||DS(DOGS.focus).leaving)DOGS.focus=I;
+  Au.whoosh();dogSave(I);
+}
+function dogLeave(I,delay){
+  if(I.pend){I.pend=false;DOGS.list=DOGS.list.filter(o=>o!==I);return;}   // had not walked in yet
+  I.leaveIn=delay||0;
+}
+function dogDoLeave(I){
+  const s=DS(I);if(!s.present||s.leaving)return;
+  if(hpState.worn&&DOGS.focus===I)hpUnwear();
+  s.leaving=true;Au.whoosh();
+  for(const o of DOGS.list)if(o!==I){const t=DS(o);if(t.present&&!t.leaving){t.watchT=2.2+Math.random()*1.4;t.trotX=Math.random()<.4?t.x-2.6:null;}}   // the other one looks after it, sometimes trots a few steps
+  if(DOGS.focus===I){const o=DOGS.list.find(x=>x!==I&&DS(x).present&&!DS(x).leaving);if(o)DOGS.focus=o;}
+}
+function dogToggle(){   // short press
+  if(dog.failed)return;
+  if(!dog.ready){dog.wantShow=!dog.wantShow;remLit(3,dog.wantShow);return;}
+  const act=dogActive();
+  if(act.length)act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));
+  else dogSummon(dogsNext(1));
+  remLit(3,dogAnyOn());
+}
+function dogCall2(){    // long press: the next two puppies walk in
+  if(dog.failed||!dog.ready)return;
+  const room=dogCap()-dogActive().length;if(room<=0)return;
+  dogSummon(dogsNext(Math.min(2,room)));remLit(3,true);
+}
+function dogFocus(I){if(!I||DOGS.focus===I||DOGS.inFrame)return;if(hpState.worn)hpUnwear();DOGS.focus=I;dogLoad(I);}
+/* hit-tests: which puppy is under the pointer */
+function dogWhoAt(cx,cy){
+  const cands=DOGS.list.filter(I=>{const s=DS(I);return s.present&&!s.leaving;});
+  const prev=DOGS.cur;let hit=null;
+  for(const I of cands){dogLoad(I);if(dogHit1(cx,cy)){hit=I;break;}}
+  if(prev&&DOGS.cur!==prev)dogLoad(prev);
+  return hit;
+}
+function dogHit(cx,cy){   // used by the wardrobe / headphones: also makes the puppy under the pointer the focus
+  if(DOGS.inFrame)return dogHit1(cx,cy);
+  if(dogHit1(cx,cy))return true;
+  const I=dogWhoAt(cx,cy);if(I){dogFocus(I);return true;}return false;
+}
+function dogPetAt(cx,cy){   // a click: pets whichever puppy is under it (focus does not change)
+  const I=dogWhoAt(cx,cy);if(!I)return false;
+  const prev=DOGS.cur;dogLoad(I);dogPet();if(prev&&prev!==I)dogLoad(prev);return true;
+}
+/* the CD belongs to one puppy at a time: the nearest one, and it keeps it until it is done */
+function dogsCdOwner(){
+  const act=cd&&((cd.mode==='drag'&&cd.committed&&cd.pos)||(cd.mode==='floor'&&cd.flat>.6)||cd.mode==='carried');
+  const c=DOGS.list.filter(I=>{const s=DS(I);return s.present;});
+  if(!act||!c.length){DOGS.cdOwn=null;return;}
+  const cur=DOGS.cdOwn;
+  if(cur&&c.includes(cur)&&(cd.mode==='carried'||DS(cur).grab||!DS(cur).leaving))return;   // it keeps the CD until it is done
+  let best=null,bs=1e9;
+  for(const I of c){const s=DS(I);if(s.leaving)continue;const sc=Math.abs(cd.pos.x-s.x)+(s.lie.s!=='none'?6:0);if(sc<bs){bs=sc;best=I;}}
+  DOGS.cdOwn=best;
+}
+const dogRank=I=>{const a=DOGS.list.filter(o=>{const s=DS(o);return s.present&&!s.leaving;});const i=a.indexOf(I||DOGS.me);return i<0?0:i;};
+const dogCount=()=>Math.max(1,DOGS.list.filter(o=>{const s=DS(o);return s.present&&!s.leaving;}).length);
+const dogBuddy=()=>{for(const o of DOGS.list)if(o!==DOGS.me){const s=DS(o);if(s.present&&!s.leaving)return s;}return null;};
+/* the social layer: what a puppy does when the other one is busy (only used when it has no task of its own) */
+function dogSocial(dt,hw){
+  const b=dogBuddy();
+  if(dog.watchT>0){dog.watchT-=dt;return {mode:'watch',tx:dog.trotX!=null?clamp(dog.trotX,-hw+1.2,hw-1.2):dog.x,spd:3.2,look:{x:-(hw+3),y:FLOOR_Y+1.2,z:dog.z}};}   // the other one left: look after it
+  if(!b)return null;
+  const side=dog.x>=b.x?1:-1,bl=b.lie&&b.lie.s!=='none'&&b.lie.amt>.3;
+  if(bl)return {mode:'sitby',tx:clamp(b.x+side*3.3,-hw+1.2,hw-1.2),spd:4.5,look:{x:b.x,y:FLOOR_Y+.9,z:b.z}};   // it is being petted: sit down next to it
+  if(b.mode==='chase'||b.mode==='fetch'||b.mode==='bring'||b.mode==='eat')return {mode:'follow',tx:clamp(b.x+side*2.9,-hw+1.2,hw-1.2),spd:6.5,look:{x:b.x,y:FLOOR_Y+.9,z:b.z}};   // it has something going on: trot along
+  dog.glT-=dt;if(dog.glT<=0){dog.glT=4+Math.random()*5;dog.glance=1.6;}
+  if(dog.glance>0){dog.glance-=dt;return {mode:null,look:{x:b.x,y:FLOOR_Y+1.3,z:b.z}};}   // now and then a glance at the other puppy
+  return null;
+}
+function dogRestoreWear(){
+  const o=LS.get(W.KEY,{});
+  for(const s in o){const id=o[s];if(!W.items[id]||W.items[id].slot!==s)continue;
+    if(DOGS.list.some(x=>x!==DOGS.me&&Object.values(x.worn).some(w=>w.id===id)))continue;   // the other puppy already wears it
+    wEquip(id,true);}
+}
+function dogsLongPress(){
+  const hold=pd&&pd.kind==='phys'&&grab.kind==='rem'&&grab.btn===3&&!pd.moved,now=performance.now();
+  if(hold){
+    if(!grab.t0)grab.t0=now;
+    const h=(now-grab.t0)/3000;
+    if(!grab.long){
+      if(h>=1){grab.long=true;DOGS.blink=false;dogCall2();}
+      else{DOGS.blink=true;remLit(3,(((now-grab.t0)/(320-220*h))|0)%2===0);}   // the lamp blinks faster and faster until it triggers
+    }
+  }else{DOGS.blink=false;grab.t0=0;}
+}
+function dogsFrame(dt,time){
+  if(!dog.ready)return;
+  if(!DOGS.cur)dogInst(0);
+  dogsLongPress();
+  DOGS.inFrame=true;
+  try{
+    dogSave(DOGS.cur);
+    for(const I of DOGS.list){   // timers: walk in / walk out one after the other
+      if(I.pend){I.delay-=dt;if(I.delay<=0)dogEnter(I);}
+      else if(I.leaveIn!=null){I.leaveIn-=dt;if(I.leaveIn<=0){I.leaveIn=null;dogDoLeave(I);}}
+    }
+    dogsCdOwner();
+    for(const I of DOGS.list){
+      if(!I.st.present)continue;
+      dogLoad(I);DOGS.me=I;
+      if(dog.present&&!I.restored&&W.ready){I.restored=true;W.restored=true;dogRestoreWear();}
+      dogFrame(dt,time);
+      dogSave(I);
+    }
+    /* two puppies never stand inside each other: the idle one gives way */
+    const on=DOGS.list.filter(I=>I.st.present&&!I.st.leaving);
+    if(on.length===2){const [a,b]=on,A=a.st,B=b.st,ov=2.6-Math.abs(A.x-B.x);
+      if(ov>0){const busy=s=>s.lie.s!=='none'||s.mode==='fetch'||s.mode==='bring'||s.mode==='eat'||s.mode==='chase';
+        const dir=A.x>=B.x?1:-1,k=Math.min(1,dt*4)*ov;
+        if(busy(A)&&!busy(B))B.x-=dir*k;else if(busy(B)&&!busy(A))A.x+=dir*k;else{A.x+=dir*k*.5;B.x-=dir*k*.5;}}}
+    DOGS.list=DOGS.list.filter(I=>I.pend||I.st.present);
+    if(DOGS.focus&&!DOGS.list.includes(DOGS.focus))DOGS.focus=DOGS.list.find(I=>I.st.present&&!I.st.leaving)||DOGS.list[0]||null;
+  }finally{DOGS.inFrame=false;DOGS.me=null;}
+  dogLoad(DOGS.focus||DOGS.byV[0]);
+  if(!DOGS.blink)remLit(3,dogAnyOn());
+}
+window.__dogs={DOGS,dogToggle,dogCall2,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
 /* ---------- dog wardrobe ----------
    models/wardrobe/manifest.json (written by tools/build_wardrobe.py) lists the slots (which bone each kind of item hangs on, and where) and the items.
    While the dog is around, an open boutique display shelf slides in from the right edge; each slot has one shelf.
@@ -2819,13 +2959,13 @@ function frame(){
   if(Au.alb&&Au.alb.yt&&(status==='playing'||status==='paused'))Au.elapsed=status==='paused'&&YTA.pausedAt!==null?YTA.pausedAt:YTA.time();else if(Au.playing)Au.elapsed+=dt;
   YTA.tick(dt);
   if(volT>0)volT-=dt;
-  try{dogFrame(dt,time);}catch(e){if(!dog.err){dog.err=1;console.warn('dog',e);}}
+  try{dogsFrame(dt,time);}catch(e){if(!dog.err){dog.err=1;console.warn('dog',e);}}
   try{wardFrame(dt,time);}catch(e){if(!W.err){W.err=1;console.warn('wardrobe',e);}}
   try{toyFrame(dt,time);}catch(e){if(!TOY.err){TOY.err=1;console.warn('toys',e);}}
   if(PET.on)petFrame(dt,time);
   if(!PET.mini){drawDisplay();syncKeys();updateFx(dt,time);}
   renderer.render(scene,cam);
-  if(dogOverlayRenderer&&dog.ready&&dog.present&&!dog.leaving&&tv.mode==='video'&&tv.pw>.02&&tv.b){
+  if(dogOverlayRenderer&&dogAnyOn()&&tv.mode==='video'&&tv.pw>.02&&tv.b){
     if(!dog.overlayLights){scene.traverse(o=>{if(o.isLight)o.layers.enable(1);});dog.overlayLights=true;}
     dogOverlayCam.copy(cam);dogOverlayCam.layers.set(1);
     const bg=scene.background;scene.background=null;
@@ -2847,7 +2987,7 @@ function toyChip(){const k=TOY.sel||'';if(k===TOY.chipKey)return;TOY.chipKey=k;T
 function toySelect(id){TOY.sel=TOY.sel===id?null:id;Au.ensure();Au.click(TOY.sel?1.5:1.1,.45);buzz(8);toyChip();}
 TOY.chipEl.addEventListener('click',()=>{TOY.sel=null;toyChip();});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&TOY.sel){TOY.sel=null;toyChip();}});
-const toyDogCan=()=>dog.ready&&dog.present&&!dog.leaving&&!PET.perch&&!PET.mini;
+const toyDogCan=()=>dog.ready&&dogAnyOn()&&!PET.perch&&!PET.mini;
 /* is this pointer position empty space (not the player, an album, the CD, headphones, the dog, the cabinet or the album shelf)? */
 function toyBlank(e){
   if(!TOY.sel||!PHYS||PET.mini||busy||pd||W.drag||W.sd||(state!=='home'&&state!=='stage'))return false;
@@ -2906,8 +3046,9 @@ const toyOnFloor=a=>a.y-TOY.R-FLOOR_Y<.5;   // the dog can only reach an apple t
 function toyTarget(){
   if(!toyDogCan())return null;
   if(dog.eat)return dog.eat.a;
-  let best=null,bd=1e9;
-  for(const a of TOY.apples)if(a.st==='live'){const d=Math.abs(a.x-dog.x)+(toyOnFloor(a)?0:4);if(d<bd){bd=d;best=a;}}
+  let best=null,bd=1e9;const bu=dogBuddy();
+  for(const a of TOY.apples)if(a.st==='live'){if(bu&&Math.abs(a.x-bu.x)<Math.abs(a.x-dog.x)-.01)continue;   /* the other puppy is nearer to this apple: it is its */
+    const d=Math.abs(a.x-dog.x)+(toyOnFloor(a)?0:4);if(d<bd){bd=d;best=a;}}
   return best;
 }
 function toyEatCancel(){if(dog.eat){const a=dog.eat.a;dog.eat=null;if(a.st==='eat'){a.st='live';a.r=1;a.att=0;a.calm=0;toyBodyAdd(a,a.x,a.y);}}}   // it drops back into the world where it is
@@ -3035,7 +3176,7 @@ function petVol(d){
   PET.volShow=1.6;petBarSync(true);return Au.vol!==v0;
 }
 function petDog(on){
-  const cur=dog.ready?(dog.present&&!dog.leaving):dog.wantShow;
+  const cur=dogAnyOn();
   if(on!==cur)dogToggle();
 }
 
@@ -3158,8 +3299,8 @@ if(PET.on){
   }         // transparent style: start click-through, it opens up over the pet and the controls
   const dogBtn=$id('petDogBtn');
   if(dogBtn){   // small browser window (no menu-bar icon there): a button for the dog
-    const sync=()=>dogBtn.setAttribute('aria-pressed',String(dog.ready?(dog.present&&!dog.leaving):dog.wantShow));
-    dogBtn.addEventListener('click',()=>{const on=!(dog.ready?(dog.present&&!dog.leaving):dog.wantShow);petDog(on);sync();if(PET.bridge&&PET.bridge.post)PET.bridge.post({chp:'dog',v:on});});
+    const sync=()=>dogBtn.setAttribute('aria-pressed',String(dogAnyOn()));
+    dogBtn.addEventListener('click',()=>{const on=!(dogAnyOn());petDog(on);sync();if(PET.bridge&&PET.bridge.post)PET.bridge.post({chp:'dog',v:on});});
     setTimeout(sync,400);
   }
   const hide=$id('petHide');if(hide)hide.addEventListener('click',()=>PET.bridge&&PET.bridge.hide());

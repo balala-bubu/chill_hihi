@@ -1,7 +1,7 @@
 /* ---------- more puppies: B = Sib_a (models/dog2.*), C = pug (models/pug.*) ----------
-   The dog button brings the puppies in turn: 1st press -> puppy A, it goes home, next press -> puppy B, then C, then A again ...
-   All share one `dog` (same behaviour code). A variant only swaps the skinned model under dog.inn, the bone table (dog1's bone names -> this model's joints),
-   a few pose numbers, and which wardrobe outfit is on (each puppy keeps its own, localStorage key per variant). */
+   The dog button brings the puppies in turn: 1st press -> puppy A, next press (when none is out) -> puppy B, then C, then A again ...; a long press brings the next two.
+   Every puppy has its own model group and state (03-dogs.js); they all run the same behaviour code (dogFrame). A variant is the skinned model, the bone table
+   (dog1's bone names -> this model's joints), a few pose numbers, and which wardrobe outfit is on (each puppy keeps its own, localStorage key per variant). */
 const DV={cur:0,v:[null,null,null],KEY:'chill_hihi.dogNext',WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3'],
   base:null,   // pose numbers of puppy A, to restore
   /* per-puppy numbers, index = variant (0 = puppy A, kept in DV.base). Each entry:
@@ -65,29 +65,7 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
     root.traverse(o=>o.layers.enable(1));
     /* the mouth: the bite point, remembered in the head's own space (same trick as puppy A) */
     DV.v[vi]={bones,fix,mouthL:null,footLift:.02,ak:P.ak,fitAdj:P.fit,ready:true};
-    if(DV.cur===vi)dogSetVariant(vi,true);
   }catch(e){console.warn(name+' failed to load',e);}
-}
-/* the next puppy in line (or puppy A when that one did not load); called when a puppy walks in */
-function dogPick(){
-  const N=DV.v.length;let next=LS.get(DV.KEY,0)|0;if(next<0||next>=N)next=0;
-  const pick=DV.v[next]&&DV.v[next].ready?next:0;
-  dogSetVariant(pick);LS.set(DV.KEY,(pick+1)%N);
-}
-function dogSetVariant(i,force){
-  const V=DV.v[i];if(!V||!V.ready||(!force&&DV.cur===i&&dog.fix===V.fix))return;
-  const was=DV.cur;
-  /* outfit: what puppy A wears stays saved under its key; the clothes go back on the shelf and puppy B's own outfit is put on */
-  for(const s of Object.keys(W.worn)){const w=W.worn[s];if(w.sg.parent)w.sg.parent.remove(w.sg);delete W.worn[s];const it=W.items[w.id];if(it)it.away=false;}
-  W.KEY=DV.WK[i];W.restored=false;W.recycleKey='';
-  dog.inn.remove(dog.fix);dog.inn.add(V.fix);dog.fix=V.fix;dog.bones=V.bones;dog.acc={};dog.ak=V.ak;dog.fitAdj=V.fitAdj;dog.footLift=V.footLift;dog.shk=0;
-  const P=i>0?DV.P[i]:DV.base;
-  Object.assign(DOG_SIT,P.sit);Object.assign(DOG_LIE,P.lie);Object.assign(DOG_PERCH,P.perch);Object.assign(DOG_BITE,P.bite);
-  if(i>0&&!V.mouthL){   // first time: work out the lips in the head's space
-    dog.g.updateMatrixWorld(true);
-    V.mouthL=V.bones.Head.o.worldToLocal(dog.g.localToWorld(new T.Vector3(DOG_BITE.mx,DOG_BITE.my,DOG_BITE.mz)));}
-  dog.mouthL=V.mouthL;DV.cur=i;
-  if(was!==i)console.info('puppy',i);
 }
 loadDogV(1,'dog2');
 loadDogV(2,'pug');

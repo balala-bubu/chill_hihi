@@ -14,6 +14,6 @@ function ytLayout(show){
   if(ytboxEl.style.opacity!=='1')ytboxEl.style.opacity='1';
   if(dogOverlayRenderer){const el=dogOverlayRenderer.domElement;
     el.style.clipPath='polygon('+P.map(p=>p[0].toFixed(1)+'px '+p[1].toFixed(1)+'px').join(',')+')';
-    el.style.display=dog.ready&&dog.present&&!dog.leaving?'block':'none';}
+    el.style.display=dog.ready&&dogAnyOn()?'block':'none';}
 }
 

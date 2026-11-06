@@ -8,7 +8,7 @@ function toyChip(){const k=TOY.sel||'';if(k===TOY.chipKey)return;TOY.chipKey=k;T
 function toySelect(id){TOY.sel=TOY.sel===id?null:id;Au.ensure();Au.click(TOY.sel?1.5:1.1,.45);buzz(8);toyChip();}
 TOY.chipEl.addEventListener('click',()=>{TOY.sel=null;toyChip();});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&TOY.sel){TOY.sel=null;toyChip();}});
-const toyDogCan=()=>dog.ready&&dog.present&&!dog.leaving&&!PET.perch&&!PET.mini;
+const toyDogCan=()=>dog.ready&&dogAnyOn()&&!PET.perch&&!PET.mini;
 /* is this pointer position empty space (not the player, an album, the CD, headphones, the dog, the cabinet or the album shelf)? */
 function toyBlank(e){
   if(!TOY.sel||!PHYS||PET.mini||busy||pd||W.drag||W.sd||(state!=='home'&&state!=='stage'))return false;
@@ -67,8 +67,9 @@ const toyOnFloor=a=>a.y-TOY.R-FLOOR_Y<.5;   // the dog can only reach an apple t
 function toyTarget(){
   if(!toyDogCan())return null;
   if(dog.eat)return dog.eat.a;
-  let best=null,bd=1e9;
-  for(const a of TOY.apples)if(a.st==='live'){const d=Math.abs(a.x-dog.x)+(toyOnFloor(a)?0:4);if(d<bd){bd=d;best=a;}}
+  let best=null,bd=1e9;const bu=dogBuddy();
+  for(const a of TOY.apples)if(a.st==='live'){if(bu&&Math.abs(a.x-bu.x)<Math.abs(a.x-dog.x)-.01)continue;   /* the other puppy is nearer to this apple: it is its */
+    const d=Math.abs(a.x-dog.x)+(toyOnFloor(a)?0:4);if(d<bd){bd=d;best=a;}}
   return best;
 }
 function toyEatCancel(){if(dog.eat){const a=dog.eat.a;dog.eat=null;if(a.st==='eat'){a.st='live';a.r=1;a.att=0;a.calm=0;toyBodyAdd(a,a.x,a.y);}}}   // it drops back into the world where it is

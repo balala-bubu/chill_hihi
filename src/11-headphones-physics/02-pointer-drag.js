@@ -7,7 +7,7 @@ function startPhysGrab(hit){
   else if(kind==='plug'){body=endB();stiff=.3;if(hpState.s==='seek'){hpState.drive=null;hpState.s='free';hpState.seek=0;}}
   else if(kind==='tv'){body=tv.b;stiff=.07;}
   if(!body)return false;
-  grab.kind=kind;grab.body=body;grab.z=hit.point.z;grab.pointer=null;grab.btn=kind==='rem'&&o.userData.rbtn!==undefined?o.userData.rbtn:-1;
+  grab.kind=kind;grab.body=body;grab.z=hit.point.z;grab.pointer=null;grab.long=false;grab.t0=0;grab.btn=kind==='rem'&&o.userData.rbtn!==undefined?o.userData.rbtn:-1;
   const px=mxp(hit.point.x),py=myp(hit.point.y),dx=px-body.position.x,dy=py-body.position.y,ca=Math.cos(-body.angle),sa=Math.sin(-body.angle);
   grab.c=Constraint.create({pointA:{x:px,y:py},bodyB:body,pointB:{x:dx*ca-dy*sa,y:dx*sa+dy*ca},stiffness:stiff,damping:.18,length:0});
   Composite.add(wld,grab.c);
@@ -19,10 +19,10 @@ function moveGrab(e){if(!grab.c)return;grab.pointer={x:e.clientX,y:e.clientY};se
 function endPhysGrab(moved){
   if(!grab.c)return;Composite.remove(wld,grab.c);grab.c=null;
   const k=grab.kind,btn=grab.btn;grab.kind=null;hpState.grab=false;
-  if(k==='rem'&&btn>=0){if(!moved){remPressAnim(btn);remoteFx(btn);}else remRelease(btn);}
+  if(k==='rem'&&btn>=0){if(!moved&&!grab.long){remPressAnim(btn);remoteFx(btn);}else remRelease(btn);}   // a long press on the dog button (03-dogs.js) already did its job
   if(k==='hp'){
     const p=grab.pointer;
-    if(moved&&p&&dog.ready&&dog.present&&!dog.leaving){
+    if(moved&&p&&dog.ready&&dogAnyOn()){
       const a=wAnchor('hat');
       if(dogHit(p.x,p.y)||(a&&Math.hypot(p.x-a.x,p.y-a.y)<115)){
         if(!hpWear())hpRest();
