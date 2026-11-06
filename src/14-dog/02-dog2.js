@@ -2,15 +2,15 @@
    The dog button brings the puppies in turn: 1st press -> puppy A, next press (when none is out) -> puppy B, then C, then D, then E, then F, then A again ...; a long press brings the next two.
    Every puppy has its own model group and state (03-dogs.js); they all run the same behaviour code (dogFrame). A variant is the skinned model, the bone table
    (dog1's bone names -> this model's joints), a few pose numbers, and which wardrobe outfit is on (each puppy keeps its own, localStorage key per variant). */
-const DV={cur:0,v:[null,null,null,null,null,null,null,null,null],KEY:'chill_hihi.dogNext',NDOG:5,   // variants 0..NDOG-1 are the puppies (the dog button's rotation); 5.. are the cartoon characters (the TOON button: 5 = pikachu, then 6/7/8 = chiikawa / hachiware / usagi together)
-  WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3','chill_hihi.wear4','chill_hihi.wear5','chill_hihi.wear6','chill_hihi.wear7','chill_hihi.wear8','chill_hihi.wear9'],
+const DV={cur:0,v:[null,null,null,null,null,null,null,null,null,null],KEY:'chill_hihi.dogNext',NDOG:5,   // variants 0..NDOG-1 are the puppies (the dog button's rotation); 5.. are the cartoon characters (the TOON button: 5 = pikachu, then 6/7/8/9 = chiikawa / hachiware / usagi / toad together)
+  WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3','chill_hihi.wear4','chill_hihi.wear5','chill_hihi.wear6','chill_hihi.wear7','chill_hihi.wear8','chill_hihi.wear9','chill_hihi.wear10'],
   base:null,   // pose numbers of puppy A, to restore
   /* per-puppy numbers, index = variant (0 = puppy A, kept in DV.base). Each entry:
      map  how its joints answer dog1's bone names (null = not driven)
      sit / lie / perch / bite  pose numbers (override DOG_SIT / DOG_LIE / DOG_PERCH / DOG_BITE)
      ak   motion strengths (dog.ak)     fit  headgear: extra offset (pos) and size factor (s) on top of the slot numbers
      brow  where "Brow_group" sits in the head model (between the eyes) */
-  P:[null,null,null,null,null,null,null,null,null]};
+  P:[null,null,null,null,null,null,null,null,null,null]};
 DV.P[1]={
   map:{Hip:'skl_root',Waist:'waist',Bust:'chest',Neck:'neck',Head:'head',jawA:'mouth',LearA:'Lear1',RearA:'Rear1',tailA:'tail1',tailB:'tail2',tailC:'tail3',
     ShoulderL:'Larm1',ShoulderR:'Rarm1',LegL:'Lleg1',LegR:'Rleg1'},
@@ -60,6 +60,13 @@ const HUMANOID={
 DV.P[6]=Object.assign({},HUMANOID);                                                            // chiikawa
 DV.P[7]=Object.assign({},HUMANOID);                                                            // hachiware
 DV.P[8]=Object.assign({},HUMANOID,{map:Object.assign({LearA:'Lear1',RearA:'Rear1'},HUMANOID.map),ak:{Neck:.8,Head:.8,Bust:1,LearA:.7,RearA:.7}});   // usagi: long ears that swing
+/* toad (models/toad.*, from models/toad/src/Toad_custom_rig.dae by tools/build_toad.py): the file has a real rigid-part skeleton (arms, feet, torso, vest, head+cap), collapsed to the same 12-joint
+   names as the other characters, so it moves exactly like chiikawa (HUMANOID). Textures: a 32x4 colour palette (limbs, body), the painted face (128x64) and the red-spotted cap (64x64), all pixel-art
+   (meta.tex path, no expression swaps). The cap is much wider than the body (x up to +-22 at K=50), so rad is bigger. All numbers are first guesses: tune after looking at it. */
+DV.P[9]=Object.assign({},HUMANOID,{rad:1.3,tvGap:3,hit:{C:[0,26,-2],R:[24,28,22]},
+  bite:{mx:0,my:15,mz:14,stand:1.15},
+  brow:[0,25,10],hpMark:[12.5,5,0],   // the painted eyes sit at x=+-7, y=25, z=9..10 (K=50); the headphone cups go under the cap at the sides of the face
+  fit:{hat:{pos:[0,23,-3],s:1.5},glasses:{pos:[0,0,2],s:1.25},hp:{pos:[0,0,0]}}});
 DV.P[5].rad=1;DV.P[5].tvGap=2.8;
 function dogVarReg0(){   // called by loadDog when puppy A is built
   DV.v[0]={bones:dog.bones,mouthL:dog.mouthL,fix:dog.fix,footLift:dog.footLift,ak:undefined,fitAdj:undefined,ready:true};
@@ -128,7 +135,7 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
     const root=objs[0];
     root.traverse(o=>o.layers.enable(1));
     /* the mouth: the bite point, remembered in the head's own space (same trick as puppy A) */
-    DV.v[vi]={bones,fix,mouthL:null,footLift:.02,ak:P.ak,fitAdj:P.fit,ready:true,faceFx:alt?dogFaceFx(alt,mats):null,human:!!P.human,biteBone:P.biteBone||'Head',rad:P.rad||1.3,tvGap:P.tvGap||3.4,hit:P.hit||null};
+    DV.v[vi]={bones,fix,mouthL:null,footLift:.02,ak:P.ak,fitAdj:P.fit,ready:true,faceFx:(alt&&meta.alt)?dogFaceFx(alt,mats):null,human:!!P.human,biteBone:P.biteBone||'Head',rad:P.rad||1.3,tvGap:P.tvGap||3.4,hit:P.hit||null};
   }catch(e){console.warn(name+' failed to load',e);}
 }
 loadDogV(1,'dog2');
@@ -139,3 +146,4 @@ loadDogV(5,'pikachu');
 loadDogV(6,'chiikawa');
 loadDogV(7,'hachiware');
 loadDogV(8,'usagi');
+loadDogV(9,'toad');
