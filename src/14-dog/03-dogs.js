@@ -6,7 +6,7 @@
 const DOGS={byV:[],list:[],cur:null,focus:null,me:null,inFrame:false,gap:3.8,stagger:.7,cdOwn:null,blink:false};
 const DS=I=>I===DOGS.cur?dog:I.st;                       // live state of an instance (the loaded one lives in `dog`)
 const dogCap=()=>(PET.perch||PET.mini)?1:2;
-const isToon=I=>I.v>=DV.NDOG;   // the cartoon characters (pikachu, chiikawa, hachiware, usagi) belong to the TOON button, the puppies to the dog button
+const isToon=I=>I.v>=DV.NDOG;   // the cartoon characters (pikachu, chiikawa, hachiware, usagi, toad) belong to the TOON button, the puppies to the dog button
 const dogActive=()=>DOGS.list.filter(I=>!isToon(I)&&(I.pend||(DS(I).present&&!DS(I).leaving)));
 const toonActive=()=>DOGS.list.filter(I=>isToon(I)&&(I.pend||(DS(I).present&&!DS(I).leaving)));
 const dogAnyOn=()=>dog.ready?DOGS.list.some(I=>I.pend||(DS(I).present&&!DS(I).leaving)):dog.wantShow;   // any character at all (toys, headphones, the TV ... ask this)
@@ -68,19 +68,19 @@ function dogToggle(){   // short press
   else dogSummon(dogsNext(1));
   remLit(3,dogsOnlyOn());
 }
-/* ---------- the TOON button (remote button 6): 1st press -> pikachu walks in, 2nd press -> pikachu leaves and chiikawa + hachiware + usagi walk in together, 3rd press -> they all leave.
+/* ---------- the TOON button (remote button 6): 1st press -> pikachu walks in, 2nd press -> pikachu leaves and chiikawa + hachiware + usagi + toad walk in together, 3rd press -> they all leave.
    They are ordinary entries of DOGS.list, so they share everything with the puppies: the floor lane, collisions (nobody stands inside another), the CD, apples, balls, the TV, petting. */
-const TOON={q:0,trio:[6,7,8],cast:[5,6,7,8],KEY:'chill_hihi.toonNext'};
+const TOON={q:0,trio:[6,7,8,9],cast:[5,6,7,8,9],KEY:'chill_hihi.toonNext'};
 const toonReady=vs=>vs.filter(v=>DV.v[v]&&DV.v[v].ready);
 function toonToggle(){   // short press
   if(dog.failed)return;
   if(!dog.ready){TOON.q=1;return;}   // pressed before the models have loaded: runs as soon as they are there
   const act=toonActive();
   if(!act.length)dogSummon(toonReady([5]));                                                   // nobody: pikachu walks in
-  else if(act.every(I=>I.v===5)){act.forEach(I=>dogLeave(I,0));dogSummon(toonReady(TOON.trio),.9);}   // only pikachu: it leaves and the three friends walk in together
+  else if(act.every(I=>I.v===5)){act.forEach(I=>dogLeave(I,0));dogSummon(toonReady(TOON.trio),.9);}   // only pikachu: it leaves and the four friends walk in together
   else act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));                                        // otherwise: everybody leaves
 }
-function toonCall2(){   // long press (~3 s): the next two of pikachu / chiikawa / hachiware / usagi (in that order) walk in, one after the other
+function toonCall2(){   // long press (~3 s): the next two of pikachu / chiikawa / hachiware / usagi / toad (in that order) walk in, one after the other
   if(dog.failed||!dog.ready)return;
   const N=TOON.cast.length;let s=LS.get(TOON.KEY,0)|0;if(s<0||s>=N)s=0;const out=[];
   for(let k=0;k<N&&out.length<2;k++){const v=TOON.cast[(s+k)%N];if(DV.v[v]&&DV.v[v].ready&&!DOGS.list.some(I=>I.v===v))out.push(v);}
