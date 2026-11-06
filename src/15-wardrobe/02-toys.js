@@ -88,8 +88,8 @@ function toyEat(dt,moving,tz,a0){
   a.att=att;a.r=1-.96*ss((p-.42)/.5);                        // upright in the mouth, shrinking as it is chewed
   const thr=[.5,.67,.84];while(E.n<3&&p>=thr[E.n]){E.n++;buzz(6);a.jv+=3;a.jn.x=a.jn.y=.7;}   // every bite squashes it
   let jaw=0;if(p>.24&&p<.95)jaw=.38*Math.abs(Math.sin((p-.24)/.7*Math.PI*3));
-  if(dog.mouthL&&dog.bones.Head){
-    DOGX.mw.copy(dog.mouthL);dog.bones.Head.o.localToWorld(DOGX.mw);
+  if(dog.mouthL&&dog.bones[dog.biteBone]){
+    DOGX.mw.copy(dog.mouthL);dog.bones[dog.biteBone].o.localToWorld(DOGX.mw);
     const mx=DOGX.mw.x+Math.sin(dog.ry)*.4,my=DOGX.mw.y+.08,mz=DOGX.mw.z+.95;   // held out in front of the lips and toward the camera (the dog is seen from the side, its cheek and ear would hide it otherwise)
     a.x=lerp(E.x0,mx,att);a.y=lerp(E.y0,my,att);a.z=lerp(E.z0,mz,att);}
   if(p>=1){toyRemove(a);dog.eat=null;}

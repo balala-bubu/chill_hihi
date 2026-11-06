@@ -60,6 +60,7 @@ cvs.addEventListener('pointermove',e=>{if(!JOB.held&&JOB.st==='rest'&&!TOY.sel&&
 /* where a puppy stands: spot s (0 = left) of n, behind the counter. returns null when the set is not standing */
 function jobSpot(rank,n){
   if(JOB.st!=='rest'||PET.perch||PET.mini)return null;
+  if(n>2)return null;   // three or more characters do not fit behind the counter
   const arr=JOB.spots[Math.min(2,Math.max(1,n))],s=Math.min(arr.length-1,Math.max(0,n-1-rank));
   return {x:JOB.x+arr[s]*JOB.k,z:JOB.z+JOB.dz};
 }

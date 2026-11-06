@@ -105,8 +105,8 @@ function ballDog(dt,moving,tz,BP){
   const b=BP.b,P=dog.play||(dog.play={k:'',t:0,hit:false,n:0,nMax:2,cool:0,dur:.6,at:.45,fl:0}),out={pitch:0,jaw:0},sm=u=>{u=clamp(u,0,1);return u*u*(3-2*u);};
   P.cool-=dt;
   if(P.fl>0){P.fl-=dt;out.pitch-=.75*Math.sin(Math.PI*clamp(1-P.fl/.32,0,1));}
-  if(BP.role!=='strike'||!dog.mouthL||!dog.bones.Head){P.k='';return out;}
-  DOGX.mw.copy(dog.mouthL);dog.bones.Head.o.localToWorld(DOGX.mw);const mx=DOGX.mw.x,my=DOGX.mw.y;
+  if(BP.role!=='strike'||!dog.mouthL||!dog.bones[dog.biteBone]){P.k='';return out;}
+  DOGX.mw.copy(dog.mouthL);dog.bones[dog.biteBone].o.localToWorld(DOGX.mw);const mx=DOGX.mw.x,my=DOGX.mw.y;
   if(P.k){
     P.t+=dt;const p=P.t/P.dur;
     out.pitch=P.k==='nudge'?Math.sin(clamp(p,0,1)*Math.PI):p<.38?.75*Math.sin(p/.38*Math.PI/2):p<.58?lerp(.75,-.8,sm((p-.38)/.2)):lerp(-.8,0,sm((p-.58)/.42));

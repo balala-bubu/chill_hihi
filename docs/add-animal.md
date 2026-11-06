@@ -64,3 +64,15 @@ B、C、D、E 都是同一位作者的 `xxx_a.dae`：28 根骨頭、名字完全
 5. 原模型自帶的派對帽拆成衣櫃飾品 `pika_hat`：`python3 tools/build_pikachu_hat.py`（產生 `models/wardrobe/inbox/pika_hat.dae` 和貼圖），再 `python3 tools/build_wardrobe.py`。
 6. 接線：`DV.v / DV.P / DV.WK` 各補一格、`DV.P[5]`（`map` 對到上面的關節、`sit / lie / bite / ak / brow / fit`），檔尾 `loadDogV(5,'pikachu')`。另外 `dogLoad` 載入咬點時改成先套 `DV.base.bite` 再套該隻的 `bite`，這樣皮卡丘改了 `stand` 不會影響後面載入的狗。
 
+
+## 卡通人物（吉伊卡哇／小八貓／烏薩奇）與「TOON」按鈕
+
+`models/chiikawa/src/chiikawa_and_friends.glb`（靜態、無骨架）→ `python3 tools/build_chiikawa.py` → `models/chiikawa|hachiware|usagi.json/.bin` + 共用臉部圖集 `models/chiikawa/face.png`。
+
+- **和皮卡丘不同**：頭、身、手、腳是同一張網格，所以假骨架的權重改成**依頂點位置**計算（頭／脖子／左右手／左右腳／腰／尾巴，交界用 smoothstep 混合；烏薩奇的長耳朵交給 `Lear1/Rear1`）。小八的藍色網格拆成頭上的帽狀頭髮和屁股後的尾巴。
+- **材質**寫在 json 的 `mats`（顏色用 sRGB 十六進位；`outline` = 描邊殼只畫背面；`face` = 臉的面片，圖集 + alpha 裁切、不受光）。`loadDogV` 看到 `meta.mats` 走這條路，另支援索引網格（`index/indexCount`）。
+- **描邊**：原本的反轉外殼（法線朝內）比身體大 0.85 模型單位，轉檔時沿法線收進 `OUTLINE_IN`，只剩細邊；顏色是原模型的柔和深棕 `#4f2e24`。
+- **像人一樣動**（`DV.P[6..8]` 的 `HUMANOID`，`dog.human`）：手腳反向擺動、拿東西時雙手伸向前（跳起搆 CD 時舉高）、在腰部彎腰＋蹲低（不是低頭）、握持點改在胸口骨頭（`biteBone:'Bust'`，叼 CD／吃蘋果／頂球都改用這個點，程式裡原本寫死的 `bones.Head` 已改成 `bones[dog.biteBone]`）、坐姿雙腿向前、被摸時面向鏡頭側躺。
+- **按鈕**：遙控器第 6 顆（`TOON`，`src/10-world/02-remote.js`）。第 1 下叫皮卡丘，第 2 下皮卡丘離場、三隻一起進場，第 3 下全部離場（`toonToggle`，`03-dogs.js`）。狗按鈕只管狗（輪替 A–E，`DV.NDOG=5`），兩邊可同時存在，共用同一條地板與碰撞。
+- **多隻碰撞**：兩兩比對，距離不足 `rad` 之和（狗 1.3、角色 1.05）時閒著的讓路；站位間距 `dogGap()` 依寬度與畫面自動縮放；電視前間距 `tvGap`；打工櫃檯 3 隻以上不使用。
+- 沒做／沒測：眨眼與換表情（臉是分散在圖集多處的小面片，要換需逐片改 UV）、衣櫃飾品在三隻身上的位置（`fit/brow` 是估的）、實機流暢度、三隻同時搶 CD／蘋果／球的手感。
