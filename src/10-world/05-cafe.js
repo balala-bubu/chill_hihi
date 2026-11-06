@@ -7,7 +7,7 @@
    as far as the window needs, so any window width / height is filled with room. Above the wall there is a plain band of the wall's top colour.
    The shop owner (a penguin, models/boss.json from models/boss/src/pge.dae) stands behind the counter: breathing, looking around, now and then waving a flipper.
    The clock hands show the real time. Everything is in one group (CF.g) far behind the action, so it never touches the physics world. */
-const CF={s:.075,zb:-8,xo:0,k:1.4,bx:-122,bz:46,ready:false,job:null,g:new T.Group(),room:new T.Group(),side:[],E:0,hands:[],hk:'',t:0,boss:null,shadow:null};
+const CF={s:.075,zb:-16,xo:0,k:1.4,bx:-122,bz:46,ready:false,job:null,g:new T.Group(),room:new T.Group(),side:[],E:0,hands:[],hk:'',t:0,boss:null,shadow:null};
 CF.g.visible=false;CF.g.add(CF.room);scene.add(CF.g);
 function cfGeo(m,pick){   // json mesh {p,u,i} -> BufferGeometry (pick: optional triangle filter)
   let I=m.i;if(pick){I=[];for(let t=0;t<m.i.length;t+=3){const a=m.i[t],b=m.i[t+1],c=m.i[t+2];if(pick((m.p[a*3]+m.p[b*3]+m.p[c*3])/3))I.push(a,b,c);}}

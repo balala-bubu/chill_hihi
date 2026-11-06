@@ -189,8 +189,9 @@ async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe (true/false als
     if(BG.tok===tok){show(0);BG.k=0;bgApply();bgCurtain(0);bgShowFloor();}
   }
 }
-function bgToggle(){   // the BG button: off <-> the last background picked (menu on hover, see 03-summon-menu.js); meadow at first
-  if(BG.mode)bgSet(0);else{let m=1;try{m=+localStorage.getItem('chill_hihi.bgPick')||1;}catch(e){}bgSet(m);}
+function bgToggle(){   // the BG button: grey <-> a background, alternating meadow / cafe each time (menu on hover picks one directly, see 03-summon-menu.js); meadow first
+  if(BG.mode){try{localStorage.setItem('chill_hihi.bgPick',String(3-BG.mode));}catch(e){}bgSet(0);}   // turning off: the next press brings the OTHER background (grey -> meadow -> grey -> cafe -> grey ...)
+  else{let m=1;try{m=+localStorage.getItem('chill_hihi.bgPick')||1;}catch(e){}bgSet(m);}
 }
 function bgFrame(dt,time){
   if(CF.g.visible&&CF.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);cfFrame(dt,time);return;}
