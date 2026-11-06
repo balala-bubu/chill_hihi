@@ -150,6 +150,7 @@ function wUnequip(slot,silent){
 function wEquip(id,quiet){
   const it=W.items[id];if(!it||!dog.ready)return;
   const sl=W.slotById[it.slot],par=sl&&wBone(sl.bone);if(!par)return;
+  if(dog.fitAdj&&dog.fitAdj[it.slot]&&dog.fitAdj[it.slot].no)return;   // this character refuses the slot (stitch: no collar)
   if(it.slot==='hat'&&hpState.worn)hpUnwear();   // hat and headphones are mutually exclusive: the headphones come off
   wUnequip(it.slot);
   const sg=new T.Group();sg.position.fromArray(sl.worn.pos);wSetRot(sg,sl.worn.rot);sg.userData.s=sl.worn.scale;sg.scale.setScalar(sl.worn.scale);
@@ -193,7 +194,7 @@ function wDragMove(e){
   const a=wAnchor(d.it.slot);
   d.px=e.clientX;d.py=e.clientY;
   d.near=a?Math.hypot(e.clientX-a.x,e.clientY-a.y):999;
-  d.armed=!d.over&&dog.present&&!dog.leaving&&(dogHit(e.clientX,e.clientY,true)||d.near<95);
+  d.armed=!d.over&&dog.present&&!dog.leaving&&!(dog.fitAdj&&dog.fitAdj[d.it.slot]&&dog.fitAdj[d.it.slot].no)&&(dogHit(e.clientX,e.clientY,true)||d.near<95);
 }
 function wEndDrag(){
   const d=W.drag;if(!d)return;W.drag=null;cvs.style.cursor='default';

@@ -73,7 +73,7 @@ DV.P[9]=Object.assign({},HUMANOID,{rad:1.3,tvGap:3,hit:{C:[0,26,-2],R:[24,28,22]
 DV.P[10]=Object.assign({},HUMANOID,{map:Object.assign({LearA:'Lear1',RearA:'Rear1'},HUMANOID.map),ak:{Neck:.8,Head:.8,Bust:1,LearA:.5,RearA:.5},rad:1.4,tvGap:3,hit:{C:[0,24,0],R:[22,30,20]},
   bite:{mx:0,my:14,mz:14,stand:1.15},
   brow:[0,41,12],hpMark:[12.5,9.5,-.5],   // eyes at y~38..46, z~12 (K=4.2); the headphone cups (head space) sit on the sides of the head under the ears
-  fit:{hat:{pos:[0,2,0],s:1.3},glasses:{pos:[0,0,1],s:1.2},hp:{pos:[0,0,0]}}});
+  fit:{hat:{pos:[0,2,0],s:1.3},glasses:{pos:[0,1,6],s:1.1},hp:{pos:[0,0,0]},collar:{no:true}}});   // collar:{no:true} = he does not wear the collar (it looked sideways on him)
 DV.P[5].rad=1;DV.P[5].tvGap=2.8;
 function dogVarReg0(){   // called by loadDog when puppy A is built
   DV.v[0]={bones:dog.bones,mouthL:dog.mouthL,fix:dog.fix,footLift:dog.footLift,ak:undefined,fitAdj:undefined,ready:true};
