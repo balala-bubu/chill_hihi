@@ -41,6 +41,12 @@ const Au={ctx:null,vol:6,playing:false,elapsed:0,step:0,timer:0,alb:null,pauseLe
  resume(){if(this.alb&&this.alb.yt){this.playing=true;YTA.resume();return;}if(!this.ctx)return;const n=this.ctx.currentTime;this.next=n+Math.max(.035,this.pauseLead||.06);this.pauseLead=0;this.playing=true;this.bus.gain.cancelScheduledValues(n);this.bus.gain.setTargetAtTime(1,n,.02);clearInterval(this.timer);this.timer=setInterval(()=>this.tick(),25);},
  pause(){if(this.alb&&this.alb.yt){if(this.playing){this.playing=false;YTA.pause();this.elapsed=YTA.pausedAt??this.elapsed;}return;}if(!this.ctx||!this.playing)return;this.playing=false;clearInterval(this.timer);const n=this.ctx.currentTime;this.pauseLead=Math.max(.035,this.next-n);this.bus.gain.setTargetAtTime(0,n,.03);},
  stop(){if(this.alb&&this.alb.yt){this.playing=false;this.elapsed=0;YTA.cur=null;YTA.pausedAt=null;YTA.call('stopVideo');return;}this.pause();this.step=0;this.bar=0;this.pauseLead=0;this.elapsed=0;},
+ skipPrev(){if(!this.alb)return;if(this.alb.yt){YTA.prev();this.elapsed=0;this.playing=true;return;}
+   /* synthesized album: back to the start of this phrase, or to the previous phrase when already near its start */
+   if(!this.ensure())return;const phrase=60/this.alb.bpm*4,k=Math.max(0,Math.floor((this.elapsed-2)/phrase));
+   this.bar=k%4;this.step=0;this.elapsed=k*phrase;
+   if(this.playing){this.next=this.ctx.currentTime+.06;this.bus.gain.setTargetAtTime(1,this.ctx.currentTime,.02);}
+ },
  skipNext(){if(!this.alb)return;if(this.alb.yt){YTA.next();this.elapsed=0;this.playing=true;return;}
    /* A synthesized album has four musical phrases, so skip to the next phrase. */
    if(!this.ensure())return;this.bar=(this.bar+1)%4;this.step=0;

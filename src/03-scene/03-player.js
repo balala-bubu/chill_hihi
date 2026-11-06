@@ -84,14 +84,16 @@ function iconTex(kind,col){return mkTex(128,128,(x,w)=>{x.fillStyle=col||'#3a3d4
   if(kind==='play'){x.beginPath();x.moveTo(c-18,c-26);x.lineTo(c+28,c);x.lineTo(c-18,c+26);x.fill();}
   else if(kind==='pause'){x.fillRect(c-26,c-26,16,52);x.fillRect(c+10,c-26,16,52);}
   else if(kind==='stop'){x.fillRect(c-24,c-24,48,48);}
+  else if(kind==='prev'){x.beginPath();x.moveTo(c+30,c-25);x.lineTo(c-10,c);x.lineTo(c+30,c+25);x.fill();x.fillRect(c-27,c-26,10,52);}
   else if(kind==='next'){x.beginPath();x.moveTo(c-30,c-25);x.lineTo(c+10,c);x.lineTo(c-30,c+25);x.fill();x.fillRect(c+17,c-26,10,52);}
   else if(kind==='minus'){x.fillRect(c-28,c-6,56,12);}
   else{x.fillRect(c-28,c-6,56,12);x.fillRect(c-6,c-28,12,56);}});}
-const keyDefs=['play','stop','next','minus','plus'];const keys=[],keyIcons=[],keyMeshes=[],keyMats=[],keyGlow=[0,0,0,0,0];
-keyDefs.forEach((k,i)=>{const g=new T.Group();g.position.set(-1.28+i*.64,-1.85,FZ-.02);g.userData.z0=FZ-.02;
-  const sock=new T.Mesh(new T.PlaneGeometry(.64,.68),new T.MeshBasicMaterial({color:0x6d7176,toneMapped:false}));sock.position.set(g.position.x,g.position.y,FZ+.008);player.add(sock);   // dark socket the key sinks into
-  const m=new T.Mesh(rrBox(.57,.6,.26,.12,.05),keyMats[i]=M.key.clone());m.position.z=.12;m.castShadow=true;m.userData.key=i;g.add(m);
-  const ic=new T.Mesh(new T.PlaneGeometry(.30,.30),new T.MeshBasicMaterial({map:iconTex(k),transparent:true,toneMapped:false}));ic.position.z=.255;ic.userData.key=i;g.add(ic);
+const keyDefs=['play','stop','prev','next','minus','plus'];const keys=[],keyIcons=[],keyMeshes=[],keyMats=[],keyGlow=[0,0,0,0,0,0];
+const KP=.53;   // key pitch: six keys share the same well the five used to
+keyDefs.forEach((k,i)=>{const g=new T.Group();g.position.set((i-(keyDefs.length-1)/2)*KP,-1.85,FZ-.02);g.userData.z0=FZ-.02;
+  const sock=new T.Mesh(new T.PlaneGeometry(KP,.68),new T.MeshBasicMaterial({color:0x6d7176,toneMapped:false}));sock.position.set(g.position.x,g.position.y,FZ+.008);player.add(sock);   // dark socket the key sinks into
+  const m=new T.Mesh(rrBox(.47,.6,.26,.1,.05),keyMats[i]=M.key.clone());m.position.z=.12;m.castShadow=true;m.userData.key=i;g.add(m);
+  const ic=new T.Mesh(new T.PlaneGeometry(.27,.27),new T.MeshBasicMaterial({map:iconTex(k),transparent:true,toneMapped:false}));ic.position.z=.255;ic.userData.key=i;g.add(ic);
   player.add(g);keys.push(g);keyIcons.push(ic);keyMeshes.push(m,ic);});
 const tex={play:iconTex('play'),pause:iconTex('pause','#ee5a2c')};   // pause icon turns accent-orange while playing
 

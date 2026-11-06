@@ -165,6 +165,7 @@ function applyMediaKeys() {
   if (!S.mediaKeys) return;
   try {
     globalShortcut.register('MediaPlayPause', () => cmd({ type: 'toggle' }));
+    globalShortcut.register('MediaPreviousTrack', () => cmd({ type: 'prev' }));
     globalShortcut.register('MediaNextTrack', () => cmd({ type: 'next' }));
   } catch (_) { /* macOS may ask for accessibility permission; without it the keys just keep doing what they did */ }
 }
@@ -196,6 +197,7 @@ function buildMenu() {
   return Menu.buildFromTemplate([
     { label: win && win.isVisible() ? '隱藏視窗（音樂繼續）' : '顯示視窗', click: toggleVisible },
     { label: '播放／暫停', click: () => cmd({ type: 'toggle' }) },
+    { label: '上一首', click: () => cmd({ type: 'prev' }) },
     { label: '下一首', click: () => cmd({ type: 'next' }) },
     { type: 'separator' },
     { label: '版面', submenu: [

@@ -227,6 +227,7 @@ html.pet #clockW{display:none}
     <div id="petBtns">
       <button id="pbList" class="k3" type="button" aria-label="專輯清單" aria-expanded="false">♫</button>
       <button id="pbPlay" class="k3 hot" type="button" aria-label="播放">▶</button>
+      <button id="pbPrev" class="k3" type="button" aria-label="上一首">⏮</button>
       <button id="pbNext" class="k3" type="button" aria-label="下一首">⏭</button>
       <button id="pbVm" class="k3" type="button" aria-label="音量減">－</button>
       <button id="pbVp" class="k3" type="button" aria-label="音量加">＋</button>
@@ -586,14 +587,16 @@ function iconTex(kind,col){return mkTex(128,128,(x,w)=>{x.fillStyle=col||'#3a3d4
   if(kind==='play'){x.beginPath();x.moveTo(c-18,c-26);x.lineTo(c+28,c);x.lineTo(c-18,c+26);x.fill();}
   else if(kind==='pause'){x.fillRect(c-26,c-26,16,52);x.fillRect(c+10,c-26,16,52);}
   else if(kind==='stop'){x.fillRect(c-24,c-24,48,48);}
+  else if(kind==='prev'){x.beginPath();x.moveTo(c+30,c-25);x.lineTo(c-10,c);x.lineTo(c+30,c+25);x.fill();x.fillRect(c-27,c-26,10,52);}
   else if(kind==='next'){x.beginPath();x.moveTo(c-30,c-25);x.lineTo(c+10,c);x.lineTo(c-30,c+25);x.fill();x.fillRect(c+17,c-26,10,52);}
   else if(kind==='minus'){x.fillRect(c-28,c-6,56,12);}
   else{x.fillRect(c-28,c-6,56,12);x.fillRect(c-6,c-28,12,56);}});}
-const keyDefs=['play','stop','next','minus','plus'];const keys=[],keyIcons=[],keyMeshes=[],keyMats=[],keyGlow=[0,0,0,0,0];
-keyDefs.forEach((k,i)=>{const g=new T.Group();g.position.set(-1.28+i*.64,-1.85,FZ-.02);g.userData.z0=FZ-.02;
-  const sock=new T.Mesh(new T.PlaneGeometry(.64,.68),new T.MeshBasicMaterial({color:0x6d7176,toneMapped:false}));sock.position.set(g.position.x,g.position.y,FZ+.008);player.add(sock);   // dark socket the key sinks into
-  const m=new T.Mesh(rrBox(.57,.6,.26,.12,.05),keyMats[i]=M.key.clone());m.position.z=.12;m.castShadow=true;m.userData.key=i;g.add(m);
-  const ic=new T.Mesh(new T.PlaneGeometry(.30,.30),new T.MeshBasicMaterial({map:iconTex(k),transparent:true,toneMapped:false}));ic.position.z=.255;ic.userData.key=i;g.add(ic);
+const keyDefs=['play','stop','prev','next','minus','plus'];const keys=[],keyIcons=[],keyMeshes=[],keyMats=[],keyGlow=[0,0,0,0,0,0];
+const KP=.53;   // key pitch: six keys share the same well the five used to
+keyDefs.forEach((k,i)=>{const g=new T.Group();g.position.set((i-(keyDefs.length-1)/2)*KP,-1.85,FZ-.02);g.userData.z0=FZ-.02;
+  const sock=new T.Mesh(new T.PlaneGeometry(KP,.68),new T.MeshBasicMaterial({color:0x6d7176,toneMapped:false}));sock.position.set(g.position.x,g.position.y,FZ+.008);player.add(sock);   // dark socket the key sinks into
+  const m=new T.Mesh(rrBox(.47,.6,.26,.1,.05),keyMats[i]=M.key.clone());m.position.z=.12;m.castShadow=true;m.userData.key=i;g.add(m);
+  const ic=new T.Mesh(new T.PlaneGeometry(.27,.27),new T.MeshBasicMaterial({map:iconTex(k),transparent:true,toneMapped:false}));ic.position.z=.255;ic.userData.key=i;g.add(ic);
   player.add(g);keys.push(g);keyIcons.push(ic);keyMeshes.push(m,ic);});
 const tex={play:iconTex('play'),pause:iconTex('pause','#ee5a2c')};   // pause icon turns accent-orange while playing
 
@@ -797,6 +800,13 @@ const YTA={p:null,ready:false,failed:false,waiters:[],plErr:0,plWatch:false,soun
  time(){const t=this.call('getCurrentTime');return typeof t==='number'&&isFinite(t)&&t>=0?t:(this.pausedAt??0);},
   pause(){this.pausedAt=this.time();this.call('pauseVideo');},
   resume(){if(this.pausedAt!==null){const t=this.time();if(Math.abs(t-this.pausedAt)>1)this.call('seekTo',this.pausedAt,true);}this.call('playVideo');this.pausedAt=null;},
+  /* like a real deck: more than 3 s into a track restarts it, otherwise go to the previous one (wraps to the last) */
+  prev(){if(!this.cur)return;const idx=this.call('getPlaylistIndex'),n=this.cur.yt.ids.length;if(n<1)return;
+    this.pausedAt=null;this.finished=false;
+    if(this.time()>3){this.call('seekTo',0,true);this.call('playVideo');return;}
+    const p=typeof idx==='number'&&idx>=0?(idx-1+n)%n:0;
+    this.call('playVideoAt',p);this.call('playVideo');
+    this.inf.i=p;this.inf.title='';this.infoT=0;},
   next(){if(!this.cur)return;const idx=this.call('getPlaylistIndex'),n=this.cur.yt.ids.length;if(n<1)return;
     const next=typeof idx==='number'&&idx>=0?(idx+1)%n:0;
     this.pausedAt=null;this.finished=false;this.call('playVideoAt',next);this.call('playVideo');
@@ -868,6 +878,12 @@ const Au={ctx:null,vol:6,playing:false,elapsed:0,step:0,timer:0,alb:null,pauseLe
  resume(){if(this.alb&&this.alb.yt){this.playing=true;YTA.resume();return;}if(!this.ctx)return;const n=this.ctx.currentTime;this.next=n+Math.max(.035,this.pauseLead||.06);this.pauseLead=0;this.playing=true;this.bus.gain.cancelScheduledValues(n);this.bus.gain.setTargetAtTime(1,n,.02);clearInterval(this.timer);this.timer=setInterval(()=>this.tick(),25);},
  pause(){if(this.alb&&this.alb.yt){if(this.playing){this.playing=false;YTA.pause();this.elapsed=YTA.pausedAt??this.elapsed;}return;}if(!this.ctx||!this.playing)return;this.playing=false;clearInterval(this.timer);const n=this.ctx.currentTime;this.pauseLead=Math.max(.035,this.next-n);this.bus.gain.setTargetAtTime(0,n,.03);},
  stop(){if(this.alb&&this.alb.yt){this.playing=false;this.elapsed=0;YTA.cur=null;YTA.pausedAt=null;YTA.call('stopVideo');return;}this.pause();this.step=0;this.bar=0;this.pauseLead=0;this.elapsed=0;},
+ skipPrev(){if(!this.alb)return;if(this.alb.yt){YTA.prev();this.elapsed=0;this.playing=true;return;}
+   /* synthesized album: back to the start of this phrase, or to the previous phrase when already near its start */
+   if(!this.ensure())return;const phrase=60/this.alb.bpm*4,k=Math.max(0,Math.floor((this.elapsed-2)/phrase));
+   this.bar=k%4;this.step=0;this.elapsed=k*phrase;
+   if(this.playing){this.next=this.ctx.currentTime+.06;this.bus.gain.setTargetAtTime(1,this.ctx.currentTime,.02);}
+ },
  skipNext(){if(!this.alb)return;if(this.alb.yt){YTA.next();this.elapsed=0;this.playing=true;return;}
    /* A synthesized album has four musical phrases, so skip to the next phrase. */
    if(!this.ensure())return;this.bar=(this.bar+1)%4;this.step=0;
@@ -1186,8 +1202,10 @@ function press(i){
     if(status==='playing'||status==='paused'){Au.stop();status='stopped';}
     else if(status==='stopped')ejectCD();
   }else if(i===2){
+    if(cd&&(status==='playing'||status==='paused')){Au.skipPrev();status='playing';}
+  }else if(i===3){
     if(cd&&(status==='playing'||status==='paused')){Au.skipNext();status='playing';}
-  }else{const v0=Au.vol;Au.setVol(clamp(Au.vol+(i===4?1:-1),0,10));volT=1.4;updateLeds();if(Au.vol!==v0)ledFlash[clamp(i===4?Au.vol-1:Au.vol,0,9)]=1;}
+  }else{const v0=Au.vol;Au.setVol(clamp(Au.vol+(i===5?1:-1),0,10));volT=1.4;updateLeds();if(Au.vol!==v0)ledFlash[clamp(i===5?Au.vol-1:Au.vol,0,9)]=1;}
 }
 
 /* ---------- album flow ---------- */
@@ -2234,7 +2252,7 @@ buildBounds();floorClip.constant=-FLOOR_Y;spawnRemote();
 /* ---------- per-frame feedback: key glow, LED halos, drop-zone hint, bay light, CD sheen ---------- */
 const KEY_TINT=new T.Color(0xf2a47c);
 function updateFx(dt,time){
-  for(let i=0;i<4;i++){
+  for(let i=0;i<keys.length;i++){
     keyGlow[i]*=Math.exp(-dt*4.5);
     /* the keys are near-white, so emissive would just clip: tint the key towards a warm peach instead */
     const hv=hoverKey===i&&!busy?.22:0,km=keyMats[i];
@@ -3701,8 +3719,12 @@ function petToggle(){
   else petPlayAlbum(PET.cur>=0?PET.cur:petLast());
   petBarSync(true);
 }
-function petNext(){
+function petPrev(){
   if(!PET.mini){if(cd&&cdIn)press(2);return;}
+  if(status==='playing'||status==='paused'){Au.skipPrev();status='playing';petBarSync(true);}
+}
+function petNext(){
+  if(!PET.mini){if(cd&&cdIn)press(3);return;}
   if(status==='playing'||status==='paused'){Au.skipNext();status='playing';petBarSync(true);}
 }
 function petVol(d){
@@ -3717,8 +3739,9 @@ function petDog(on){
 /* ---------- mini control bar ---------- */
 const petEl={};
 function petBuildBar(){
-  ['petBar','petTitle','petSub','pbPlay','pbNext','pbVm','pbVp','pbList','petList','petAlbums','petAddForm','petAddUrl'].forEach(k=>petEl[k]=$id(k));
+  ['petBar','petTitle','petSub','pbPlay','pbPrev','pbNext','pbVm','pbVp','pbList','petList','petAlbums','petAddForm','petAddUrl'].forEach(k=>petEl[k]=$id(k));
   petEl.pbPlay.addEventListener('click',()=>{Au.ensure();petToggle();});
+  petEl.pbPrev.addEventListener('click',petPrev);
   petEl.pbNext.addEventListener('click',petNext);
   petEl.pbVm.addEventListener('click',()=>petVol(-1));
   petEl.pbVp.addEventListener('click',()=>petVol(1));
@@ -3782,6 +3805,7 @@ function petSite(c){
   }else if(c.a==='play'){if(status==='paused'){Au.resume();status='playing';}}
   else if(c.a==='pause'){if(status==='playing'){Au.pause();status='paused';}}
   else if(c.a==='stop'){if(status==='playing'||status==='paused'){Au.stop();status='stopped';}}
+  else if(c.a==='prev'){if(cd&&(status==='playing'||status==='paused')){Au.skipPrev();status='playing';}}
   else if(c.a==='next'){if(cd&&(status==='playing'||status==='paused')){Au.skipNext();status='playing';}}
   petSaveState(true);
 }
@@ -3805,6 +3829,7 @@ function petHandle(m){
     case 'activate':if(status==='playing'){YTA.call('unMute');YTA.call('setVolume',Au.vol*10);}break;   // the first click on the host page lifts the browser's autoplay block
     case 'site':petSite(m.c);break;
     case 'toggle':petToggle();break;
+    case 'prev':petPrev();break;
     case 'next':petNext();break;
     case 'cursor':   // the pointer anywhere on the desktop, normalised to this window (-1..1); the dog looks at it
       if(typeof m.x==='number'&&typeof m.y==='number'){dog.ptr.x=clamp(m.x,-2.5,2.5);dog.ptr.y=clamp(m.y,-2.5,2.5);}
@@ -3849,7 +3874,7 @@ if(PET.on){
    The extension marks every page with data-chillhihi-ext and talks to this page through window messages.
    While a floating player is alive somewhere (any other tab), THAT player makes the sound and this page only
    remote-controls it and mirrors it:
-     this page -> floating player   play / pause / next / stop / "this CD" (site-cmd)
+     this page -> floating player   play / pause / prev / next / stop / "this CD" (site-cmd)
      floating player -> this page   which CD is in and whether it plays (widget-state)
    When no floating player is alive (extension off, no other tab), this page plays on its own as usual. */
 if(!PET.on){
@@ -3862,13 +3887,14 @@ if(!PET.on){
   const yt=()=>!!(Au.alb&&Au.alb.yt);
 
   /* playback calls of the YouTube albums are redirected while the floating player is alive (or while mirroring it) */
-  const o={start:Au.start,resume:Au.resume,pause:Au.pause,stop:Au.stop,skipNext:Au.skipNext};
+  const o={start:Au.start,resume:Au.resume,pause:Au.pause,stop:Au.stop,skipNext:Au.skipNext,skipPrev:Au.skipPrev};
   Au.start=function(alb,i,t,cue){
     if(alb&&alb.yt&&(applying||via())){this.alb=alb;this.elapsed=t||0;this.playing=!cue;if(!applying)send({a:'start',list:alb.yt.list,index:i||0,time:t||0,playing:true});return;}
     return o.start.apply(this,arguments);};
   Au.resume=function(){if(yt()&&(applying||via())){this.playing=true;if(!applying)send({a:'play'});return;}return o.resume.apply(this,arguments);};
   Au.pause=function(){if(yt()&&(applying||via())){this.playing=false;if(!applying)send({a:'pause'});return;}return o.pause.apply(this,arguments);};
   Au.stop=function(){if(yt()&&(applying||via())){this.playing=false;this.elapsed=0;if(!applying)send({a:'stop'});return;}return o.stop.apply(this,arguments);};
+  Au.skipPrev=function(){if(yt()&&(applying||via())){this.elapsed=0;this.playing=true;if(!applying)send({a:'prev'});return;}return o.skipPrev.apply(this,arguments);};
   Au.skipNext=function(){if(yt()&&(applying||via())){this.elapsed=0;this.playing=true;if(!applying)send({a:'next'});return;}return o.skipNext.apply(this,arguments);};
 
   /* a floating player has just appeared while this page was playing: hand it the CD, this page goes quiet */

@@ -1,7 +1,7 @@
 /* ---------- per-frame feedback: key glow, LED halos, drop-zone hint, bay light, CD sheen ---------- */
 const KEY_TINT=new T.Color(0xf2a47c);
 function updateFx(dt,time){
-  for(let i=0;i<4;i++){
+  for(let i=0;i<keys.length;i++){
     keyGlow[i]*=Math.exp(-dt*4.5);
     /* the keys are near-white, so emissive would just clip: tint the key towards a warm peach instead */
     const hv=hoverKey===i&&!busy?.22:0,km=keyMats[i];

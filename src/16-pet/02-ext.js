@@ -2,7 +2,7 @@
    The extension marks every page with data-chillhihi-ext and talks to this page through window messages.
    While a floating player is alive somewhere (any other tab), THAT player makes the sound and this page only
    remote-controls it and mirrors it:
-     this page -> floating player   play / pause / next / stop / "this CD" (site-cmd)
+     this page -> floating player   play / pause / prev / next / stop / "this CD" (site-cmd)
      floating player -> this page   which CD is in and whether it plays (widget-state)
    When no floating player is alive (extension off, no other tab), this page plays on its own as usual. */
 if(!PET.on){
@@ -15,13 +15,14 @@ if(!PET.on){
   const yt=()=>!!(Au.alb&&Au.alb.yt);
 
   /* playback calls of the YouTube albums are redirected while the floating player is alive (or while mirroring it) */
-  const o={start:Au.start,resume:Au.resume,pause:Au.pause,stop:Au.stop,skipNext:Au.skipNext};
+  const o={start:Au.start,resume:Au.resume,pause:Au.pause,stop:Au.stop,skipNext:Au.skipNext,skipPrev:Au.skipPrev};
   Au.start=function(alb,i,t,cue){
     if(alb&&alb.yt&&(applying||via())){this.alb=alb;this.elapsed=t||0;this.playing=!cue;if(!applying)send({a:'start',list:alb.yt.list,index:i||0,time:t||0,playing:true});return;}
     return o.start.apply(this,arguments);};
   Au.resume=function(){if(yt()&&(applying||via())){this.playing=true;if(!applying)send({a:'play'});return;}return o.resume.apply(this,arguments);};
   Au.pause=function(){if(yt()&&(applying||via())){this.playing=false;if(!applying)send({a:'pause'});return;}return o.pause.apply(this,arguments);};
   Au.stop=function(){if(yt()&&(applying||via())){this.playing=false;this.elapsed=0;if(!applying)send({a:'stop'});return;}return o.stop.apply(this,arguments);};
+  Au.skipPrev=function(){if(yt()&&(applying||via())){this.elapsed=0;this.playing=true;if(!applying)send({a:'prev'});return;}return o.skipPrev.apply(this,arguments);};
   Au.skipNext=function(){if(yt()&&(applying||via())){this.elapsed=0;this.playing=true;if(!applying)send({a:'next'});return;}return o.skipNext.apply(this,arguments);};
 
   /* a floating player has just appeared while this page was playing: hand it the CD, this page goes quiet */
