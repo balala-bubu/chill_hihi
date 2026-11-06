@@ -118,7 +118,8 @@ async function loadWardrobe(){
     Object.values(W.items).forEach(it=>{
       const h=new T.Group(),m=new T.Mesh(it.geo,it.mat);m.position.set(-it.c[0],-it.c[1],-it.c[2]);m.renderOrder=it.alpha?4:0;h.add(m);
       const p=new T.Mesh(sph,hide);p.scale.setScalar(it.md*.62);p.userData.ward={id:it.id,src:'shelf'};h.add(p);   // generous invisible hit area (the glasses are thin)
-      it.holder=h;it.proxy=p;W.shelfG.add(h);const sh=new T.Mesh(wSoftGeo,wMat.soft);sh.renderOrder=3;W.shelfG.add(sh);it.sh=sh;});
+      it.holder=h;it.proxy=p;W.shelfG.add(h);const sh=new T.Mesh(wSoftGeo,wMat.soft);sh.renderOrder=3;W.shelfG.add(sh);it.sh=sh;
+      if(!(W.byslot[it.slot]||[]).includes(it))h.visible=sh.visible=false;});   // "hide":true items (e.g. t_job_counter) are not on any shelf: the frame loop never sizes or hides their holder, so left visible at scale 1 the 50-unit-wide counter fills the screen like a rising floor
     W.ready=true;
   }catch(e){console.warn('wardrobe failed to load',e);}
 }
