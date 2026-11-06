@@ -162,7 +162,7 @@ function bgCurtain(p){   // p 0 = grey wall/floor fully in place, 1 = drawn up o
 function bgLitInit(){if(!BG.litSun){BG.litSun={c:sun.color.clone(),i:sun.intensity};BG.litFill=fill.intensity;}}   // the normal lighting, remembered once so both scenes can warm it up and put it back
 function bgApply(){   // lighting warms up with the reveal
   const k=BG.k;if(!BG.litSun)return;
-  sun.color.copy(BG.litSun.c).lerp(new T.Color(BG.mode===4?0xb8c8ff:0xffdca0),k);sun.intensity=BG.litSun.i*(BG.mode===4?1-.12*k:1+.1*k);fill.intensity=BG.litFill*(1-.4*k);   // moonlight is cool and a little dimmer
+  sun.color.copy(BG.litSun.c).lerp(new T.Color(BG.mode===4?0xb8c8ff:BG.mode===5?0xffcf9a:0xffdca0),k);sun.intensity=BG.litSun.i*(BG.mode===4?1-.12*k:BG.mode===5?1-.06*k:1+.1*k);fill.intensity=BG.litFill*(1-.4*k);   // moonlight is cool and a little dimmer
 }
 const bgShowFloor=()=>{floorMesh.visible=PET.on?PET.shadow:true;grid.visible=catcher.visible=true;};
 async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe, 3 museum, 4 moon, 5 theater (true/false also work: meadow / off)

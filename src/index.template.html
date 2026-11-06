@@ -92,6 +92,9 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hi
 #toyChip:focus-visible{outline:2px solid #ee5a2c;outline-offset:2px}
 #ytbox{position:fixed;left:0;top:0;width:640px;height:512px;opacity:0;pointer-events:none;z-index:4;overflow:hidden;transform-origin:0 0;border-radius:12px;background:#000;filter:contrast(1.12) saturate(.82) brightness(.95)}
 #ytbox iframe,#ytbox #ytp{position:absolute;left:-135px;top:0;width:910px;height:512px;border:0}
+#ytbox.bt{z-index:-1;width:910px;border-radius:0;filter:none}
+#ytbox.bt iframe,#ytbox.bt #ytp{left:0}
+html.btv body{background:transparent}   /* theater: the video box sits behind the canvas, so the body must not paint over it (html has the same colour) */
 #err{position:fixed;inset:0;display:grid;place-items:center;padding:24px;font:14px/1.6 "JetBrains Mono",ui-monospace,monospace;color:var(--ink);text-align:center;background:var(--bg)}
 /* ---- desktop pet (?pet=full | ?pet=mini): transparent page, a drag grip, and in mini a small control bar ---- */
 html.pet:not(.pet-card),html.pet:not(.pet-card) body{background:transparent}
