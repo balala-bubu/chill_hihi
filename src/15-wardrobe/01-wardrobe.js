@@ -174,12 +174,23 @@ function wPick(cx,cy){
   W.nd.set(cx/innerWidth*2-1,-(cy/innerHeight*2-1));W.ray.setFromCamera(W.nd,cam);
   const c=[];
   if(W.vis>.55)for(const id in W.items){const it=W.items[id];if(it.inWindow&&!it.away)c.push(it.proxy);}
-  for(const s in W.worn)c.push(W.worn[s].proxy);
-  const h=W.ray.intersectObjects(c,false)[0];return h?h.object.userData.ward:null;
+  /* what EVERY character present wears can be grabbed, not only the focus one (the cartoon characters are rarely the focus) */
+  const own=new Map();
+  for(const s in W.worn){c.push(W.worn[s].proxy);own.set(W.worn[s].proxy,null);}
+  for(const I of DOGS.list){if(I.worn===W.worn)continue;const st=DS(I);if(!st||!st.present||st.leaving)continue;for(const s in I.worn){c.push(I.worn[s].proxy);own.set(I.worn[s].proxy,I);}}
+  const h=W.ray.intersectObjects(c,false)[0];if(!h)return null;
+  const w=h.object.userData.ward,I=own.get(h.object);
+  return I?Object.assign({},w,{owner:I}):w;
+}
+/* take an item off a character that is not the focus one: borrow its outfit (and save key) for the call */
+function wUnequipOf(I,slot,silent){
+  if(!I||I.worn===W.worn){wUnequip(slot,silent);return;}
+  const sw=W.worn,sk=W.KEY;W.worn=I.worn;W.KEY=I.wkey;
+  try{wUnequip(slot,silent);}finally{W.worn=sw;W.KEY=sk;W.recycleKey='';}
 }
 function wStartDrag(h,e){
   const it=W.items[h.id];if(!it)return;
-  if(h.src==='worn')wUnequip(it.slot,true);
+  if(h.src==='worn')wUnequipOf(h.owner,it.slot,true);
   const gh=new T.Group(),m=new T.Mesh(it.geo,it.mat),sl=W.slotById[it.slot],r=(it.def.display&&it.def.display.rot)||sl.display.rot;
   m.position.set(-it.c[0],-it.c[1],-it.c[2]);m.renderOrder=5;gh.add(m);gh.rotation.set(r[0],r[1],r[2]);gh.scale.setScalar(sl.display.size/it.md*1.05);
   scene.add(gh);it.away=true;W.hot=null;W.tipEl.classList.remove('on');
