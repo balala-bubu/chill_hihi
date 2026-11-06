@@ -86,3 +86,14 @@ B、C、D、E 都是同一位作者的 `xxx_a.dae`：28 根骨頭、名字完全
 - **耳機不再自己掉下**：`dogHit(cx,cy,focus)` 預設只判斷「滑鼠有沒有碰到角色」，不再順手換焦點（耳機綁在焦點角色身上，換焦點就會取下）。只有真的把衣物／耳機拖到某隻身上時（`01-wardrobe.js`、`02-pointer-drag.js`）才傳 `true`。
 - **懸停召喚選單**（`src/10-world/03-summon-menu.js` ＋ `index.template.html` 的 `#summonMenu` CSS）：滑鼠停在遙控器的狗按鈕或 TOON 按鈕上約 0.25 秒，在按鈕左邊展開縮圖卡片，點哪隻就單獨叫哪隻進來（已經在場的再點一次就離場，外框橘色代表在場）。狗最多同時 2 隻（超過時最早進來的離場）；TOON 選單多一格「三隻一組」。短按、長按照舊。觸控裝置不顯示（用長按）。選單的項目表在 `SM.tiles`；程式入口 `dogSummonOne(v)`（`03-dogs.js`）。
 - **縮圖**：`models/thumbs/v0..v8.png`（透明背景 192×192）。新增角色後在 `SM.tiles` 加一格，再執行 `python3 tools/render_thumbs.py <node_modules 路徑>` 重新產生（用頁面裡的測試鉤子 `window.__thumb(v)`）。
+
+## 史迪奇（有骨架的 .dae，頂點各綁一根骨頭，T-pose）→ TOON 按鈕第 6 位（編號 10）
+
+`models/stitch/src/`（`Stitch_rigged.dae` 有骨架版、`Stitch.obj/.mtl` 靜態版沒用、`ST_01~04.png`）→ `python3 tools/build_stitch.py` → `models/stitch.json/.bin`，貼圖直接用 `models/stitch/ST_0x.png`（NearestFilter 像素貼圖，走皮卡丘／奇諾比奧的 `meta.tex` 路徑）。
+
+- **原檔特色**：23 根關節、834 頂點、每個頂點 100% 一根骨頭；Y 向上、臉朝 +Z、T-pose；**沒有法線**（只有位置／UV／頂點色）。轉檔時依三角形自己算法線（相同位置合併，貼圖接縫沒有明暗斷層），頂點色（0.6~1.0 的烘焙明暗）不用。
+- **假骨架**（同吉伊卡哇／奇諾比奧，名稱比照狗）：大腿／小腿／腳→`Lleg1/Rleg1`，上臂／前臂／手→`Larm1/Rarm1`，耳朵兩節→`Lear1/Rear1`，頭＋嘴→`head`，屁股後的小尾巴凸起→`tail1`，身體（b_root／b_spine）依高度在 `skl_root → waist → chest` 之間平滑混合（彎腰不會裂開）。手臂頂點繞肩膀轉下 `ARM_DOWN=58°`。`K=4.2`（身高約 52，耳朵橫向 ±37）。
+- **材質→貼圖**：`head`＝ST_01（頭＋嘴）、`belly`＝ST_02、`skin`＝ST_03（手、耳朵、腳、頭頂毛，原檔三個材質共用同張圖）、`eyes`＝ST_04。材質名稱別用 `face`：`loadDogV` 的 `castShadow` 規則把 `face`／`eyes` 當成不投影。
+- **兩面繪製**：耳朵和頭頂的毛是單片，`stitch.json` 的 `double:['skin','head']`，`loadDogV` 看到 `meta.double` 就把那些材質設成 `DoubleSide`（其他角色沒有這個欄位，不受影響）。
+- **動作**：`DV.P[10]`＝`HUMANOID` ＋ 烏薩奇的耳朵對應（`LearA/RearA`，`ak` .5）。短按 TOON 的「三隻一組」**不含**史迪奇（和奇諾比奧一樣），長按 3 秒的順序變成 皮卡丘→吉伊卡哇→小八→烏薩奇→奇諾比奧→史迪奇；懸停 TOON 選單多一格「史迪奇」（縮圖 `models/thumbs/v10.png`，`python3 tools/render_thumbs.py <node_modules> 10` 只重畫這一張）。存檔 key `chill_hihi.wear11`。
+- **可再調**（`DV.P[10]`）：`rad`／`hit`（耳朵很寬，碰撞只算身體）、`bite`（CD 握持高度）、`brow`（眼睛中心 y≈41.6、z≈12）、`fit.hat/glasses/hp`、`hpMark`；項圈用預設位置，要調可加 `fit.collar:{pos,s}`。沒做眨眼／換表情（臉是單張貼圖，可仿皮卡丘做 `alt`）。
