@@ -402,13 +402,13 @@ function frame(){
   if(Au.alb&&Au.alb.yt&&(status==='playing'||status==='paused'))Au.elapsed=status==='paused'&&YTA.pausedAt!==null?YTA.pausedAt:YTA.time();else if(Au.playing)Au.elapsed+=dt;
   YTA.tick(dt);
   if(volT>0)volT-=dt;
-  try{dogFrame(dt,time);}catch(e){if(!dog.err){dog.err=1;console.warn('dog',e);}}
+  try{dogsFrame(dt,time);}catch(e){if(!dog.err){dog.err=1;console.warn('dog',e);}}
   try{wardFrame(dt,time);}catch(e){if(!W.err){W.err=1;console.warn('wardrobe',e);}}
   try{toyFrame(dt,time);}catch(e){if(!TOY.err){TOY.err=1;console.warn('toys',e);}}
   if(PET.on)petFrame(dt,time);
   if(!PET.mini){drawDisplay();syncKeys();updateFx(dt,time);}
   renderer.render(scene,cam);
-  if(dogOverlayRenderer&&dog.ready&&dog.present&&!dog.leaving&&tv.mode==='video'&&tv.pw>.02&&tv.b){
+  if(dogOverlayRenderer&&dogAnyOn()&&tv.mode==='video'&&tv.pw>.02&&tv.b){
     if(!dog.overlayLights){scene.traverse(o=>{if(o.isLight)o.layers.enable(1);});dog.overlayLights=true;}
     dogOverlayCam.copy(cam);dogOverlayCam.layers.set(1);
     const bg=scene.background;scene.background=null;

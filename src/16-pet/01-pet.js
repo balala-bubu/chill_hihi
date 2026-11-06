@@ -77,7 +77,7 @@ function petVol(d){
   PET.volShow=1.6;petBarSync(true);return Au.vol!==v0;
 }
 function petDog(on){
-  const cur=dog.ready?(dog.present&&!dog.leaving):dog.wantShow;
+  const cur=dogAnyOn();
   if(on!==cur)dogToggle();
 }
 
@@ -200,8 +200,8 @@ if(PET.on){
   }         // transparent style: start click-through, it opens up over the pet and the controls
   const dogBtn=$id('petDogBtn');
   if(dogBtn){   // small browser window (no menu-bar icon there): a button for the dog
-    const sync=()=>dogBtn.setAttribute('aria-pressed',String(dog.ready?(dog.present&&!dog.leaving):dog.wantShow));
-    dogBtn.addEventListener('click',()=>{const on=!(dog.ready?(dog.present&&!dog.leaving):dog.wantShow);petDog(on);sync();if(PET.bridge&&PET.bridge.post)PET.bridge.post({chp:'dog',v:on});});
+    const sync=()=>dogBtn.setAttribute('aria-pressed',String(dogAnyOn()));
+    dogBtn.addEventListener('click',()=>{const on=!(dogAnyOn());petDog(on);sync();if(PET.bridge&&PET.bridge.post)PET.bridge.post({chp:'dog',v:on});});
     setTimeout(sync,400);
   }
   const hide=$id('petHide');if(hide)hide.addEventListener('click',()=>PET.bridge&&PET.bridge.hide());
