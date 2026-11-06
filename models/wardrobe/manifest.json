@@ -249,6 +249,21 @@
       "tex": "items/t_ball.png"
     },
     {
+      "id": "t_chair",
+      "slot": "toy",
+      "name": "青蛙椅",
+      "mesh": "items/t_chair.json",
+      "tex": "items/t_chair.png",
+      "display": {
+        "size": 1.1,
+        "rot": [
+          0.3,
+          0.4,
+          0
+        ]
+      }
+    },
+    {
       "id": "t_fg_apple",
       "slot": "toy",
       "name": "蘋果",
