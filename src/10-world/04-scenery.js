@@ -165,18 +165,18 @@ function bgApply(){   // lighting warms up with the reveal
   sun.color.copy(BG.litSun.c).lerp(new T.Color(0xffdca0),k);sun.intensity=BG.litSun.i*(1+.1*k);fill.intensity=BG.litFill*(1-.4*k);
 }
 const bgShowFloor=()=>{floorMesh.visible=PET.on?PET.shadow:true;grid.visible=catcher.visible=true;};
-async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe (true/false also work: meadow / off)
-  if(!BG_OK)return;m=m===true?1:!m?0:clamp(m|0,0,2);if(m===BG.mode&&!instant)return;
+async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe, 3 museum (true/false also work: meadow / off)
+  if(!BG_OK)return;m=m===true?1:!m?0:clamp(m|0,0,3);if(m===BG.mode&&!instant)return;
   const prev=BG.mode;BG.mode=m;BG.on=m>0;remLit(1,m>0);
   try{localStorage.setItem('chill_hihi.bg',String(m));if(m)localStorage.setItem('chill_hihi.bgPick',String(m));}catch(e){}
   const tok=++BG.tok;
-  if(m===1)await bgBuild();else if(m===2)await cfBuild();
+  if(m===1)await bgBuild();else if(m===2)await cfBuild();else if(m===3)await muBuild();
   if(tok!==BG.tok)return;
-  if(m&&!(m===1?BG.ready:CF.ready)){BG.mode=0;BG.on=false;remLit(1,false);try{localStorage.setItem('chill_hihi.bg','0');}catch(e){}return;}   // the scene failed to load: stay off
-  const show=n=>{BG.g.visible=n===1;CF.g.visible=n===2;};
-  const lay=()=>{if(BG.mode===1)bgLayout(true);else if(BG.mode===2)cfLayout(true);};
+  if(m&&!([0,BG,CF,MU][m].ready)){BG.mode=0;BG.on=false;remLit(1,false);try{localStorage.setItem('chill_hihi.bg','0');}catch(e){}return;}   // the scene failed to load: stay off
+  const show=n=>{BG.g.visible=n===1;CF.g.visible=n===2;MU.g.visible=n===3;};
+  const lay=()=>{if(BG.mode===1)bgLayout(true);else if(BG.mode===2)cfLayout(true);else if(BG.mode===3)muLayout(true);};
   const run=(from,to,sec,tk)=>tween(sec,k=>{if(BG.tok===tk){const p=lerp(from,to,k);bgCurtain(p);BG.k=clamp(p*1.3,0,1);bgApply();}},ease.io2);
-  if(instant||(!m&&!BG.g.visible&&!CF.g.visible)){
+  if(instant||(!m&&!BG.g.visible&&!CF.g.visible&&!MU.g.visible)){
     if(m){show(m);lay();BG.k=1;bgApply();bgCurtain(1);}else{show(0);BG.k=0;bgApply();bgCurtain(0);bgShowFloor();}return;}
   Au.whoosh&&Au.whoosh();
   const p0=BG.p;bgShowFloor();
@@ -189,11 +189,12 @@ async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe (true/false als
     if(BG.tok===tok){show(0);BG.k=0;bgApply();bgCurtain(0);bgShowFloor();}
   }
 }
-function bgToggle(){   // the BG button: grey <-> a background, alternating meadow / cafe each time (menu on hover picks one directly, see 03-summon-menu.js); meadow first
-  if(BG.mode){try{localStorage.setItem('chill_hihi.bgPick',String(3-BG.mode));}catch(e){}bgSet(0);}   // turning off: the next press brings the OTHER background (grey -> meadow -> grey -> cafe -> grey ...)
+function bgToggle(){   // the BG button: grey <-> a background, cycling meadow / cafe / museum, one per press (menu on hover picks one directly, see 03-summon-menu.js); meadow first
+  if(BG.mode){try{localStorage.setItem('chill_hihi.bgPick',String(BG.mode%3+1));}catch(e){}bgSet(0);}   // turning off: the next press brings the OTHER background (grey -> meadow -> grey -> cafe -> grey ...)
   else{let m=1;try{m=+localStorage.getItem('chill_hihi.bgPick')||1;}catch(e){}bgSet(m);}
 }
 function bgFrame(dt,time){
+  if(MU.g.visible&&MU.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);muLayout(false);return;}
   if(CF.g.visible&&CF.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);cfFrame(dt,time);return;}
   if(!BG.ready||!BG.g.visible)return;bgLayout(false);
   BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);

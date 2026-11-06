@@ -1,10 +1,10 @@
 # 新增背景的原則
 
-目前有兩個背景：`BG.mode` 1 = 草地（`src/10-world/04-scenery.js`）、2 = 咖啡廳（`src/10-world/05-cafe.js`）。
+目前有三個背景：`BG.mode` 1 = 草地（`src/10-world/04-scenery.js`）、2 = 咖啡廳（`05-cafe.js`）、3 = 博物館（`06-museum.js`）。
 
 ## 切換規則（BG 按鈕）
 - **預設是灰白**（灰點牆＋灰地板，`BG.mode` 0）。
-- 短按 BG 按鈕：灰白 → 草地 → 灰白 → 咖啡廳 → 灰白 → 草地…… 每次回到灰白時，`bgToggle` 把 `chill_hihi.bgPick` 設成「另一個背景」，下一次按就換它。
+- 短按 BG 按鈕：灰白 → 草地 → 灰白 → 咖啡廳 → 灰白 → 博物館 → 灰白 → 草地…… 每次回到灰白時，`bgToggle` 把 `chill_hihi.bgPick` 設成「另一個背景」，下一次按就換它。
 - 懸停 BG 按鈕的選單可直接選任一個背景（`SM.tiles[1]`），選了之後再短按會回灰白。
 - 兩個背景互換時（選單點選），布簾先放下、換場景、再拉起。
 - 存檔：`chill_hihi.bg`（目前顯示：'0' 灰白／'1' 草地／'2' 咖啡廳）、`chill_hihi.bgPick`（下一次短按要開的）。
@@ -24,3 +24,8 @@
 3. `04-scenery.js`：`bgSet` 補上新 mode 的 build／show／layout；`bgFrame` 補每幀更新；`BG_OK` 與 clamp 上限一併調整。
 4. `03-summon-menu.js`：`SM.tiles[1]` 加一格，縮圖 `models/thumbs/<名>.png`（從實際畫面截 112×112）。
 5. `python3 tools/build.py`，用 Playwright 測：開／關、各視窗尺寸、播放器不被遮、無 JS 錯誤。測試鉤子：`window.__bg`、`window.__cf`。
+
+## 博物館（mode 3）的做法
+- `tools/build_museum.py`：`models/museum/src/dinos2.obj/.mtl` → `models/museum.json`（同貼圖合併成一個 mesh），貼圖在 `models/museum/*.png`。上傳的貼圖沒有檔名，是依內容與 UV 對應猜的（骨架 apt/mam/pte/saber 的 a/b 可能互換，看起來不對就在該資料夾換檔名）。
+- 房間整個縮放成「視窗寬度 × `MU.fit`」，`muLayout` 自動算深度，讓大廳前緣在播放器後方；`MU.pitch` 把房間以播放器腳下那點為軸心往後仰一點，地板才會接上播放器的地板平面。
+- 後牆往左右／上方延伸、地板往下方／前方延伸，任何視窗形狀都填滿。大型骨架在播放器後方，不壓在播放器前。
