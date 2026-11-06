@@ -2,14 +2,15 @@
    The dog button brings the puppies in turn: 1st press -> puppy A, next press (when none is out) -> puppy B, then C, then D, then E, then F, then A again ...; a long press brings the next two.
    Every puppy has its own model group and state (03-dogs.js); they all run the same behaviour code (dogFrame). A variant is the skinned model, the bone table
    (dog1's bone names -> this model's joints), a few pose numbers, and which wardrobe outfit is on (each puppy keeps its own, localStorage key per variant). */
-const DV={cur:0,v:[null,null,null,null,null,null],KEY:'chill_hihi.dogNext',WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3','chill_hihi.wear4','chill_hihi.wear5','chill_hihi.wear6'],
+const DV={cur:0,v:[null,null,null,null,null,null,null,null,null],KEY:'chill_hihi.dogNext',NDOG:5,   // variants 0..NDOG-1 are the puppies (the dog button's rotation); 5.. are the cartoon characters (the TOON button: 5 = pikachu, then 6/7/8 = chiikawa / hachiware / usagi together)
+  WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3','chill_hihi.wear4','chill_hihi.wear5','chill_hihi.wear6','chill_hihi.wear7','chill_hihi.wear8','chill_hihi.wear9'],
   base:null,   // pose numbers of puppy A, to restore
   /* per-puppy numbers, index = variant (0 = puppy A, kept in DV.base). Each entry:
      map  how its joints answer dog1's bone names (null = not driven)
      sit / lie / perch / bite  pose numbers (override DOG_SIT / DOG_LIE / DOG_PERCH / DOG_BITE)
      ak   motion strengths (dog.ak)     fit  headgear: extra offset (pos) and size factor (s) on top of the slot numbers
      brow  where "Brow_group" sits in the head model (between the eyes) */
-  P:[null,null,null,null,null,null]};
+  P:[null,null,null,null,null,null,null,null,null]};
 DV.P[1]={
   map:{Hip:'skl_root',Waist:'waist',Bust:'chest',Neck:'neck',Head:'head',jawA:'mouth',LearA:'Lear1',RearA:'Rear1',tailA:'tail1',tailB:'tail2',tailC:'tail3',
     ShoulderL:'Larm1',ShoulderR:'Rarm1',LegL:'Lleg1',LegR:'Rleg1'},
@@ -42,6 +43,24 @@ DV.P[5]=Object.assign({},DV.P[1],{
   ak:{LearA:.5,RearA:.5,Neck:.8,Head:.8,Bust:1},
   brow:[0,30,14],   // the painted eyes sit at x=+-5.5, y=29, z=16 in the model (K=125)
   fit:{hat:{pos:[0,0,0],s:.8},glasses:{pos:[0,4.2,0],s:.95}}});
+/* the three friends (chiikawa / hachiware / usagi, models/chiikawa.* hachiware.* usagi.*, from models/chiikawa/src/chiikawa_and_friends.glb by tools/build_chiikawa.py): a static glb turned into a rig
+   (joint names as the dogs'; the weights come from vertex positions because head, body, arms and legs are one mesh). They walk upright like people (human:true, see dogFrame): arms swing against the legs,
+   they bend at the waist for a CD / apple / ball and hold it in their hands in front of the chest (biteBone 'Bust': the "mouth" point of the dogs lives in the chest bone instead of the head), they sit with the legs
+   out in front and flop over on their side to be petted. rad = half the width they need (two characters never stand closer than the sum of their rad), tvGap = spacing in front of the TV, hit = pet / pick ellipsoid.
+   All numbers are first guesses: tune after looking at it. */
+const HUMANOID={
+  map:{Hip:'skl_root',Waist:'waist',Bust:'chest',Neck:'neck',Head:'head',tailA:'tail1',ShoulderL:'Larm1',ShoulderR:'Rarm1',LegL:'Lleg1',LegR:'Rleg1'},
+  human:true,biteBone:'Bust',rad:1.05,tvGap:2.7,hit:{C:[0,24,0],R:[22,30,20]},
+  sit:{hip:0,front:0,leg:-1.45,tail:0,drop:.22},lie:{ang:1.5,drop:.34,arm:-.9,leg:.3},
+  perch:DV.P[1].perch,
+  bite:{mx:0,my:15,mz:14,stand:1.15},
+  ak:{Neck:.8,Head:.8,Bust:1},
+  brow:[0,34,17],
+  fit:{hat:{pos:[0,5,0],s:1.1},glasses:{pos:[0,0,1],s:1.1}}};
+DV.P[6]=Object.assign({},HUMANOID);                                                            // chiikawa
+DV.P[7]=Object.assign({},HUMANOID);                                                            // hachiware
+DV.P[8]=Object.assign({},HUMANOID,{map:Object.assign({LearA:'Lear1',RearA:'Rear1'},HUMANOID.map),ak:{Neck:.8,Head:.8,Bust:1,LearA:.7,RearA:.7}});   // usagi: long ears that swing
+DV.P[5].rad=1;DV.P[5].tvGap=2.8;
 function dogVarReg0(){   // called by loadDog when puppy A is built
   DV.v[0]={bones:dog.bones,mouthL:dog.mouthL,fix:dog.fix,footLift:dog.footLift,ak:undefined,fitAdj:undefined,ready:true};
   DV.base={sit:Object.assign({},DOG_SIT),lie:Object.assign({},DOG_LIE),perch:Object.assign({},DOG_PERCH),bite:Object.assign({},DOG_BITE)};
@@ -64,7 +83,12 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
     const tl=new T.TextureLoader(),lt=u=>new Promise((res,rej)=>tl.load(u,t=>{t.colorSpace=T.SRGBColorSpace;t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;res(t);},undefined,rej));
     const mk=m=>new T.MeshStandardMaterial({map:m,roughness:.9,metalness:0,envMapIntensity:.5});
     let mats,alt=null;
-    if(meta.tex){   // painted pixel textures, one per material (pikachu): meta.tex = {material: file stem}, meta.alt = {material: {name: file stem}} for expressions
+    if(meta.mats){   // flat colours + the shared painted face atlas (chiikawa & friends): meta.mats = {material: {color, outline?, face?, cutoff?}}
+      if(!DV.atlas)DV.atlas=new Promise((res,rej)=>tl.load('models/'+meta.atlas,t=>{t.colorSpace=T.SRGBColorSpace;t.flipY=false;t.anisotropy=8;res(t);},undefined,rej));
+      const atlas=await DV.atlas;mats={};
+      for(const k in meta.mats){const d=meta.mats[k];
+        mats[k]=d.face?new T.MeshBasicMaterial({map:atlas,alphaTest:d.cutoff,side:T.DoubleSide,toneMapped:false}):d.outline?new T.MeshBasicMaterial({color:d.color}):new T.MeshStandardMaterial({color:d.color,roughness:.85,metalness:0,side:T.DoubleSide,envMapIntensity:.5});}
+    }else if(meta.tex){   // painted pixel textures, one per material (pikachu): meta.tex = {material: file stem}, meta.alt = {material: {name: file stem}} for expressions
       const px=u=>lt(u).then(t=>{t.magFilter=t.minFilter=T.NearestFilter;t.generateMipmaps=false;return t;}),ks=Object.keys(meta.tex);mats={};alt={};
       await Promise.all(ks.map(async k=>{mats[k]=mk(await px('models/'+name+'/'+meta.tex[k]+'.png'));
         const al=(meta.alt&&meta.alt[k])||{};alt[k]={base:mats[k].map};
@@ -80,7 +104,8 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
       if(m){const g=new T.BufferGeometry();
         g.setAttribute('position',attr(m,'position',Float32Array));g.setAttribute('normal',attr(m,'normal',Float32Array));g.setAttribute('uv',attr(m,'uv',Float32Array));
         g.setAttribute('skinIndex',attr(m,'skinIndex',Uint16Array));g.setAttribute('skinWeight',attr(m,'skinWeight',Float32Array));
-        o=new T.SkinnedMesh(g,mats[m.mat]);o.castShadow=meta.tex?(m.mat!=='eyes'&&m.mat!=='face'):m.mat===name+'_all';if(meta.tex)o.userData.mat=m.mat;o.receiveShadow=false;o.frustumCulled=false;}
+        if(m.index!==undefined)g.setIndex(new T.BufferAttribute(new Uint32Array(buf,m.index,m.indexCount),1));
+        o=new T.SkinnedMesh(g,mats[m.mat]);o.castShadow=meta.mats?!(meta.mats[m.mat].face||meta.mats[m.mat].outline):meta.tex?(m.mat!=='eyes'&&m.mat!=='face'):m.mat===name+'_all';if(meta.tex)o.userData.mat=m.mat;o.receiveShadow=false;o.frustumCulled=false;}
       else o=n.t==='B'?new T.Bone():new T.Object3D();
       o.name=n.n;o.position.fromArray(n.pos);o.quaternion.fromArray(n.q);o.scale.fromArray(n.s);return o;});
     meta.nodes.forEach((n,i)=>{if(n.p>=0)objs[n.p].add(objs[i]);});
@@ -102,7 +127,7 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
     const root=objs[0];
     root.traverse(o=>o.layers.enable(1));
     /* the mouth: the bite point, remembered in the head's own space (same trick as puppy A) */
-    DV.v[vi]={bones,fix,mouthL:null,footLift:.02,ak:P.ak,fitAdj:P.fit,ready:true,faceFx:alt?dogFaceFx(alt,mats):null};
+    DV.v[vi]={bones,fix,mouthL:null,footLift:.02,ak:P.ak,fitAdj:P.fit,ready:true,faceFx:alt?dogFaceFx(alt,mats):null,human:!!P.human,biteBone:P.biteBone||'Head',rad:P.rad||1.3,tvGap:P.tvGap||3.4,hit:P.hit||null};
   }catch(e){console.warn(name+' failed to load',e);}
 }
 loadDogV(1,'dog2');
@@ -110,3 +135,6 @@ loadDogV(2,'pug');
 loadDogV(3,'chihuahua');
 loadDogV(4,'husky');
 loadDogV(5,'pikachu');
+loadDogV(6,'chiikawa');
+loadDogV(7,'hachiware');
+loadDogV(8,'usagi');

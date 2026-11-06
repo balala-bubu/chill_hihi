@@ -17,5 +17,6 @@ function remoteFx(i){
     dogToggle();
   }
   else if(i===4)clockToggle();   // 05-clock.js
+  else if(i===5)toonToggle();    // 14-dog/03-dogs.js: pikachu, then the three friends, then all leave
 }
 

@@ -1573,8 +1573,8 @@ const blobPlayer=mkBlob(),blobRem=mkBlob(),blobHp=mkBlob(),blobTv=mkBlob();
 
 /* ---------- the remote control ---------- */
 const RW=.95,RH=2.6;
-const rem={g:new T.Group(),body:null,btn:[],ic:[],hit:[],lit:[false,false,false,false,false],z:2.6,pressTok:[0,0,0,0,0]};
-const RB=['tv','shake','phones','plug','clock'],RBP=[[-.215,.7],[.215,.7],[-.215,.2],[.215,.2],[0,-.3]];
+const rem={g:new T.Group(),body:null,btn:[],ic:[],hit:[],lit:[false,false,false,false,false,false],z:2.6,pressTok:[0,0,0,0,0,0]};
+const RB=['tv','shake','phones','plug','clock','toon'],RBP=[[-.215,.7],[.215,.7],[-.215,.2],[.215,.2],[-.215,-.3],[.215,-.3]];   // the 6th button brings the cartoon characters (pikachu first, then the three friends)
 function remIconTex(kind,lit){return mkTex(128,128,(x,w)=>{const c=w/2;x.strokeStyle=x.fillStyle=lit?'#ee5a2c':'#3a3d41';x.lineWidth=9;x.lineCap=x.lineJoin='round';
   if(kind==='tv'){x.beginPath();x.roundRect?x.roundRect(c-38,c-22,76,54,12):x.rect(c-38,c-22,76,54);x.stroke();x.beginPath();x.moveTo(c-18,c-26);x.lineTo(c-30,c-46);x.moveTo(c+18,c-26);x.lineTo(c+30,c-46);x.stroke();}
   else if(kind==='shake'){x.beginPath();x.moveTo(c-40,c-18);x.lineTo(c-22,c+18);x.lineTo(c,c-18);x.lineTo(c+22,c+18);x.lineTo(c+40,c-18);x.stroke();}
@@ -1582,6 +1582,11 @@ function remIconTex(kind,lit){return mkTex(128,128,(x,w)=>{const c=w/2;x.strokeS
     x.beginPath();x.roundRect?x.roundRect(c-45,c+2,18,34,7):x.rect(c-45,c+2,18,34);x.fill();x.beginPath();x.roundRect?x.roundRect(c+27,c+2,18,34,7):x.rect(c+27,c+2,18,34);x.fill();}
   else if(kind==='clock'){x.beginPath();x.arc(c,c+2,34,0,TAU);x.stroke();x.beginPath();x.moveTo(c,c+2);x.lineTo(c,c-18);x.moveTo(c,c+2);x.lineTo(c+15,c+10);x.stroke();   // clock face with two hands
     x.beginPath();x.moveTo(c-20,c-38);x.lineTo(c-30,c-30);x.moveTo(c+20,c-38);x.lineTo(c+30,c-30);x.stroke();}   // + the two little alarm bells
+  else if(kind==='toon'){   // a round cartoon face: two little ears, dot eyes, a small mouth and blush
+    x.beginPath();x.arc(c,c+6,33,0,TAU);x.stroke();
+    x.beginPath();x.moveTo(c-24,c-18);x.lineTo(c-27,c-40);x.lineTo(c-10,c-28);x.moveTo(c+24,c-18);x.lineTo(c+27,c-40);x.lineTo(c+10,c-28);x.stroke();
+    x.beginPath();x.arc(c-13,c+2,4.2,0,TAU);x.arc(c+13,c+2,4.2,0,TAU);x.fill();
+    x.lineWidth=7;x.beginPath();x.moveTo(c-7,c+14);x.quadraticCurveTo(c,c+22,c+7,c+14);x.stroke();}
   else{ /* dog face as a solid silhouette: floppy ears, round head, eyes + nose cut out */
     const ear=s=>{x.beginPath();x.moveTo(c+s*15,c-19);x.quadraticCurveTo(c+s*50,c-26,c+s*45,c+16);x.quadraticCurveTo(c+s*43,c+38,c+s*31,c+33);x.quadraticCurveTo(c+s*23,c+17,c+s*21,c-6);x.closePath();x.fill();};
     ear(-1);ear(1);
@@ -1596,7 +1601,7 @@ const remTexN=RB.map(k=>remIconTex(k,false)),remTexL=RB.map(k=>remIconTex(k,true
   const rb=new T.Mesh(rrBox(RW,RH,.24,.3,.05),remM);rb.castShadow=true;rb.userData.phys='rem';rem.g.add(rb);rem.hit.push(rb);
   const lab=new T.Mesh(new T.PlaneGeometry(RW-.06,RH-.06),new T.MeshBasicMaterial({transparent:true,toneMapped:false,map:mkTex(190,520,(x,w,h)=>{
     x.fillStyle='#6a7076';x.font='700 15px '+MONO;x.textAlign='center';x.textBaseline='middle';
-    RBP.forEach((p,i)=>x.fillText(['TV','SHAKE','BT','DOG','CLK'][i],w/2+p[0]*200,(1.3-(p[1]-.3))*200));
+    RBP.forEach((p,i)=>x.fillText(['TV','SHAKE','BT','DOG','CLK','TOON'][i],w/2+p[0]*200,(1.3-(p[1]-.3))*200));
     x.fillStyle='#b4b7bb';for(let r=0;r<3;r++)for(let c=0;c<5;c++){x.beginPath();x.arc(w/2+(c-2)*20,424+r*18,4.2,0,TAU);x.fill();}
     x.fillStyle='#8d9399';x.font='700 12px '+MONO;x.fillText('BalaBuBu',w/2,h-26);x.font='500 9px '+MONO;x.fillText('REMOTE · MT-1',w/2,h-12);
     x.fillStyle='#ee5a2c';x.beginPath();x.arc(w/2,52,7,0,TAU);x.fill();})}));
@@ -2045,6 +2050,7 @@ function remoteFx(i){
     dogToggle();
   }
   else if(i===4)clockToggle();   // 05-clock.js
+  else if(i===5)toonToggle();    // 14-dog/03-dogs.js: pikachu, then the three friends, then all leave
 }
 
 /* ---------- impact sounds ---------- */
@@ -2296,17 +2302,19 @@ const clock=new T.Clock();let fpsAvg=60;
 const dogFresh=()=>({pop:1,pet2:0,g:new T.Group(),ready:false,failed:false,present:false,leaving:false,wantShow:false,
   x:-20,z:2.6,ry:.4,mode:'idle',move:0,gait:0,sit:0,hop:0,hopT:0,lookYaw:0,lookPitch:0,blinkT:2,blink:0,earT:3,earL:0,earR:0,earWear:0,wag:0,fd:1,job:0,grab:null,mouthL:null,
   bones:{},acc:{},scale:2.3/53.7,footLift:.75,nextHop:0,ptr:{x:0,y:.05,t:0,cx:0,cy:0},
-  lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null,watchT:0,trotX:null,glT:4,glance:0,play:null,ballBored:0,ballSince:0,ballMax:0});
+  lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null,watchT:0,trotX:null,glT:4,glance:0,play:null,ballBored:0,ballSince:0,ballMax:0,
+  human:false,biteBone:'Head',hit:null,rad:1.3,tvGap:3.4,hold:0,crouch:0});   // human: a cartoon character that moves like a person (02-dog2.js HUMANOID); biteBone: the bone the mouth / hands point lives in; hit: its own pet ellipsoid {C,R}; rad: half width; tvGap: spacing in front of the TV
 const dog=dogFresh();
 dog.g.visible=false;scene.add(dog.g);
 addEventListener('pointermove',e=>{dog.ptr.x=e.clientX/innerWidth*2-1;dog.ptr.y=-(e.clientY/innerHeight*2-1);dog.ptr.cx=e.clientX;dog.ptr.cy=e.clientY;dog.ptr.t=performance.now();},{passive:true});
 /* petting: a click on the dog (ray vs. a body-sized ellipsoid in the dog's own space) makes it flop over for belly rubs */
-const dogHitX={r:new T.Raycaster(),n:new T.Vector2(),inv:new T.Matrix4(),o:new T.Vector3(),d:new T.Vector3(),C:new T.Vector3(0,22,2),R:new T.Vector3(30,34,54)};
+const dogHitX={r:new T.Raycaster(),n:new T.Vector2(),inv:new T.Matrix4(),o:new T.Vector3(),d:new T.Vector3(),C:new T.Vector3(0,22,2),R:new T.Vector3(30,34,54),hC:new T.Vector3(),hR:new T.Vector3()};
 function dogHit1(cx,cy){   // is the pointer on THIS (loaded) puppy? (03-dogs.js: dogHit also looks at the other one)
   if(!dog.ready||!dog.present||dog.leaving)return false;
   dogHitX.n.set(cx/innerWidth*2-1,-(cy/innerHeight*2-1));dogHitX.r.setFromCamera(dogHitX.n,cam);
   dog.g.updateMatrixWorld();dogHitX.inv.copy(dog.g.matrixWorld).invert();
-  const o=dogHitX.o.copy(dogHitX.r.ray.origin).applyMatrix4(dogHitX.inv).sub(dogHitX.C).divide(dogHitX.R),d=dogHitX.d.copy(dogHitX.r.ray.direction).transformDirection(dogHitX.inv).divide(dogHitX.R);
+  const hC=dog.hit?dogHitX.hC.fromArray(dog.hit.C):dogHitX.C,hR=dog.hit?dogHitX.hR.fromArray(dog.hit.R):dogHitX.R;
+  const o=dogHitX.o.copy(dogHitX.r.ray.origin).applyMatrix4(dogHitX.inv).sub(hC).divide(hR),d=dogHitX.d.copy(dogHitX.r.ray.direction).transformDirection(dogHitX.inv).divide(hR);
   const a=d.dot(d),b=2*o.dot(d),c=o.dot(o)-1,disc=b*b-4*a*c;
   return disc>=0&&(-b+Math.sqrt(disc))>0;
 }
@@ -2314,7 +2322,7 @@ function dogPet(){
   const Lc=dog.lie;if(!dog.ready||!dog.present||dog.leaving||Lc.s==='trip')return;
   if(PET.perch){dog.pet2=1.2;return;}   // lying on the player: it wiggles happily instead of rolling over
   if(cd&&(cd.mode==='carried'||dog.grab))return;   // busy with a CD: the dog does not flop over
-  if(Lc.s==='none'){Lc.s='down';Lc.ryL=dog.ry>=0?1.25:-1.25;Lc.sign=dog.ry>=0?-1:1;Lc.retried=false;Lc.fast=false;}
+  if(Lc.s==='none'){Lc.s='down';Lc.ryL=dog.human?0:dog.ry>=0?1.25:-1.25;Lc.sign=dog.ry>=0?-1:1;Lc.retried=false;Lc.fast=false;}
   else if(Lc.s==='up'){Lc.s='down';Lc.fast=false;}
   Lc.petT=performance.now()/1000;
 }
@@ -2377,7 +2385,7 @@ function dogApply(){
 const angDiff=(a,b)=>{let d=(b-a)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU;return d;};
 function dogFrame(dt,time){
   if(!dog.ready||!dog.present)return;
-  const hw=L.hw,rank=dogRank(),isOwner=DOGS.cdOwn===DOGS.me,home=clamp((PET.mini?0:-clamp(hw-1.6,2.4,3.3))+(dogCount()-1-rank)*DOGS.gap,-hw+1.4,hw-1.4);   // the newcomer walks in from the left and takes the left spot, the one already there moves right   // mini desktop pet: the dog stands in the middle; with two puppies each has its own spot
+  const hw=L.hw,rank=dogRank(),isOwner=DOGS.cdOwn===DOGS.me,home=clamp((PET.mini?0:-clamp(hw-1.6,2.4,3.3))+(dogCount()-1-rank)*dogGap(),-hw+1.4,hw-1.4);   // the newcomer walks in from the left and takes the left spot, the one already there moves right   // mini desktop pet: the dog stands in the middle; with two puppies each has its own spot
   const dragging=!!(isOwner&&cd&&cd.mode==='drag'&&cd.committed&&cd.pos);
   const tvOn=tv.b&&(tv.state==='on'||(tv.state==='falling'&&tv.landed));
   const ptA=dogPtrAt(dog.z,DOGX.pt);                                                   // the pointer on the dog's depth plane
@@ -2403,7 +2411,7 @@ function dogFrame(dt,time){
   else if(!dog.eat&&(BP=ballPick())){mode='ball';tx=BP.tx;spd=BP.spd;tz=FLOOR_Z;}   // a ball (see 15-wardrobe/04-ball.js): chase it, nudge it, head it; with two puppies: play catch
   else if(soc&&soc.mode){mode=soc.mode;tx=soc.tx;spd=soc.spd;}   // the other puppy is busy / has left (03-dogs.js)
   else if(jobSpot(rank,dogCount())){const js=jobSpot(rank,dogCount());mode='job';tx=js.x;tz=js.z;spd=5.5;}   // the part-time job set stands: go behind the counter (15-wardrobe/03-job.js)
-  else if(tvOn){mode='tv';tx=tv.b.position.x/PXU-1.3-3.4*rank;tz=2.9;spd=5.2;}
+  else if(tvOn){mode='tv';tx=clamp(tv.b.position.x/PXU-1.3-dog.tvGap*rank,-hw+1.2,hw-1.2);tz=2.9;spd=5.2;}
   /* belly-up state machine: down -> lie (as long as it is being petted) -> up (slowly; now and then it flops back) */
   const Lc=dog.lie,nowS=performance.now()/1000;
   if(dog.leaving&&Lc.s!=='none'){Lc.s='none';}
@@ -2462,9 +2470,9 @@ function dogFrame(dt,time){
   else if(Lc.s!=='none'&&Lc.amt>.12){ryT=Lc.ryL;look=DOGX.p;}
   else if(mode==='job'&&dog.job>.3){ryT=0;}   // behind the counter, facing the customers (= the camera)
   else if(mode==='tv'&&dog.sit>.5){ryT=Math.PI-.4;look=DOGX.v2.set(tv.b.position.x/PXU,-tv.b.position.y/PXU+.3,0);}
-  else if(mode==='fetch'||mode==='bring'||mode==='eat'){ryT=dog.fd*1.2;if(mode==='fetch')look=DOGX.v2.set(cd.pos.x,cd.pos.y,cd.pos.z);else if(mode==='eat'){const ap=toyTarget();if(ap)look=DOGX.v2.set(ap.x,ap.y+.3,ap.z);}}
-  else if(mode==='ball'){ryT=dog.fd*1.2;look=DOGX.v2.set(BP.b.x,BP.b.y,BP.b.z);}
-  else if(moving)ryT=vx>0?1.2:-1.2;
+  else if(mode==='fetch'||mode==='bring'||mode==='eat'){ryT=dog.fd*(dog.human?.95:1.2);if(mode==='fetch')look=DOGX.v2.set(cd.pos.x,cd.pos.y,cd.pos.z);else if(mode==='eat'){const ap=toyTarget();if(ap)look=DOGX.v2.set(ap.x,ap.y+.3,ap.z);}}
+  else if(mode==='ball'){ryT=dog.fd*(dog.human?.95:1.2);look=DOGX.v2.set(BP.b.x,BP.b.y,BP.b.z);}
+  else if(moving)ryT=(vx>0?1:-1)*(dog.human?.9:1.2);
   else if(mode==='chase'){ryT=clamp(Math.atan2(cd.pos.x-dog.x,4),-1,1);look=DOGX.v2.set(cd.pos.x,cd.pos.y,.8);}
   else if(soc&&soc.look){ryT=clamp(Math.atan2(soc.look.x-dog.x,3.2),-1.2,1.2);look=DOGX.v2.set(soc.look.x,soc.look.y,soc.look.z);}   // watching / glancing at the other puppy
   else ryT=clamp(Math.atan2(DOGX.p.x-dog.x,4.5),-.95,.95)*.8;
@@ -2480,13 +2488,14 @@ function dogFrame(dt,time){
     dog.g.position.set(player.position.x+DOG_PERCH.dx,player.position.y+PH/2+(dog.footLift*dog.scale-DOG_PERCH.drop)*dog.pop+Math.abs(Math.sin(time*13))*.08*pw,DOG_PERCH.z);
     dog.g.scale.setScalar(dog.scale*Math.max(.001,dog.pop));
   }else{
-    dog.g.position.set(dog.x,FLOOR_Y+dog.footLift*dog.scale+bob+hopY-dog.sit*DOG_SIT.drop-eo*DOG_LIE.drop+dog.job*DOG_JOB.rise,dog.z);dog.g.rotation.x=-dog.job*DOG_JOB.pitch;
+    dog.crouch=dog.human?Math.max(bow,bPitch*.8)*.32:0;
+    dog.g.position.set(dog.x,FLOOR_Y+dog.footLift*dog.scale+bob+hopY-dog.sit*DOG_SIT.drop-eo*DOG_LIE.drop-dog.crouch+dog.job*DOG_JOB.rise,dog.z);dog.g.rotation.x=-dog.job*DOG_JOB.pitch;
   }
   dog.g.rotation.y=dog.ry;if(dog.rg)dog.rg.rotation.z=Lc.sign*(DOG_LIE.ang*eo+Math.sin(performance.now()/1000*2.2)*.05*eo*(nowS-Lc.petT<.6?2:1));
 dog.g.updateMatrixWorld(true);
   /* 6b. the CD hangs from the lips: its rim in the mouth, its centre a little way out in front, tipped up so it can be seen; right after the bite it glides up from the floor */
   if(isOwner&&cd&&cd.mode==='carried'&&dog.mouthL){
-    DOGX.mw.copy(dog.mouthL);dog.bones.Head.o.localToWorld(DOGX.mw);
+    DOGX.mw.copy(dog.mouthL);dog.bones[dog.biteBone].o.localToWorld(DOGX.mw);
     const R=CDR*FLAT_S*DOG_BITE.reach;DOGX.mw.x+=Math.sin(dog.ry)*R;DOGX.mw.z+=Math.cos(dog.ry)*R;DOGX.mw.y+=DOG_BITE.lift;
     cd.att=Math.min(1,cd.att+dt/.4);const e=ease.io2(cd.att);
     cd.pos.set(lerp(cd.fp0.x,DOGX.mw.x,e),lerp(cd.fp0.y,DOGX.mw.y,e),lerp(cd.fp0.z,DOGX.mw.z,e));}
@@ -2527,12 +2536,27 @@ dog.g.updateMatrixWorld(true);
   if(dog.faceFx)dog.faceFx(bl,eatJaw>0?eatJaw:(carrying||dog.grab)?jawX:0,mode,eo,playing,Lc.s);   // painted-face puppies (pikachu): swap eye / mouth textures
   dogAdd('Bust','r',Math.sin(time*2.2)*.012);
   dogAdd('jawA','r',(eatJaw>0?eatJaw:(carrying||dog.grab)?jawX:(moving||playing?.12+.08*Math.sin(time*9):0))*DOG_JAW);   // mouth open for the bite, then closed round the rim
-  if(bPitch){dogAdd('Neck','r',.7*bPitch);dogAdd('Head','r',.5*bPitch);dogAdd('Bust','r',.22*bPitch);}
-  if(bow>.001){dogAdd('Neck','r',.7*bow);dogAdd('Head','r',.5*bow);dogAdd('Bust','r',.22*bow);}   // bows down to the CD
+  if(dog.human){   // people bend at the waist (and crouch a little, see 6.), the hands go down to the CD / apple / ball
+    const b2=Math.max(bow,bPitch*.8);
+    if(b2>.001){dogAdd('Waist','r',.8*b2);dogAdd('Bust','r',.3*b2);dogAdd('Neck','r',.2*b2);dogAdd('Head','r',.15*b2);dogAdd('LegL','r',-.25*b2);dogAdd('LegR','r',-.25*b2);}
+  }else{
+    if(bPitch){dogAdd('Neck','r',.7*bPitch);dogAdd('Head','r',.5*bPitch);dogAdd('Bust','r',.22*bPitch);}
+    if(bow>.001){dogAdd('Neck','r',.7*bow);dogAdd('Head','r',.5*bow);dogAdd('Bust','r',.22*bow);}   // bows down to the CD
+  }
   /* 9. legs: trot while moving, folded when sitting */
   const g=dog.gait,A=dog.move*.75;
+  if(dog.human){
+    /* arms: out in front while it holds / reaches for something, straight up when it jumps for the CD, otherwise they swing against the legs */
+    const holdT=(carrying||dog.grab||dog.eat||mode==='fetch'||mode==='eat'||(mode==='ball'&&dog.play&&dog.play.k))?-1.25:(mode==='chase'||(mode==='bring'&&ptA.y>FLOOR_Y+2.4))?-2.5:0;
+    dog.hold+=(holdT-dog.hold)*(1-Math.exp(-dt*11));
+    const free=1-clamp(Math.abs(dog.hold)/.9,0,1),sw=Math.sin(g)*A*1.15*free;
+    dogAdd('ShoulderL','r',dog.hold+sw);dogAdd('ShoulderR','r',dog.hold-sw);
+    dogAdd('LegL','r',-Math.sin(g)*A*DOG_LEG*1.05);dogAdd('LegR','r',Math.sin(g)*A*DOG_LEG*1.05);
+    const fl=(playing?.35*Math.abs(beat):0)+.5*clamp(-dog.hold-1.25,0,1);   // the beat lifts the arms a little; reaching up spreads them
+    dogAdd('ShoulderL','f',fl);dogAdd('ShoulderR','f',-fl);
+  }else{
   dogAdd('ShoulderL','r',Math.sin(g)*A*DOG_LEG);dogAdd('ShoulderR','r',-Math.sin(g)*A*DOG_LEG);
-  dogAdd('LegL','r',-Math.sin(g)*A*DOG_LEG);dogAdd('LegR','r',Math.sin(g)*A*DOG_LEG);
+  dogAdd('LegL','r',-Math.sin(g)*A*DOG_LEG);dogAdd('LegR','r',Math.sin(g)*A*DOG_LEG);}
   dogAdd('Waist','r',-Math.sin(g*2)*.04*dog.move);
   const s=dog.sit;
   if(s>.001){dogAdd('Hip','r',-DOG_SIT.hip*s);dogAdd('ClavicleL','r',DOG_SIT.hip*s*DOG_SIT.front);dogAdd('ClavicleR','r',DOG_SIT.hip*s*DOG_SIT.front);
@@ -2561,14 +2585,15 @@ loadDog();
    The dog button brings the puppies in turn: 1st press -> puppy A, next press (when none is out) -> puppy B, then C, then D, then E, then F, then A again ...; a long press brings the next two.
    Every puppy has its own model group and state (03-dogs.js); they all run the same behaviour code (dogFrame). A variant is the skinned model, the bone table
    (dog1's bone names -> this model's joints), a few pose numbers, and which wardrobe outfit is on (each puppy keeps its own, localStorage key per variant). */
-const DV={cur:0,v:[null,null,null,null,null,null],KEY:'chill_hihi.dogNext',WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3','chill_hihi.wear4','chill_hihi.wear5','chill_hihi.wear6'],
+const DV={cur:0,v:[null,null,null,null,null,null,null,null,null],KEY:'chill_hihi.dogNext',NDOG:5,   // variants 0..NDOG-1 are the puppies (the dog button's rotation); 5.. are the cartoon characters (the TOON button: 5 = pikachu, then 6/7/8 = chiikawa / hachiware / usagi together)
+  WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3','chill_hihi.wear4','chill_hihi.wear5','chill_hihi.wear6','chill_hihi.wear7','chill_hihi.wear8','chill_hihi.wear9'],
   base:null,   // pose numbers of puppy A, to restore
   /* per-puppy numbers, index = variant (0 = puppy A, kept in DV.base). Each entry:
      map  how its joints answer dog1's bone names (null = not driven)
      sit / lie / perch / bite  pose numbers (override DOG_SIT / DOG_LIE / DOG_PERCH / DOG_BITE)
      ak   motion strengths (dog.ak)     fit  headgear: extra offset (pos) and size factor (s) on top of the slot numbers
      brow  where "Brow_group" sits in the head model (between the eyes) */
-  P:[null,null,null,null,null,null]};
+  P:[null,null,null,null,null,null,null,null,null]};
 DV.P[1]={
   map:{Hip:'skl_root',Waist:'waist',Bust:'chest',Neck:'neck',Head:'head',jawA:'mouth',LearA:'Lear1',RearA:'Rear1',tailA:'tail1',tailB:'tail2',tailC:'tail3',
     ShoulderL:'Larm1',ShoulderR:'Rarm1',LegL:'Lleg1',LegR:'Rleg1'},
@@ -2601,6 +2626,24 @@ DV.P[5]=Object.assign({},DV.P[1],{
   ak:{LearA:.5,RearA:.5,Neck:.8,Head:.8,Bust:1},
   brow:[0,30,14],   // the painted eyes sit at x=+-5.5, y=29, z=16 in the model (K=125)
   fit:{hat:{pos:[0,0,0],s:.8},glasses:{pos:[0,4.2,0],s:.95}}});
+/* the three friends (chiikawa / hachiware / usagi, models/chiikawa.* hachiware.* usagi.*, from models/chiikawa/src/chiikawa_and_friends.glb by tools/build_chiikawa.py): a static glb turned into a rig
+   (joint names as the dogs'; the weights come from vertex positions because head, body, arms and legs are one mesh). They walk upright like people (human:true, see dogFrame): arms swing against the legs,
+   they bend at the waist for a CD / apple / ball and hold it in their hands in front of the chest (biteBone 'Bust': the "mouth" point of the dogs lives in the chest bone instead of the head), they sit with the legs
+   out in front and flop over on their side to be petted. rad = half the width they need (two characters never stand closer than the sum of their rad), tvGap = spacing in front of the TV, hit = pet / pick ellipsoid.
+   All numbers are first guesses: tune after looking at it. */
+const HUMANOID={
+  map:{Hip:'skl_root',Waist:'waist',Bust:'chest',Neck:'neck',Head:'head',tailA:'tail1',ShoulderL:'Larm1',ShoulderR:'Rarm1',LegL:'Lleg1',LegR:'Rleg1'},
+  human:true,biteBone:'Bust',rad:1.05,tvGap:2.7,hit:{C:[0,24,0],R:[22,30,20]},
+  sit:{hip:0,front:0,leg:-1.45,tail:0,drop:.22},lie:{ang:1.5,drop:.34,arm:-.9,leg:.3},
+  perch:DV.P[1].perch,
+  bite:{mx:0,my:15,mz:14,stand:1.15},
+  ak:{Neck:.8,Head:.8,Bust:1},
+  brow:[0,34,17],
+  fit:{hat:{pos:[0,5,0],s:1.1},glasses:{pos:[0,0,1],s:1.1}}};
+DV.P[6]=Object.assign({},HUMANOID);                                                            // chiikawa
+DV.P[7]=Object.assign({},HUMANOID);                                                            // hachiware
+DV.P[8]=Object.assign({},HUMANOID,{map:Object.assign({LearA:'Lear1',RearA:'Rear1'},HUMANOID.map),ak:{Neck:.8,Head:.8,Bust:1,LearA:.7,RearA:.7}});   // usagi: long ears that swing
+DV.P[5].rad=1;DV.P[5].tvGap=2.8;
 function dogVarReg0(){   // called by loadDog when puppy A is built
   DV.v[0]={bones:dog.bones,mouthL:dog.mouthL,fix:dog.fix,footLift:dog.footLift,ak:undefined,fitAdj:undefined,ready:true};
   DV.base={sit:Object.assign({},DOG_SIT),lie:Object.assign({},DOG_LIE),perch:Object.assign({},DOG_PERCH),bite:Object.assign({},DOG_BITE)};
@@ -2623,7 +2666,12 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
     const tl=new T.TextureLoader(),lt=u=>new Promise((res,rej)=>tl.load(u,t=>{t.colorSpace=T.SRGBColorSpace;t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;res(t);},undefined,rej));
     const mk=m=>new T.MeshStandardMaterial({map:m,roughness:.9,metalness:0,envMapIntensity:.5});
     let mats,alt=null;
-    if(meta.tex){   // painted pixel textures, one per material (pikachu): meta.tex = {material: file stem}, meta.alt = {material: {name: file stem}} for expressions
+    if(meta.mats){   // flat colours + the shared painted face atlas (chiikawa & friends): meta.mats = {material: {color, outline?, face?, cutoff?}}
+      if(!DV.atlas)DV.atlas=new Promise((res,rej)=>tl.load('models/'+meta.atlas,t=>{t.colorSpace=T.SRGBColorSpace;t.flipY=false;t.anisotropy=8;res(t);},undefined,rej));
+      const atlas=await DV.atlas;mats={};
+      for(const k in meta.mats){const d=meta.mats[k];
+        mats[k]=d.face?new T.MeshBasicMaterial({map:atlas,alphaTest:d.cutoff,side:T.DoubleSide,toneMapped:false}):d.outline?new T.MeshBasicMaterial({color:d.color}):new T.MeshStandardMaterial({color:d.color,roughness:.85,metalness:0,side:T.DoubleSide,envMapIntensity:.5});}
+    }else if(meta.tex){   // painted pixel textures, one per material (pikachu): meta.tex = {material: file stem}, meta.alt = {material: {name: file stem}} for expressions
       const px=u=>lt(u).then(t=>{t.magFilter=t.minFilter=T.NearestFilter;t.generateMipmaps=false;return t;}),ks=Object.keys(meta.tex);mats={};alt={};
       await Promise.all(ks.map(async k=>{mats[k]=mk(await px('models/'+name+'/'+meta.tex[k]+'.png'));
         const al=(meta.alt&&meta.alt[k])||{};alt[k]={base:mats[k].map};
@@ -2639,7 +2687,8 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
       if(m){const g=new T.BufferGeometry();
         g.setAttribute('position',attr(m,'position',Float32Array));g.setAttribute('normal',attr(m,'normal',Float32Array));g.setAttribute('uv',attr(m,'uv',Float32Array));
         g.setAttribute('skinIndex',attr(m,'skinIndex',Uint16Array));g.setAttribute('skinWeight',attr(m,'skinWeight',Float32Array));
-        o=new T.SkinnedMesh(g,mats[m.mat]);o.castShadow=meta.tex?(m.mat!=='eyes'&&m.mat!=='face'):m.mat===name+'_all';if(meta.tex)o.userData.mat=m.mat;o.receiveShadow=false;o.frustumCulled=false;}
+        if(m.index!==undefined)g.setIndex(new T.BufferAttribute(new Uint32Array(buf,m.index,m.indexCount),1));
+        o=new T.SkinnedMesh(g,mats[m.mat]);o.castShadow=meta.mats?!(meta.mats[m.mat].face||meta.mats[m.mat].outline):meta.tex?(m.mat!=='eyes'&&m.mat!=='face'):m.mat===name+'_all';if(meta.tex)o.userData.mat=m.mat;o.receiveShadow=false;o.frustumCulled=false;}
       else o=n.t==='B'?new T.Bone():new T.Object3D();
       o.name=n.n;o.position.fromArray(n.pos);o.quaternion.fromArray(n.q);o.scale.fromArray(n.s);return o;});
     meta.nodes.forEach((n,i)=>{if(n.p>=0)objs[n.p].add(objs[i]);});
@@ -2661,7 +2710,7 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
     const root=objs[0];
     root.traverse(o=>o.layers.enable(1));
     /* the mouth: the bite point, remembered in the head's own space (same trick as puppy A) */
-    DV.v[vi]={bones,fix,mouthL:null,footLift:.02,ak:P.ak,fitAdj:P.fit,ready:true,faceFx:alt?dogFaceFx(alt,mats):null};
+    DV.v[vi]={bones,fix,mouthL:null,footLift:.02,ak:P.ak,fitAdj:P.fit,ready:true,faceFx:alt?dogFaceFx(alt,mats):null,human:!!P.human,biteBone:P.biteBone||'Head',rad:P.rad||1.3,tvGap:P.tvGap||3.4,hit:P.hit||null};
   }catch(e){console.warn(name+' failed to load',e);}
 }
 loadDogV(1,'dog2');
@@ -2669,6 +2718,9 @@ loadDogV(2,'pug');
 loadDogV(3,'chihuahua');
 loadDogV(4,'husky');
 loadDogV(5,'pikachu');
+loadDogV(6,'chiikawa');
+loadDogV(7,'hachiware');
+loadDogV(8,'usagi');
 /* ---------- several puppies at once (max 2) ----------
    Every puppy is an instance {v,st,worn,restored,wkey}. `dog` stays the one state object all the old code reads and writes: dogLoad(I) copies an instance's state into it,
    dogSave(I) copies it back. dogsFrame runs dogFrame once per present puppy; after the frame `dog` is the FOCUS puppy again (the one the wardrobe / headphones / toys talk to).
@@ -2677,7 +2729,9 @@ loadDogV(5,'pikachu');
 const DOGS={byV:[],list:[],cur:null,focus:null,me:null,inFrame:false,gap:3.8,stagger:.7,cdOwn:null,blink:false};
 const DS=I=>I===DOGS.cur?dog:I.st;                       // live state of an instance (the loaded one lives in `dog`)
 const dogCap=()=>(PET.perch||PET.mini)?1:2;
-const dogActive=()=>DOGS.list.filter(I=>I.pend||(DS(I).present&&!DS(I).leaving));
+const isToon=I=>I.v>=DV.NDOG;   // the cartoon characters (pikachu, chiikawa, hachiware, usagi) belong to the TOON button, the puppies to the dog button
+const dogActive=()=>DOGS.list.filter(I=>!isToon(I)&&(I.pend||(DS(I).present&&!DS(I).leaving)));
+const toonActive=()=>DOGS.list.filter(I=>isToon(I)&&(I.pend||(DS(I).present&&!DS(I).leaving)));
 const dogAnyOn=()=>dog.ready?dogActive().length>0:dog.wantShow;
 function dogSave(I){for(const k in dog)I.st[k]=dog[k];I.restored=W.restored;I.worn=W.worn;}
 function dogLoad(I){
@@ -2695,20 +2749,20 @@ function dogInst(v){   // the instance of variant v (built the first time it is 
   if(v===0){I={v,st:Object.assign({},dog),worn:W.worn,restored:W.restored,wkey:DV.WK[0]};DOGS.cur=I;DOGS.byV[0]=I;return I;}   // puppy A is the original `dog`
   const st=dogFresh(),g=st.g,SPN=1.1/st.scale,pv=new T.Group(),rg=new T.Group(),inn=new T.Group();pv.position.y=SPN;inn.position.y=-SPN;
   inn.add(V.fix);rg.add(inn);pv.add(rg);g.add(pv);g.scale.setScalar(st.scale);g.visible=false;scene.add(g);g.updateMatrixWorld(true);
-  const b=DV.P[v].bite;if(!V.mouthL)V.mouthL=V.bones.Head.o.worldToLocal(g.localToWorld(new T.Vector3(b.mx,b.my,b.mz)));
-  Object.assign(st,{rg,inn,fix:V.fix,bones:V.bones,mouthL:V.mouthL,ak:V.ak,fitAdj:V.fitAdj,faceFx:V.faceFx,footLift:V.footLift,ptr:dog.ptr,ready:true});
+  const b=DV.P[v].bite;if(!V.mouthL)V.mouthL=V.bones[V.biteBone].o.worldToLocal(g.localToWorld(new T.Vector3(b.mx,b.my,b.mz)));   // the mouth (puppies) or the hands in front of the chest (characters)
+  Object.assign(st,{rg,inn,fix:V.fix,bones:V.bones,mouthL:V.mouthL,ak:V.ak,fitAdj:V.fitAdj,faceFx:V.faceFx,footLift:V.footLift,ptr:dog.ptr,ready:true,human:V.human,biteBone:V.biteBone,hit:V.hit,rad:V.rad,tvGap:V.tvGap});
   g.traverse(o=>o.layers.enable(1));
   I={v,st,worn:{},restored:false,wkey:DV.WK[v]};DOGS.byV[v]=I;return I;
 }
 /* the next n puppies in the rotation that are ready and not already out */
 function dogsNext(n){
-  const N=DV.v.length;let s=LS.get(DV.KEY,0)|0;if(s<0||s>=N)s=0;const out=[];
+  const N=DV.NDOG;let s=LS.get(DV.KEY,0)|0;if(s<0||s>=N)s=0;const out=[];
   for(let k=0;k<N&&out.length<n;k++){const v=(s+k)%N;if(DV.v[v]&&DV.v[v].ready&&!DOGS.list.some(I=>I.v===v))out.push(v);}
   if(out.length)LS.set(DV.KEY,(out[out.length-1]+1)%N);
   return out;
 }
-function dogSummon(vs){
-  let t=0;
+function dogSummon(vs,t0){
+  let t=t0||0;
   for(const v of vs){const I=dogInst(v);if(!I)continue;I.pend=true;I.delay=t;t+=DOGS.stagger;DOGS.list.push(I);}
 }
 function dogEnter(I){
@@ -2735,6 +2789,18 @@ function dogToggle(){   // short press
   if(act.length)act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));
   else dogSummon(dogsNext(1));
   remLit(3,dogAnyOn());
+}
+/* ---------- the TOON button (remote button 6): 1st press -> pikachu walks in, 2nd press -> pikachu leaves and chiikawa + hachiware + usagi walk in together, 3rd press -> they all leave.
+   They are ordinary entries of DOGS.list, so they share everything with the puppies: the floor lane, collisions (nobody stands inside another), the CD, apples, balls, the TV, petting. */
+const TOON={q:0,trio:[6,7,8]};
+function toonStage(){const a=toonActive();return !a.length?0:a.some(I=>I.v===5)?1:2;}
+function toonToggle(){
+  if(dog.failed)return;
+  if(!dog.ready){TOON.q=1;return;}   // pressed before the models have loaded: runs as soon as they are there
+  const st=toonStage(),act=toonActive();
+  if(st===0)dogSummon([5].filter(v=>DV.v[v]&&DV.v[v].ready));
+  else if(st===1){act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));dogSummon(TOON.trio.filter(v=>DV.v[v]&&DV.v[v].ready),.9);}
+  else act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));
 }
 function dogCall2(){    // long press: the next two puppies walk in
   if(dog.failed||!dog.ready)return;
@@ -2785,6 +2851,13 @@ function dogSocial(dt,hw){
   if(dog.glance>0){dog.glance-=dt;return {mode:null,look:{x:b.x,y:FLOOR_Y+1.3,z:b.z}};}   // now and then a glance at the other puppy
   return null;
 }
+/* spacing between neighbours: wide enough for the widest of them (puppies 3.8, characters about 2.6), squeezed to fit the screen */
+function dogGap(){
+  const a=DOGS.list.filter(o=>{const s=DS(o);return s.present&&!s.leaving;});
+  if(a.length<2)return DOGS.gap;
+  const r=a.reduce((t,o)=>t+DS(o).rad,0)/a.length;
+  return clamp(Math.min(r*2.92,(L.hw*2-3.2)/(a.length-1)),2.2,DOGS.gap);
+}
 function dogRestoreWear(){
   const o=LS.get(W.KEY,{});
   for(const s in o){const id=o[s];if(!W.items[id]||W.items[id].slot!==s)continue;
@@ -2805,6 +2878,7 @@ function dogsLongPress(){
 function dogsFrame(dt,time){
   if(!dog.ready)return;
   if(!DOGS.cur)dogInst(0);
+  if(TOON.q){TOON.q=0;toonToggle();}
   dogsLongPress();
   DOGS.inFrame=true;
   try{
@@ -2821,19 +2895,23 @@ function dogsFrame(dt,time){
       dogFrame(dt,time);
       dogSave(I);
     }
-    /* two puppies never stand inside each other: the idle one gives way */
+    /* nobody stands inside anybody else: of two that are too close, the idle one gives way (both move when both are idle or both busy). the needed distance is the sum of the two half widths (rad) */
     const on=DOGS.list.filter(I=>I.st.present&&!I.st.leaving);
-    if(on.length===2&&!(on[0].st.mode==='job'&&on[1].st.mode==='job')){const [a,b]=on,A=a.st,B=b.st,ov=2.6-Math.abs(A.x-B.x);   // (two puppies at the counter stand close side by side)
+    for(let i=0;i<on.length;i++)for(let j=i+1;j<on.length;j++){
+      const A=on[i].st,B=on[j].st;if(A.mode==='job'&&B.mode==='job')continue;   // (two puppies at the counter stand close side by side)
+      const ov=A.rad+B.rad-Math.abs(A.x-B.x);
       if(ov>0){const busy=s=>s.lie.s!=='none'||s.mode==='fetch'||s.mode==='bring'||s.mode==='eat'||s.mode==='chase'||s.mode==='ball';
         const dir=A.x>=B.x?1:-1,k=Math.min(1,dt*4)*ov;
         if(busy(A)&&!busy(B))B.x-=dir*k;else if(busy(B)&&!busy(A))A.x+=dir*k;else{A.x+=dir*k*.5;B.x-=dir*k*.5;}}}
+    if(DOGS.cur)Object.assign(dog,DOGS.cur.st);   // the last one handled is still the loaded one: take over the pushes
     DOGS.list=DOGS.list.filter(I=>I.pend||I.st.present);
     if(DOGS.focus&&!DOGS.list.includes(DOGS.focus))DOGS.focus=DOGS.list.find(I=>I.st.present&&!I.st.leaving)||DOGS.list[0]||null;
   }finally{DOGS.inFrame=false;DOGS.me=null;}
   dogLoad(DOGS.focus||DOGS.byV[0]);
   if(!DOGS.blink)remLit(3,dogAnyOn());
+  remLit(5,toonActive().length>0);
 }
-window.__dogs={DOGS,dogToggle,dogCall2,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
+window.__dogs={testCd(x){cd=makeCD(0);cd.mode='floor';cd.pos.set(x,FLOOR_Y+.02,FLOOR_Z);cd.flat=1;cd.vel.set(0,0);cdIn=false;},DOGS,DV,dogToggle,dogCall2,toonToggle,TOON,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
 /* ---------- dog wardrobe ----------
    models/wardrobe/manifest.json (written by tools/build_wardrobe.py) lists the slots (which bone each kind of item hangs on, and where) and the items.
    While the dog is around, an open boutique display shelf slides in from the right edge; each slot has one shelf.
@@ -3363,8 +3441,8 @@ function toyEat(dt,moving,tz,a0){
   a.att=att;a.r=1-.96*ss((p-.42)/.5);                        // upright in the mouth, shrinking as it is chewed
   const thr=[.5,.67,.84];while(E.n<3&&p>=thr[E.n]){E.n++;buzz(6);a.jv+=3;a.jn.x=a.jn.y=.7;}   // every bite squashes it
   let jaw=0;if(p>.24&&p<.95)jaw=.38*Math.abs(Math.sin((p-.24)/.7*Math.PI*3));
-  if(dog.mouthL&&dog.bones.Head){
-    DOGX.mw.copy(dog.mouthL);dog.bones.Head.o.localToWorld(DOGX.mw);
+  if(dog.mouthL&&dog.bones[dog.biteBone]){
+    DOGX.mw.copy(dog.mouthL);dog.bones[dog.biteBone].o.localToWorld(DOGX.mw);
     const mx=DOGX.mw.x+Math.sin(dog.ry)*.4,my=DOGX.mw.y+.08,mz=DOGX.mw.z+.95;   // held out in front of the lips and toward the camera (the dog is seen from the side, its cheek and ear would hide it otherwise)
     a.x=lerp(E.x0,mx,att);a.y=lerp(E.y0,my,att);a.z=lerp(E.z0,mz,att);}
   if(p>=1){toyRemove(a);dog.eat=null;}
@@ -3460,6 +3538,7 @@ cvs.addEventListener('pointermove',e=>{if(!JOB.held&&JOB.st==='rest'&&!TOY.sel&&
 /* where a puppy stands: spot s (0 = left) of n, behind the counter. returns null when the set is not standing */
 function jobSpot(rank,n){
   if(JOB.st!=='rest'||PET.perch||PET.mini)return null;
+  if(n>2)return null;   // three or more characters do not fit behind the counter
   const arr=JOB.spots[Math.min(2,Math.max(1,n))],s=Math.min(arr.length-1,Math.max(0,n-1-rank));
   return {x:JOB.x+arr[s]*JOB.k,z:JOB.z+JOB.dz};
 }
@@ -3821,8 +3900,8 @@ function ballDog(dt,moving,tz,BP){
   const b=BP.b,P=dog.play||(dog.play={k:'',t:0,hit:false,n:0,nMax:2,cool:0,dur:.6,at:.45,fl:0}),out={pitch:0,jaw:0},sm=u=>{u=clamp(u,0,1);return u*u*(3-2*u);};
   P.cool-=dt;
   if(P.fl>0){P.fl-=dt;out.pitch-=.75*Math.sin(Math.PI*clamp(1-P.fl/.32,0,1));}
-  if(BP.role!=='strike'||!dog.mouthL||!dog.bones.Head){P.k='';return out;}
-  DOGX.mw.copy(dog.mouthL);dog.bones.Head.o.localToWorld(DOGX.mw);const mx=DOGX.mw.x,my=DOGX.mw.y;
+  if(BP.role!=='strike'||!dog.mouthL||!dog.bones[dog.biteBone]){P.k='';return out;}
+  DOGX.mw.copy(dog.mouthL);dog.bones[dog.biteBone].o.localToWorld(DOGX.mw);const mx=DOGX.mw.x,my=DOGX.mw.y;
   if(P.k){
     P.t+=dt;const p=P.t/P.dur;
     out.pitch=P.k==='nudge'?Math.sin(clamp(p,0,1)*Math.PI):p<.38?.75*Math.sin(p/.38*Math.PI/2):p<.58?lerp(.75,-.8,sm((p-.38)/.2)):lerp(-.8,0,sm((p-.58)/.42));

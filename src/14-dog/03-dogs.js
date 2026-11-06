@@ -6,7 +6,9 @@
 const DOGS={byV:[],list:[],cur:null,focus:null,me:null,inFrame:false,gap:3.8,stagger:.7,cdOwn:null,blink:false};
 const DS=I=>I===DOGS.cur?dog:I.st;                       // live state of an instance (the loaded one lives in `dog`)
 const dogCap=()=>(PET.perch||PET.mini)?1:2;
-const dogActive=()=>DOGS.list.filter(I=>I.pend||(DS(I).present&&!DS(I).leaving));
+const isToon=I=>I.v>=DV.NDOG;   // the cartoon characters (pikachu, chiikawa, hachiware, usagi) belong to the TOON button, the puppies to the dog button
+const dogActive=()=>DOGS.list.filter(I=>!isToon(I)&&(I.pend||(DS(I).present&&!DS(I).leaving)));
+const toonActive=()=>DOGS.list.filter(I=>isToon(I)&&(I.pend||(DS(I).present&&!DS(I).leaving)));
 const dogAnyOn=()=>dog.ready?dogActive().length>0:dog.wantShow;
 function dogSave(I){for(const k in dog)I.st[k]=dog[k];I.restored=W.restored;I.worn=W.worn;}
 function dogLoad(I){
@@ -24,20 +26,20 @@ function dogInst(v){   // the instance of variant v (built the first time it is 
   if(v===0){I={v,st:Object.assign({},dog),worn:W.worn,restored:W.restored,wkey:DV.WK[0]};DOGS.cur=I;DOGS.byV[0]=I;return I;}   // puppy A is the original `dog`
   const st=dogFresh(),g=st.g,SPN=1.1/st.scale,pv=new T.Group(),rg=new T.Group(),inn=new T.Group();pv.position.y=SPN;inn.position.y=-SPN;
   inn.add(V.fix);rg.add(inn);pv.add(rg);g.add(pv);g.scale.setScalar(st.scale);g.visible=false;scene.add(g);g.updateMatrixWorld(true);
-  const b=DV.P[v].bite;if(!V.mouthL)V.mouthL=V.bones.Head.o.worldToLocal(g.localToWorld(new T.Vector3(b.mx,b.my,b.mz)));
-  Object.assign(st,{rg,inn,fix:V.fix,bones:V.bones,mouthL:V.mouthL,ak:V.ak,fitAdj:V.fitAdj,faceFx:V.faceFx,footLift:V.footLift,ptr:dog.ptr,ready:true});
+  const b=DV.P[v].bite;if(!V.mouthL)V.mouthL=V.bones[V.biteBone].o.worldToLocal(g.localToWorld(new T.Vector3(b.mx,b.my,b.mz)));   // the mouth (puppies) or the hands in front of the chest (characters)
+  Object.assign(st,{rg,inn,fix:V.fix,bones:V.bones,mouthL:V.mouthL,ak:V.ak,fitAdj:V.fitAdj,faceFx:V.faceFx,footLift:V.footLift,ptr:dog.ptr,ready:true,human:V.human,biteBone:V.biteBone,hit:V.hit,rad:V.rad,tvGap:V.tvGap});
   g.traverse(o=>o.layers.enable(1));
   I={v,st,worn:{},restored:false,wkey:DV.WK[v]};DOGS.byV[v]=I;return I;
 }
 /* the next n puppies in the rotation that are ready and not already out */
 function dogsNext(n){
-  const N=DV.v.length;let s=LS.get(DV.KEY,0)|0;if(s<0||s>=N)s=0;const out=[];
+  const N=DV.NDOG;let s=LS.get(DV.KEY,0)|0;if(s<0||s>=N)s=0;const out=[];
   for(let k=0;k<N&&out.length<n;k++){const v=(s+k)%N;if(DV.v[v]&&DV.v[v].ready&&!DOGS.list.some(I=>I.v===v))out.push(v);}
   if(out.length)LS.set(DV.KEY,(out[out.length-1]+1)%N);
   return out;
 }
-function dogSummon(vs){
-  let t=0;
+function dogSummon(vs,t0){
+  let t=t0||0;
   for(const v of vs){const I=dogInst(v);if(!I)continue;I.pend=true;I.delay=t;t+=DOGS.stagger;DOGS.list.push(I);}
 }
 function dogEnter(I){
@@ -64,6 +66,18 @@ function dogToggle(){   // short press
   if(act.length)act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));
   else dogSummon(dogsNext(1));
   remLit(3,dogAnyOn());
+}
+/* ---------- the TOON button (remote button 6): 1st press -> pikachu walks in, 2nd press -> pikachu leaves and chiikawa + hachiware + usagi walk in together, 3rd press -> they all leave.
+   They are ordinary entries of DOGS.list, so they share everything with the puppies: the floor lane, collisions (nobody stands inside another), the CD, apples, balls, the TV, petting. */
+const TOON={q:0,trio:[6,7,8]};
+function toonStage(){const a=toonActive();return !a.length?0:a.some(I=>I.v===5)?1:2;}
+function toonToggle(){
+  if(dog.failed)return;
+  if(!dog.ready){TOON.q=1;return;}   // pressed before the models have loaded: runs as soon as they are there
+  const st=toonStage(),act=toonActive();
+  if(st===0)dogSummon([5].filter(v=>DV.v[v]&&DV.v[v].ready));
+  else if(st===1){act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));dogSummon(TOON.trio.filter(v=>DV.v[v]&&DV.v[v].ready),.9);}
+  else act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));
 }
 function dogCall2(){    // long press: the next two puppies walk in
   if(dog.failed||!dog.ready)return;
@@ -114,6 +128,13 @@ function dogSocial(dt,hw){
   if(dog.glance>0){dog.glance-=dt;return {mode:null,look:{x:b.x,y:FLOOR_Y+1.3,z:b.z}};}   // now and then a glance at the other puppy
   return null;
 }
+/* spacing between neighbours: wide enough for the widest of them (puppies 3.8, characters about 2.6), squeezed to fit the screen */
+function dogGap(){
+  const a=DOGS.list.filter(o=>{const s=DS(o);return s.present&&!s.leaving;});
+  if(a.length<2)return DOGS.gap;
+  const r=a.reduce((t,o)=>t+DS(o).rad,0)/a.length;
+  return clamp(Math.min(r*2.92,(L.hw*2-3.2)/(a.length-1)),2.2,DOGS.gap);
+}
 function dogRestoreWear(){
   const o=LS.get(W.KEY,{});
   for(const s in o){const id=o[s];if(!W.items[id]||W.items[id].slot!==s)continue;
@@ -134,6 +155,7 @@ function dogsLongPress(){
 function dogsFrame(dt,time){
   if(!dog.ready)return;
   if(!DOGS.cur)dogInst(0);
+  if(TOON.q){TOON.q=0;toonToggle();}
   dogsLongPress();
   DOGS.inFrame=true;
   try{
@@ -150,16 +172,20 @@ function dogsFrame(dt,time){
       dogFrame(dt,time);
       dogSave(I);
     }
-    /* two puppies never stand inside each other: the idle one gives way */
+    /* nobody stands inside anybody else: of two that are too close, the idle one gives way (both move when both are idle or both busy). the needed distance is the sum of the two half widths (rad) */
     const on=DOGS.list.filter(I=>I.st.present&&!I.st.leaving);
-    if(on.length===2&&!(on[0].st.mode==='job'&&on[1].st.mode==='job')){const [a,b]=on,A=a.st,B=b.st,ov=2.6-Math.abs(A.x-B.x);   // (two puppies at the counter stand close side by side)
+    for(let i=0;i<on.length;i++)for(let j=i+1;j<on.length;j++){
+      const A=on[i].st,B=on[j].st;if(A.mode==='job'&&B.mode==='job')continue;   // (two puppies at the counter stand close side by side)
+      const ov=A.rad+B.rad-Math.abs(A.x-B.x);
       if(ov>0){const busy=s=>s.lie.s!=='none'||s.mode==='fetch'||s.mode==='bring'||s.mode==='eat'||s.mode==='chase'||s.mode==='ball';
         const dir=A.x>=B.x?1:-1,k=Math.min(1,dt*4)*ov;
         if(busy(A)&&!busy(B))B.x-=dir*k;else if(busy(B)&&!busy(A))A.x+=dir*k;else{A.x+=dir*k*.5;B.x-=dir*k*.5;}}}
+    if(DOGS.cur)Object.assign(dog,DOGS.cur.st);   // the last one handled is still the loaded one: take over the pushes
     DOGS.list=DOGS.list.filter(I=>I.pend||I.st.present);
     if(DOGS.focus&&!DOGS.list.includes(DOGS.focus))DOGS.focus=DOGS.list.find(I=>I.st.present&&!I.st.leaving)||DOGS.list[0]||null;
   }finally{DOGS.inFrame=false;DOGS.me=null;}
   dogLoad(DOGS.focus||DOGS.byV[0]);
   if(!DOGS.blink)remLit(3,dogAnyOn());
+  remLit(5,toonActive().length>0);
 }
-window.__dogs={DOGS,dogToggle,dogCall2,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
+window.__dogs={testCd(x){cd=makeCD(0);cd.mode='floor';cd.pos.set(x,FLOOR_Y+.02,FLOOR_Z);cd.flat=1;cd.vel.set(0,0);cdIn=false;},DOGS,DV,dogToggle,dogCall2,toonToggle,TOON,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
