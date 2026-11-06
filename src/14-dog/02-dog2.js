@@ -65,7 +65,7 @@ DV.P[8]=Object.assign({},HUMANOID,{map:Object.assign({LearA:'Lear1',RearA:'Rear1
    (meta.tex path, no expression swaps). The cap is much wider than the body (x up to +-22 at K=50), so rad is bigger. All numbers are first guesses: tune after looking at it. */
 DV.P[9]=Object.assign({},HUMANOID,{rad:1.3,tvGap:3,hit:{C:[0,26,-2],R:[24,28,22]},
   bite:{mx:0,my:15,mz:14,stand:1.15},
-  brow:[0,25,10],hpMark:[12.5,5,0],   // the painted eyes sit at x=+-7, y=25, z=9..10 (K=50); the headphone cups go under the cap at the sides of the face
+  brow:[0,25,10],hpMark:[23,11.5,-3],   // the painted eyes sit at x=+-7, y=25, z=9..10 (K=50); the headphone cups go under the cap at the sides of the face
   fit:{hat:{pos:[0,23,-3],s:1.5},glasses:{pos:[0,0,2],s:1.25},hp:{pos:[0,0,0]}}});
 DV.P[5].rad=1;DV.P[5].tvGap=2.8;
 function dogVarReg0(){   // called by loadDog when puppy A is built

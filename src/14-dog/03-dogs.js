@@ -68,16 +68,16 @@ function dogToggle(){   // short press
   else dogSummon(dogsNext(1));
   remLit(3,dogsOnlyOn());
 }
-/* ---------- the TOON button (remote button 6): 1st press -> pikachu walks in, 2nd press -> pikachu leaves and chiikawa + hachiware + usagi + toad walk in together, 3rd press -> they all leave.
+/* ---------- the TOON button (remote button 6): 1st press -> pikachu walks in, 2nd press -> pikachu leaves and chiikawa + hachiware + usagi walk in together (toad is not in the group: long press or the menu), 3rd press -> they all leave.
    They are ordinary entries of DOGS.list, so they share everything with the puppies: the floor lane, collisions (nobody stands inside another), the CD, apples, balls, the TV, petting. */
-const TOON={q:0,trio:[6,7,8,9],cast:[5,6,7,8,9],KEY:'chill_hihi.toonNext'};
+const TOON={q:0,trio:[6,7,8],cast:[5,6,7,8,9],KEY:'chill_hihi.toonNext'};
 const toonReady=vs=>vs.filter(v=>DV.v[v]&&DV.v[v].ready);
 function toonToggle(){   // short press
   if(dog.failed)return;
   if(!dog.ready){TOON.q=1;return;}   // pressed before the models have loaded: runs as soon as they are there
   const act=toonActive();
   if(!act.length)dogSummon(toonReady([5]));                                                   // nobody: pikachu walks in
-  else if(act.every(I=>I.v===5)){act.forEach(I=>dogLeave(I,0));dogSummon(toonReady(TOON.trio),.9);}   // only pikachu: it leaves and the four friends walk in together
+  else if(act.every(I=>I.v===5)){act.forEach(I=>dogLeave(I,0));dogSummon(toonReady(TOON.trio),.9);}   // only pikachu: it leaves and the three friends walk in together
   else act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));                                        // otherwise: everybody leaves
 }
 function toonCall2(){   // long press (~3 s): the next two of pikachu / chiikawa / hachiware / usagi / toad (in that order) walk in, one after the other
