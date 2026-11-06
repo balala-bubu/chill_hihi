@@ -2550,18 +2550,18 @@ const DOG_LIE={ang:2.6,drop:.75,arm:.9,leg:-.5},DOG_LID=1,DOG_JAW=1,DOG_LEG=1,DO
 const DOG_BITE={mx:0,my:35.5,mz:38,stand:1.65,dur:.7,reach:.85,lift:.05};
 loadDog();
 
-/* ---------- more puppies: B = Sib_a (models/dog2.*), C = pug (models/pug.*) ----------
-   The dog button brings the puppies in turn: 1st press -> puppy A, next press (when none is out) -> puppy B, then C, then A again ...; a long press brings the next two.
+/* ---------- more puppies: B = Sib_a (models/dog2.*), C = pug (models/pug.*), D = chihuahua (models/chihuahua.*) ----------
+   The dog button brings the puppies in turn: 1st press -> puppy A, next press (when none is out) -> puppy B, then C, then D, then A again ...; a long press brings the next two.
    Every puppy has its own model group and state (03-dogs.js); they all run the same behaviour code (dogFrame). A variant is the skinned model, the bone table
    (dog1's bone names -> this model's joints), a few pose numbers, and which wardrobe outfit is on (each puppy keeps its own, localStorage key per variant). */
-const DV={cur:0,v:[null,null,null],KEY:'chill_hihi.dogNext',WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3'],
+const DV={cur:0,v:[null,null,null,null],KEY:'chill_hihi.dogNext',WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3','chill_hihi.wear4'],
   base:null,   // pose numbers of puppy A, to restore
   /* per-puppy numbers, index = variant (0 = puppy A, kept in DV.base). Each entry:
      map  how its joints answer dog1's bone names (null = not driven)
      sit / lie / perch / bite  pose numbers (override DOG_SIT / DOG_LIE / DOG_PERCH / DOG_BITE)
      ak   motion strengths (dog.ak)     fit  headgear: extra offset (pos) and size factor (s) on top of the slot numbers
      brow  where "Brow_group" sits in the head model (between the eyes) */
-  P:[null,null,null]};
+  P:[null,null,null,null]};
 DV.P[1]={
   map:{Hip:'skl_root',Waist:'waist',Bust:'chest',Neck:'neck',Head:'head',jawA:'mouth',LearA:'Lear1',RearA:'Rear1',tailA:'tail1',tailB:'tail2',tailC:'tail3',
     ShoulderL:'Larm1',ShoulderR:'Rarm1',LegL:'Lleg1',LegR:'Rleg1'},
@@ -2575,6 +2575,10 @@ DV.P[1]={
 DV.P[2]=Object.assign({},DV.P[1],{ak:{LearA:.5,RearA:.5,jawA:.5,Neck:.8,Head:.8},
   brow:[0,40.3,27.8],   // pug eyes: centre y 39.2, z 30.3, x=+-6.9 (wider, a bit higher and flatter-faced than B)
   fit:{hat:{pos:[0,-2,1.5],s:1},glasses:{pos:[0,0,-1],s:1}}});
+/* puppy D (chihuahua): same skeleton and bone names as B and C, so it also starts from B's numbers; tune after looking at it */
+DV.P[3]=Object.assign({},DV.P[1],{ak:{LearA:.45,RearA:.45,jawA:.5,Neck:.8,Head:.8},
+  brow:[0,39.5,27.5],   // chihuahua eyes: centre y 38.4, z 30.0, big round eyes (x about +-5.5); the head is narrower but the ears are huge (x up to +-17)
+  fit:{hat:{pos:[0,-3,1.5],s:.95},glasses:{pos:[0,-.5,-1],s:.95}}});
 function dogVarReg0(){   // called by loadDog when puppy A is built
   DV.v[0]={bones:dog.bones,mouthL:dog.mouthL,fix:dog.fix,footLift:dog.footLift,ak:undefined,fitAdj:undefined,ready:true};
   DV.base={sit:Object.assign({},DOG_SIT),lie:Object.assign({},DOG_LIE),perch:Object.assign({},DOG_PERCH),bite:Object.assign({},DOG_BITE)};
@@ -2621,6 +2625,7 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
 }
 loadDogV(1,'dog2');
 loadDogV(2,'pug');
+loadDogV(3,'chihuahua');
 /* ---------- several puppies at once (max 2) ----------
    Every puppy is an instance {v,st,worn,restored,wkey}. `dog` stays the one state object all the old code reads and writes: dogLoad(I) copies an instance's state into it,
    dogSave(I) copies it back. dogsFrame runs dogFrame once per present puppy; after the frame `dog` is the FOCUS puppy again (the one the wardrobe / headphones / toys talk to).
