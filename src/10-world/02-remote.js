@@ -30,7 +30,7 @@ const remTexN=RB.map(k=>remIconTex(k,false)),remTexL=RB.map(k=>remIconTex(k,true
     x.fillStyle='#6a7076';x.font='700 15px '+MONO;x.textAlign='center';x.textBaseline='middle';
     RBP.forEach((p,i)=>x.fillText(['TV','SHAKE','BT','DOG','CLK','TOON'][i],w/2+p[0]*200,(1.3-(p[1]-.3))*200));
     x.fillStyle='#b4b7bb';for(let r=0;r<3;r++)for(let c=0;c<5;c++){x.beginPath();x.arc(w/2+(c-2)*20,424+r*18,4.2,0,TAU);x.fill();}
-    x.fillStyle='#8d9399';x.font='700 12px '+MONO;x.fillText('BalaBuBu',w/2,h-26);x.font='500 9px '+MONO;x.fillText('REMOTE · MT-1',w/2,h-12);
+    x.fillStyle='#8d9399';x.font='700 12px '+MONO;x.fillText('BalaBuBu',w/2,h-26);x.font='500 9px '+MONO;x.fillText('REMOTE · BALA-1',w/2,h-12);
     x.fillStyle='#ee5a2c';x.beginPath();x.arc(w/2,52,7,0,TAU);x.fill();})}));
   lab.position.z=.123;lab.userData.phys='rem';rem.g.add(lab);rem.hit.push(lab);
   RBP.forEach((p,i)=>{const g=new T.Group();g.position.set(p[0],p[1],.12);g.userData.z0=.12;

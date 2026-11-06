@@ -3,7 +3,7 @@ const fmt=s=>{s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(
 let dispSig='';
 function drawDisplay(){
   const a=cd&&(cdIn||status!=='empty')?ALBUMS[cd.ai]:null;
-  let l1='MT-1',l2='NO DISC';
+  let l1='BALA-1',l2='NO DISC';
   if(a){l1=a.yt?((YTA.inf.n?(YTA.inf.i+1)+'/'+YTA.inf.n+' ':'')+(YTA.inf.title||a.t)):('SIDE A · '+a.t).slice(0,22);
     if(status==='playing')l2='PLAY '+fmt(Au.elapsed);
     else if(status==='paused')l2=(Math.floor(performance.now()/500)%2?'     ':'PAUSE ')+fmt(Au.elapsed);
