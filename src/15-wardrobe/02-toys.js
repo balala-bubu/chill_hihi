@@ -13,7 +13,7 @@ const toyDogCan=()=>dog.ready&&dogAnyOn()&&!PET.perch&&!PET.mini;
 function toyBlank(e){
   if(!TOY.sel||!PHYS||PET.mini||busy||pd||W.drag||W.sd||(state!=='home'&&state!=='stage'))return false;
   setNDC(e);
-  if(pick()||wPick(e.clientX,e.clientY)||onShelf()||dogHit(e.clientX,e.clientY))return false;
+  if(pick()||wPick(e.clientX,e.clientY)||onShelf()||dogHit(e.clientX,e.clientY)||jobHit(e))return false;
   const q=planeHit(0);if(W.vis>.3&&q&&q.x>W.root.position.x-W.Wc/2)return false;
   return true;
 }
@@ -49,6 +49,7 @@ function toyBodyAdd(a,x,y){
   b.apple=a;a.body=b;Composite.add(TOY.eng.world,b);return b;
 }
 function toySpawn(it,x,y){
+  if(it.id==='t_job'){if(jobSpawn(x,y)){TOY.sel=null;toyChip();}return;}   // the part-time job set (15-wardrobe/03-job.js): not an apple
   const g=it.geo;if(!g.boundingBox)g.computeBoundingBox();const b=g.boundingBox,k=TOY.H/(b.max.y-b.min.y);
   const mat=TOY.mats[it.id]||(TOY.mats[it.id]=(()=>{const m=it.mat.clone();m.transparent=false;m.depthWrite=true;m.alphaTest=.02;return m;})());   // the texture is fully opaque: no sorting trouble
   const m=new T.Mesh(g,mat);m.scale.setScalar(k);

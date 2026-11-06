@@ -113,7 +113,7 @@ async function loadWardrobe(){
         W.items[def.id]={def,id:def.id,slot:def.slot,name:def.name||def.id,geo:g,mat,alpha:al,c,md,hv:0,pop:1,away:false,inWindow:false,holder:null,proxy:null};
       }catch(e){console.warn('wardrobe item '+def.id+' failed',e);}
     }));
-    man.items.forEach(d=>{const it=W.items[d.id];if(it&&W.byslot[d.slot])W.byslot[d.slot].push(it);});   // manifest order = shelf order
+    man.items.forEach(d=>{const it=W.items[d.id];if(it&&!d.hide&&W.byslot[d.slot])W.byslot[d.slot].push(it);});   // manifest order = shelf order
     const sph=new T.SphereGeometry(1,8,6),hide=new T.MeshBasicMaterial({visible:false});
     Object.values(W.items).forEach(it=>{
       const h=new T.Group(),m=new T.Mesh(it.geo,it.mat);m.position.set(-it.c[0],-it.c[1],-it.c[2]);m.renderOrder=it.alpha?4:0;h.add(m);
@@ -405,6 +405,7 @@ function frame(){
   try{dogsFrame(dt,time);}catch(e){if(!dog.err){dog.err=1;console.warn('dog',e);}}
   try{wardFrame(dt,time);}catch(e){if(!W.err){W.err=1;console.warn('wardrobe',e);}}
   try{toyFrame(dt,time);}catch(e){if(!TOY.err){TOY.err=1;console.warn('toys',e);}}
+  try{jobFrame(dt,time);}catch(e){if(!JOB.err){JOB.err=1;console.warn('job',e);}}
   if(PET.on)petFrame(dt,time);
   if(!PET.mini){drawDisplay();syncKeys();updateFx(dt,time);}
   renderer.render(scene,cam);

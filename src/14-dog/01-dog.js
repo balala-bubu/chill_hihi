@@ -1,6 +1,6 @@
 /* ---------- dog: a rigged puppy that runs in from the left, watches the pointer, chases a dragged CD and sits in front of the TV ---------- */
 const dogFresh=()=>({pop:1,pet2:0,g:new T.Group(),ready:false,failed:false,present:false,leaving:false,wantShow:false,
-  x:-20,z:2.6,ry:.4,mode:'idle',move:0,gait:0,sit:0,hop:0,hopT:0,lookYaw:0,lookPitch:0,blinkT:2,blink:0,earT:3,earL:0,earR:0,earWear:0,wag:0,fd:1,grab:null,mouthL:null,
+  x:-20,z:2.6,ry:.4,mode:'idle',move:0,gait:0,sit:0,hop:0,hopT:0,lookYaw:0,lookPitch:0,blinkT:2,blink:0,earT:3,earL:0,earR:0,earWear:0,wag:0,fd:1,job:0,grab:null,mouthL:null,
   bones:{},acc:{},scale:2.3/53.7,footLift:.75,nextHop:0,ptr:{x:0,y:.05,t:0,cx:0,cy:0},
   lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null,watchT:0,trotX:null,glT:4,glance:0});
 const dog=dogFresh();
@@ -107,6 +107,7 @@ function dogFrame(dt,time){
     mode='eat';const ap=toyTarget();let a=(ap.x-dog.x)*dog.fd;if(a<-.3){dog.fd=-dog.fd;a=-a;}
     tz=FLOOR_Z;spd=7.5;tx=(dog.eat||a<=DOG_BITE.stand)?dog.x:clamp(ap.x-dog.fd*DOG_BITE.stand,-hw+1.1,hw-1.1);}
   else if(soc&&soc.mode){mode=soc.mode;tx=soc.tx;spd=soc.spd;}   // the other puppy is busy / has left (03-dogs.js)
+  else if(jobSpot(rank,dogCount())){const js=jobSpot(rank,dogCount());mode='job';tx=js.x;tz=js.z;spd=5.5;}   // the part-time job set stands: go behind the counter (15-wardrobe/03-job.js)
   else if(tvOn){mode='tv';tx=tv.b.position.x/PXU-1.3-3.4*rank;tz=2.9;spd=5.2;}
   /* belly-up state machine: down -> lie (as long as it is being petted) -> up (slowly; now and then it flops back) */
   const Lc=dog.lie,nowS=performance.now()/1000;
@@ -124,6 +125,8 @@ function dogFrame(dt,time){
   }
   const eo=Lc.amt*Lc.amt*(3-2*Math.min(1,Lc.amt));
   if(Lc.s!=='none'){tx=dog.x;tz=dog.z;mode='lie';}
+  let jfinal=mode==='job';
+  if(mode!=='lie'){const rt=jobRoute(tx,tz);if(rt){tx=rt[0];tz=rt[1];jfinal=false;}}   // the counter is in the way: round its left end
   dog.mode=mode;
   if(dog.eat&&mode!=='eat')toyEatCancel();   // something more important came up: the apple stays where it is
   if(PET.perch){   // pops in and out (a quick scale) instead of running in from the side
@@ -139,6 +142,7 @@ function dogFrame(dt,time){
   const moving=Math.abs(vx)>.35;
   dog.move+=((moving?clamp(Math.abs(vx)/6,.35,1.25):0)-dog.move)*(1-Math.exp(-dt*9));
   dog.gait+=dt*(6+Math.abs(vx)*1.15)*(moving?1:0);
+  dog.job+=(((mode==='job'&&jfinal&&!moving&&Math.abs(dog.z-tz)<.25&&Math.abs(dog.x-tx)<.2)?1:0)-dog.job)*(1-Math.exp(-dt*(mode==='job'?4:8)));   // paws up on the counter
   /* 2b. the bite: it stops with the CD in front of its lips, bows down to it, snatches it up into the mouth and lifts its head again */
   let bow=0,jawX=carrying?.12:0;
   if(mode==='fetch'&&!dog.grab){const a=(cd.pos.x-dog.x)*dog.fd;if(!moving&&Math.abs(dog.z-tz)<.25&&a<=DOG_BITE.stand+.25&&a>-.3)dog.grab={t:0,at:false};}
@@ -158,6 +162,7 @@ function dogFrame(dt,time){
   let ryT;
   if(PET.perch){ryT=DOG_PERCH.ry+Math.sin(time*.6)*.05;}
   else if(Lc.s!=='none'&&Lc.amt>.12){ryT=Lc.ryL;look=DOGX.p;}
+  else if(mode==='job'&&dog.job>.3){ryT=0;}   // behind the counter, facing the customers (= the camera)
   else if(mode==='tv'&&dog.sit>.5){ryT=Math.PI-.4;look=DOGX.v2.set(tv.b.position.x/PXU,-tv.b.position.y/PXU+.3,0);}
   else if(mode==='fetch'||mode==='bring'||mode==='eat'){ryT=dog.fd*1.2;if(mode==='fetch')look=DOGX.v2.set(cd.pos.x,cd.pos.y,cd.pos.z);else if(mode==='eat'){const ap=toyTarget();if(ap)look=DOGX.v2.set(ap.x,ap.y+.3,ap.z);}}
   else if(moving)ryT=vx>0?1.2:-1.2;
@@ -176,7 +181,7 @@ function dogFrame(dt,time){
     dog.g.position.set(player.position.x+DOG_PERCH.dx,player.position.y+PH/2+(dog.footLift*dog.scale-DOG_PERCH.drop)*dog.pop+Math.abs(Math.sin(time*13))*.08*pw,DOG_PERCH.z);
     dog.g.scale.setScalar(dog.scale*Math.max(.001,dog.pop));
   }else{
-    dog.g.position.set(dog.x,FLOOR_Y+dog.footLift*dog.scale+bob+hopY-dog.sit*DOG_SIT.drop-eo*DOG_LIE.drop,dog.z);
+    dog.g.position.set(dog.x,FLOOR_Y+dog.footLift*dog.scale+bob+hopY-dog.sit*DOG_SIT.drop-eo*DOG_LIE.drop+dog.job*DOG_JOB.rise,dog.z);dog.g.rotation.x=-dog.job*DOG_JOB.pitch;
   }
   dog.g.rotation.y=dog.ry;if(dog.rg)dog.rg.rotation.z=Lc.sign*(DOG_LIE.ang*eo+Math.sin(performance.now()/1000*2.2)*.05*eo*(nowS-Lc.petT<.6?2:1));
 dog.g.updateMatrixWorld(true);
@@ -234,6 +239,8 @@ dog.g.updateMatrixWorld(true);
   if(PET.perch){const P=DOG_PERCH;   // lying down on the player: belly low, front legs out, back legs folded
     dogAdd('Hip','r',P.hip);dogAdd('Waist','r',P.waist);dogAdd('Bust','r',P.bust);dogAdd('ClavicleL','r',P.clav);dogAdd('ClavicleR','r',P.clav);
     dogAdd('ShoulderL','r',P.sh);dogAdd('ShoulderR','r',P.sh);dogAdd('LegL','r',P.leg);dogAdd('LegR','r',P.leg);dogAdd('Neck','r',P.neck);dogAdd('Head','r',P.head);dogAdd('tailA','r',P.tail);}
+  if(dog.job>.001){const j=dog.job,P=DOG_JOB;   // standing up behind the counter, both front paws on top
+    dogAdd('ShoulderL','r',P.sh*j);dogAdd('ShoulderR','r',P.sh*j);dogAdd('ClavicleL','r',P.clav*j);dogAdd('ClavicleR','r',P.clav*j);dogAdd('LegL','r',P.leg*j);dogAdd('LegR','r',P.leg*j);dogAdd('Neck','r',P.neck*j);dogAdd('Head','r',P.head*j);dogAdd('Bust','r',P.bust*j);}
   if(eo>.001){const pet=nowS-Lc.petT<.6,sp=pet?7:4,amp=pet?1.4:1;
     dogAdd('ShoulderL','r',(DOG_LIE.arm+Math.sin(time*sp)*.35*amp)*eo);dogAdd('ShoulderR','r',(DOG_LIE.arm+Math.sin(time*sp+.9)*.35*amp)*eo);
     dogAdd('LegL','r',(DOG_LIE.leg+Math.sin(time*(sp+1)+1.7)*.3*amp)*eo);dogAdd('LegR','r',(DOG_LIE.leg+Math.sin(time*(sp+1)+2.6)*.3*amp)*eo);
@@ -241,6 +248,7 @@ dog.g.updateMatrixWorld(true);
     dogAdd('UplidL','r',.7*eo*DOG_LID);dogAdd('UplidR','r',.7*eo*DOG_LID);}
   dogApply();
 }
+const DOG_JOB={rise:.42,pitch:.42,sh:-1.1,clav:-.2,leg:0,neck:.25,head:.1,bust:0};   // 'job' pose: rise = body lift, pitch = whole body tipped nose-up, the rest are bone angles (front paws forward onto the counter)
 const DOG_PERCH={dx:0,z:0,drop:.6,ry:.9,hip:0,waist:0,bust:0,clav:.5,sh:.6,leg:1.2,neck:0,head:0,tail:0};   // desktop pet: dx/z = where on the player's top face, drop = how far the belly sinks, ry = facing, the rest are bone angles
 const DOG_LIE={ang:2.6,drop:.75,arm:.9,leg:-.5},DOG_LID=1,DOG_JAW=1,DOG_LEG=1,DOG_SIT={hip:.8,front:1,leg:.9,tail:0,drop:.3};
 /* fetching a CD: mx/my/mz = the lips in model space; stand = how far in front of the hips the CD should lie when the dog bites it (and when it is held out to the pointer);

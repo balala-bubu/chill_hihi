@@ -229,6 +229,29 @@
       "name": "蘋果",
       "mesh": "items/t_fg_apple.json",
       "tex": "items/t_fg_apple.png"
+    },
+    {
+      "id": "t_job",
+      "slot": "toy",
+      "name": "打工",
+      "mesh": "items/t_job.json",
+      "tex": "items/t_job.png",
+      "display": {
+        "size": 1.1,
+        "rot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "t_job_counter",
+      "slot": "toy",
+      "name": "打工櫃檯",
+      "mesh": "items/t_job_counter.json",
+      "tex": "items/t_job_counter.png",
+      "hide": true
     }
   ]
 }
