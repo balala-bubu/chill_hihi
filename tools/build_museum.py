@@ -34,6 +34,14 @@ for mat, tris in groups.items():
                 P += [round(x - CX, 2), round(y, 2), round(z - CZ, 2)]
                 U += [round(VT[key[1]][0], 4), round(VT[key[1]][1], 4)]
             I.append(seen[key])
+    if mat == 'm_wallB1.001':   # 右側牆原檔一路延伸到 z=512（超出大廳前緣 448，透視會很突兀）：削到 z=448，貼圖座標沿著線性插值
+        n = len(P) // 3
+        for a in range(n):
+            if abs(P[a * 3] - (446 - CX)) < .01 and P[a * 3 + 2] > 448 - CZ + .01:
+                b = min((c for c in range(n) if abs(P[c * 3] - P[a * 3]) < .01 and abs(P[c * 3 + 1] - P[a * 3 + 1]) < .01 and P[c * 3 + 2] < P[a * 3 + 2] - 1), key=lambda c: P[c * 3 + 2])
+                t = (448 - CZ - P[b * 3 + 2]) / (P[a * 3 + 2] - P[b * 3 + 2])
+                U[a * 2] = round(U[b * 2] + (U[a * 2] - U[b * 2]) * t, 4); U[a * 2 + 1] = round(U[b * 2 + 1] + (U[a * 2 + 1] - U[b * 2 + 1]) * t, 4)
+                P[a * 3 + 2] = 448 - CZ
     out.append({'mat': mat, 'tex': tex[mat], 'p': P, 'u': U, 'i': I})
 # 同貼圖的合併（同一張貼圖只要一個材質）
 merged = {}

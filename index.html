@@ -2009,7 +2009,12 @@ async function muBuild(){
     const ld=new T.TextureLoader(),R=MU.room,TX={};
     const tx=(n,rep)=>{const k=n+(rep?'r':'');if(TX[k])return TX[k];const t=ld.load('models/museum/'+n+'.png');t.colorSpace=T.SRGBColorSpace;t.magFilter=T.NearestFilter;t.minFilter=T.NearestMipmapLinearFilter;
       t.wrapS=t.wrapT=rep?T.RepeatWrapping:T.ClampToEdgeWrapping;t.anisotropy=4;return TX[k]=t;};   // pixel art: crisp when big, mip-mapped when far
-    const mb=(map,o)=>new T.MeshBasicMaterial(Object.assign({map,alphaTest:.4,side:T.DoubleSide,toneMapped:false},o||{}));
+    /* while the grey cloth is being drawn up / down, the hall shows only BELOW the cloth's edge (same edge as in bgPatchCurtain), so the parts of the hall that stand in front of the grey wall never poke through it */
+    const mb=(map,o)=>{const m=new T.MeshBasicMaterial(Object.assign({map,alphaTest:.4,side:T.DoubleSide,toneMapped:false},o||{}));
+      m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,BG.cu);
+        sh.fragmentShader=sh.fragmentShader.replace('void main() {','uniform float uK,uT,uFold;uniform vec2 uRes;\nvoid main() {')
+          .replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\nfloat cuX=gl_FragCoord.x/uRes.x,cuY=gl_FragCoord.y/uRes.y;\nfloat cuHem=uK+(sin(cuX*9.0+uT*1.2)*.016+sin(cuX*23.0-uT*.9)*.007+sin(cuX*3.1+uT*.5)*.02)*uFold;\nif(cuY>=cuHem)discard;');};
+      m.customProgramCacheKey=()=>'mucurtain';return m;};
     mj.meshes.forEach(m=>{
       const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(m.p,3));g.setAttribute('uv',new T.Float32BufferAttribute(m.u,2));g.setIndex(m.i);
       const rep=/^tex_(floor2F|wallB1|circle|etc|tesuri|table)$/.test(m.tex);
