@@ -2,8 +2,10 @@
    Press BG: the grey dot wall + floor are drawn up off the top of the screen like a curtain (see bgCurtain) and a sunny meadow is revealed:
    warm sky + sun, three layers of hazy mountains, rolling grass, big trees (models/scenery/tree.json),
    a notice board and a tent. Press again: the wall slides back up. State is remembered in localStorage.
-   Everything lives in one group (BG.g) far behind the action, so it never touches the physics world. */
-const BG={on:false,k:0,wall:0,ready:false,job:null,g:new T.Group(),trees:[],clouds:[],props:{},t:0,hw:-1,tok:0,
+   Everything lives in one group (BG.g) far behind the action, so it never touches the physics world.
+   Backgrounds: BG.mode 1 = meadow (this file), 2 = cafe (10-world/05-cafe.js). The BG button switches the last picked one on/off; the hover menu on the button (03-summon-menu.js) picks which.
+   Changing between two scenes draws the cloth back down and up again. localStorage 'chill_hihi.bg' = the mode shown ('0' off), 'chill_hihi.bgPick' = the last one picked. */
+const BG={on:false,mode:0,k:0,wall:0,ready:false,job:null,g:new T.Group(),trees:[],clouds:[],props:{},t:0,hw:-1,tok:0,
   litSun:null,litFill:null,p:0,cu:{uK:{value:-1},uT:{value:0},uFold:{value:0},uRes:{value:new T.Vector2(1,1)}}};
 BG.g.visible=false;scene.add(BG.g);
 const BG_OK=!(PET.on&&!PET.card);   // transparent desktop pet has no wall to drop
@@ -121,8 +123,7 @@ async function bgBuild(){
     const N=46,pp=new Float32Array(N*3),r=bgRand(5);for(let i=0;i<N;i++){pp[i*3]=-24+r()*48;pp[i*3+1]=r()*13;pp[i*3+2]=-14+r()*10;}
     const pg=new T.BufferGeometry();pg.setAttribute('position',new T.BufferAttribute(pp,3));
     BG.motes=new T.Points(pg,new T.PointsMaterial({map:bgBlobTex,color:0xfff0b0,size:.5,transparent:true,opacity:.75,blending:T.AdditiveBlending,depthWrite:false,toneMapped:false}));BG.motes.frustumCulled=false;G.add(BG.motes);
-    BG.litSun={c:sun.color.clone(),i:sun.intensity};BG.litFill=fill.intensity;
-    bgPatchCurtain();BG.ready=true;BG.hw=-1;bgLayout(true);
+    bgLitInit();bgPatchCurtain();BG.ready=true;BG.hw=-1;bgLayout(true);
   })().catch(e=>{console.warn('background failed to load',e);BG.failed=true;BG.job=null;});
   return BG.job;
 }
@@ -145,6 +146,7 @@ function bgLayout(force){
    travels up the screen (uK: 0 = bottom edge, 1 = top edge); the grass/sky scene sits behind them and shows through.
    The cloth gets soft pleats while it moves and a darker rolled hem. */
 function bgPatchCurtain(){
+  if(BG.patched)return;BG.patched=true;
   const hook=(mat,shade)=>{mat.onBeforeCompile=sh=>{Object.assign(sh.uniforms,BG.cu);
     sh.fragmentShader=sh.fragmentShader.replace('void main() {','uniform float uK,uT,uFold;uniform vec2 uRes;\nvoid main() {')
       .replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\nfloat cuX=gl_FragCoord.x/uRes.x,cuY=gl_FragCoord.y/uRes.y;\nfloat cuHem=uK+(sin(cuX*9.0+uT*1.2)*.016+sin(cuX*23.0-uT*.9)*.007+sin(cuX*3.1+uT*.5)*.02)*uFold;\nif(cuY<cuHem)discard;')
@@ -157,31 +159,41 @@ function bgCurtain(p){   // p 0 = grey wall/floor fully in place, 1 = drawn up o
   renderer.getDrawingBufferSize(c.uRes.value);
   const gone=p>=1;grid.visible=catcher.visible=!gone;floorMesh.visible=!gone&&(PET.on?PET.shadow:true);
 }
+function bgLitInit(){if(!BG.litSun){BG.litSun={c:sun.color.clone(),i:sun.intensity};BG.litFill=fill.intensity;}}   // the normal lighting, remembered once so both scenes can warm it up and put it back
 function bgApply(){   // lighting warms up with the reveal
-  const k=BG.k;if(!BG.ready)return;
+  const k=BG.k;if(!BG.litSun)return;
   sun.color.copy(BG.litSun.c).lerp(new T.Color(0xffdca0),k);sun.intensity=BG.litSun.i*(1+.1*k);fill.intensity=BG.litFill*(1-.4*k);
 }
 const bgShowFloor=()=>{floorMesh.visible=PET.on?PET.shadow:true;grid.visible=catcher.visible=true;};
-async function bgSet(on,instant){
-  if(!BG_OK)return;on=!!on;if(on===BG.on&&!instant)return;BG.on=on;remLit(1,on);
-  try{localStorage.setItem('chill_hihi.bg',on?'1':'0');}catch(e){}
+async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe (true/false also work: meadow / off)
+  if(!BG_OK)return;m=m===true?1:!m?0:clamp(m|0,0,2);if(m===BG.mode&&!instant)return;
+  const prev=BG.mode;BG.mode=m;BG.on=m>0;remLit(1,m>0);
+  try{localStorage.setItem('chill_hihi.bg',String(m));if(m)localStorage.setItem('chill_hihi.bgPick',String(m));}catch(e){}
   const tok=++BG.tok;
-  if(on){await bgBuild();if(tok!==BG.tok||!BG.ready){if(BG.failed&&tok===BG.tok){BG.on=false;remLit(1,false);}return;}
-    BG.g.visible=true;bgLayout(true);
-    if(instant){BG.k=1;bgApply();bgCurtain(1);return;}
-    Au.whoosh&&Au.whoosh();
-    const p0=BG.p;bgShowFloor();
-    await tween(1.9*(1-p0)+.2,k=>{if(BG.tok===tok){const p=lerp(p0,1,k);bgCurtain(p);BG.k=clamp(p*1.3,0,1);bgApply();}},ease.io2);
-  }else{
-    if(instant||!BG.ready){BG.k=0;bgApply();bgCurtain(0);bgShowFloor();BG.g.visible=false;return;}
-    Au.whoosh&&Au.whoosh();
-    const p0=BG.p;bgShowFloor();
-    await tween(1.5*p0+.2,k=>{if(BG.tok===tok){const p=lerp(p0,0,k);bgCurtain(p);BG.k=clamp(p*1.3,0,1);bgApply();}},ease.io2);
-    if(BG.tok===tok){BG.g.visible=false;BG.k=0;bgApply();bgCurtain(0);bgShowFloor();}
+  if(m===1)await bgBuild();else if(m===2)await cfBuild();
+  if(tok!==BG.tok)return;
+  if(m&&!(m===1?BG.ready:CF.ready)){BG.mode=0;BG.on=false;remLit(1,false);try{localStorage.setItem('chill_hihi.bg','0');}catch(e){}return;}   // the scene failed to load: stay off
+  const show=n=>{BG.g.visible=n===1;CF.g.visible=n===2;};
+  const lay=()=>{if(BG.mode===1)bgLayout(true);else if(BG.mode===2)cfLayout(true);};
+  const run=(from,to,sec,tk)=>tween(sec,k=>{if(BG.tok===tk){const p=lerp(from,to,k);bgCurtain(p);BG.k=clamp(p*1.3,0,1);bgApply();}},ease.io2);
+  if(instant||(!m&&!BG.g.visible&&!CF.g.visible)){
+    if(m){show(m);lay();BG.k=1;bgApply();bgCurtain(1);}else{show(0);BG.k=0;bgApply();bgCurtain(0);bgShowFloor();}return;}
+  Au.whoosh&&Au.whoosh();
+  const p0=BG.p;bgShowFloor();
+  if(m&&prev){   // from one scene to the other: the cloth comes back down, the scene behind it is swapped, the cloth is drawn up again
+    await run(p0,0,1.0*p0+.15,tok);if(BG.tok!==tok)return;
+    show(m);lay();await run(0,1,1.7,tok);
+  }else if(m){show(m);lay();await run(p0,1,1.9*(1-p0)+.2,tok);}
+  else{
+    await run(p0,0,1.5*p0+.2,tok);
+    if(BG.tok===tok){show(0);BG.k=0;bgApply();bgCurtain(0);bgShowFloor();}
   }
 }
-function bgToggle(){bgSet(!BG.on);}
+function bgToggle(){   // the BG button: off <-> the last background picked (menu on hover, see 03-summon-menu.js); meadow at first
+  if(BG.mode)bgSet(0);else{let m=1;try{m=+localStorage.getItem('chill_hihi.bgPick')||1;}catch(e){}bgSet(m);}
+}
 function bgFrame(dt,time){
+  if(CF.g.visible&&CF.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);cfFrame(dt,time);return;}
   if(!BG.ready||!BG.g.visible)return;bgLayout(false);
   BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);
   const sh=BG.tufts.material.userData.sh;if(sh)sh.uniforms.uTime.value=time;
@@ -194,5 +206,4 @@ function bgFrame(dt,time){
     BG.props.owlM.rotation.y=Math.sin(time*.6)*.35*Math.max(0,Math.sin(time*.23));}
   BG.rays.forEach((m,i)=>{m.material.opacity=m.userData.o*(.65+.35*Math.sin(time*.45+i*2));});
 }
-try{if(BG_OK&&localStorage.getItem('chill_hihi.bg')==='1')bgSet(true,true);}catch(e){}
 window.__bg={BG,bgSet,bgToggle,bgCurtain,bgLayout,bgShowFloor};   // test hook
