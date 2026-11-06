@@ -2991,7 +2991,7 @@ const clock=new T.Clock();let fpsAvg=60;
 const dogFresh=()=>({pop:1,pet2:0,g:new T.Group(),ready:false,failed:false,present:false,leaving:false,wantShow:false,
   x:-20,z:2.6,ry:.4,mode:'idle',move:0,gait:0,sit:0,hop:0,hopT:0,lookYaw:0,lookPitch:0,blinkT:2,blink:0,earT:3,earL:0,earR:0,earWear:0,wag:0,fd:1,job:0,grab:null,mouthL:null,
   bones:{},acc:{},scale:2.3/53.7,footLift:.75,nextHop:0,ptr:{x:0,y:.05,t:0,cx:0,cy:0},
-  lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null,watchT:0,trotX:null,glT:4,glance:0,play:null,ballBored:0,ballSince:0,ballMax:0,chair:null,cy:0,
+  lie:{s:'none',amt:0,sign:1,ryL:1.25,petT:0,retried:false,fail:false,failAt:.5,tt:0,a0:0,fast:false},rg:null,watchT:0,trotX:null,glT:4,glance:0,play:null,ballBored:0,ballSince:0,ballMax:0,chair:null,cy:0,th:null,
   human:false,biteBone:'Head',hit:null,rad:1.3,tvGap:3.4,hold:0,crouch:0});   // human: a cartoon character that moves like a person (02-dog2.js HUMANOID); biteBone: the bone the mouth / hands point lives in; hit: its own pet ellipsoid {C,R}; rad: half width; tvGap: spacing in front of the TV
 const dog=dogFresh();
 dog.g.visible=false;scene.add(dog.g);
@@ -3118,6 +3118,7 @@ function dogFrame(dt,time){
   }
   const eo=Lc.amt*Lc.amt*(3-2*Math.min(1,Lc.amt));
   if(Lc.s!=='none'){tx=dog.x;tz=dog.z;mode='lie';}
+  if(dog.th){dogThrowStep(dt,hw);mode='held';tx=dog.x;tz=dog.z;}   // picked up / thrown (14-dog/04-throw.js): the pointer or the air decides where it is
   let jfinal=mode==='job';
   if(mode!=='lie'){const rt=jobRoute(tx,tz);if(rt){tx=rt[0];tz=rt[1];jfinal=false;}}   // the counter is in the way: round its left end
   dog.mode=mode;
@@ -3153,7 +3154,7 @@ function dogFrame(dt,time){
   const chSit=mode==='chair'&&!moving&&Math.abs(dog.z-tz)<.15&&Math.abs(dog.x-tx)<.12;
   dog.sit+=(((sitWant||chSit)?1:0)-dog.sit)*(1-Math.exp(-dt*((sitWant||chSit)?5:9)));
   const cyT=chSit?CS.h+(dog.human?0:.22):0;   // puppies sit a bit higher: their hind legs hang down in front of the seat edge
-  dog.cy+=(cyT-dog.cy)*(1-Math.exp(-dt*(cyT>dog.cy?9:16)));   // up onto the seat / down again
+  if(!dog.th)dog.cy+=(cyT-dog.cy)*(1-Math.exp(-dt*(cyT>dog.cy?9:16)));   // up onto the seat / down again
   const chHop=cyT>0?Math.sin(Math.PI*clamp(dog.cy/cyT,0,1))*.22:0;
   /* 4. facing */
   DOGX.p.set(dog.ptr.x,dog.ptr.y,.5).unproject(cam);DOGX.v.copy(DOGX.p).sub(cam.position).normalize();
@@ -3186,6 +3187,7 @@ function dogFrame(dt,time){
     dog.crouch=dog.human?Math.max(bow,bPitch*.8)*.32:0;
     dog.g.position.set(dog.x,FLOOR_Y+dog.footLift*dog.scale+bob+hopY-dog.sit*DOG_SIT.drop-eo*DOG_LIE.drop-dog.crouch+dog.job*(dog.human?DOG_JOB.humanRise:DOG_JOB.rise)+dog.cy+chHop,dog.z);dog.g.rotation.x=dog.human?0:-dog.job*DOG_JOB.pitch;   // people stay upright (lifted a bit so the head clears the counter), puppies rise on their hind legs
   }
+  dog.g.rotation.order=dog.th?'ZYX':'XYZ';dog.g.rotation.z=dog.th?dog.th.rz:0;   // thrown: tumbles about the view axis
   dog.g.rotation.y=dog.ry;if(dog.rg)dog.rg.rotation.z=Lc.sign*(DOG_LIE.ang*eo+Math.sin(performance.now()/1000*2.2)*.05*eo*(nowS-Lc.petT<.6?2:1));
 dog.g.updateMatrixWorld(true);
   /* 6b. the CD hangs from the lips: its rim in the mouth, its centre a little way out in front, tipped up so it can be seen; right after the bite it glides up from the floor */
@@ -3634,7 +3636,7 @@ function dogsFrame(dt,time){
     for(let i=0;i<on.length;i++)for(let j=i+1;j<on.length;j++){
       const A=on[i].st,B=on[j].st;if(A.mode==='job'&&B.mode==='job')continue;   // (two puppies at the counter stand close side by side)
       const ov=A.rad+B.rad-Math.abs(A.x-B.x);
-      if(ov>0){const busy=s=>s.lie.s!=='none'||(s.mode==='chair'&&s.sit>.5)||s.mode==='fetch'||s.mode==='bring'||s.mode==='eat'||s.mode==='chase'||s.mode==='ball';
+      if(ov>0){const busy=s=>s.th||s.lie.s!=='none'||(s.mode==='chair'&&s.sit>.5)||s.mode==='fetch'||s.mode==='bring'||s.mode==='eat'||s.mode==='chase'||s.mode==='ball';
         const dir=A.x>=B.x?1:-1,k=Math.min(1,dt*4)*ov;
         if(busy(A)&&!busy(B))B.x-=dir*k;else if(busy(B)&&!busy(A))A.x+=dir*k;else{A.x+=dir*k*.5;B.x-=dir*k*.5;}}}
     if(DOGS.cur)Object.assign(dog,DOGS.cur.st);   // the last one handled is still the loaded one: take over the pushes
@@ -3662,6 +3664,68 @@ window.__thumb=(v,size)=>{
   g.position.copy(p0);g.rotation.copy(r0);g.visible=v0;if(par)par.add(g);else scene.remove(g);
   return url;
 };
+/* ---------- pick a character up and throw it: press and hold on a puppy / cartoon character (no moving) to lift it, drag it around, let go to toss it ----------
+   Worn wardrobe items win over the body (wPick runs first, same as petting), and moving the pointer before the hold time is up cancels (that is a stroke / ordinary click).
+   The state lives in dog.th (null | {held,...}) so it travels with dogLoad/dogSave; dogFrame calls dogThrowStep and draws dog.cy / dog.th.rz. */
+const THR={pend:null,I:null,hold:.35,lift:.55,g:46,rest:.32,vmax:15,vmaxY:16,gain:.8,p:new T.Vector3()};
+function thrBusy(){return !!((typeof TOY!=='undefined'&&TOY.sel)||(typeof JOB!=='undefined'&&JOB.held)||(typeof BALL!=='undefined'&&BALL.held)||(typeof chairHeld==='function'&&chairHeld())||(typeof W!=='undefined'&&W.drag)||(typeof cd!=='undefined'&&cd&&cd.mode==='drag'&&cd.committed));}
+function thrStart(I){
+  const prev=DOGS.cur;dogLoad(I);
+  try{
+    if(!dog.ready||!dog.present||dog.leaving||PET.perch||dog.th)return false;
+    const p=dogPtrAt(dog.z,THR.p),base=FLOOR_Y+dog.footLift*dog.scale;
+    const Lc=dog.lie;Lc.s='none';Lc.amt=0;dog.chair=null;
+    dog.th={held:true,ox:p.x-dog.x,oy:clamp(p.y-base,.6,30),y:dog.cy,lift:0,vx:0,vy:0,rz:0,w:0,lx:dog.x,ly:dog.cy,settle:0};
+    Au.snap();buzz(10);THR.I=I;return true;
+  }finally{if(prev&&prev!==I)dogLoad(prev);}
+}
+addEventListener('pointerdown',e=>{
+  THR.pend=null;
+  if(e.button>0||!e.target||e.target.tagName!=='CANVAS'||grab.kind==='hp'||thrBusy())return;
+  if(typeof wPick==='function'&&W.ready&&wPick(e.clientX,e.clientY))return;
+  const I=dogWhoAt(e.clientX,e.clientY);if(!I)return;
+  const t=THR.pend={I,x:e.clientX,y:e.clientY,id:e.pointerId};
+  setTimeout(()=>{if(THR.pend===t){THR.pend=null;thrStart(I);}},THR.hold*1000);
+},{passive:true});
+addEventListener('pointermove',e=>{const t=THR.pend;if(t&&Math.hypot(e.clientX-t.x,e.clientY-t.y)>12)THR.pend=null;},{passive:true});
+function thrRelease(){
+  THR.pend=null;const I=THR.I;THR.I=null;if(!I)return;
+  const s=DS(I),th=s.th;if(!th||!th.held)return;
+  th.held=false;th.vx=clamp(th.vx*THR.gain,-THR.vmax,THR.vmax);th.vy=clamp(th.vy*THR.gain,-THR.vmaxY,THR.vmaxY);
+  th.w=clamp(-th.vx*.14,-3.2,3.2);
+  if(Math.hypot(th.vx,th.vy)>3.5)Au.whoosh();
+}
+addEventListener('pointerup',thrRelease);addEventListener('pointercancel',thrRelease);
+addEventListener('blur',thrRelease);
+/* called from dogFrame for the loaded character while dog.th is set; moves dog.x and sets dog.cy / th.rz */
+function dogThrowStep(dt,hw){
+  const th=dog.th,xm=hw-1.2;
+  if(dog.leaving||!dog.present||PET.perch){dog.th=null;dog.cy=0;return;}
+  if(th.held){
+    const p=dogPtrAt(dog.z,THR.p),base=FLOOR_Y+dog.footLift*dog.scale;
+    th.lift+=(THR.lift-th.lift)*(1-Math.exp(-dt*14));
+    const tx=clamp(p.x-th.ox,-xm,xm),ty=Math.max(0,p.y-th.oy-base)+th.lift;
+    dog.x+=(tx-dog.x)*(1-Math.exp(-dt*20));th.y+=(ty-th.y)*(1-Math.exp(-dt*20));
+    const k=1-Math.exp(-dt*25);
+    th.vx+=((dog.x-th.lx)/Math.max(dt,.001)-th.vx)*k;th.vy+=((th.y-th.ly)/Math.max(dt,.001)-th.vy)*k;
+    th.lx=dog.x;th.ly=th.y;
+    th.rz+=((clamp(-th.vx*.045,-.5,.5)+Math.sin(performance.now()/1000*7)*.05)-th.rz)*(1-Math.exp(-dt*10));   // hangs from the grip and swings a little
+    cvs.style.cursor='grabbing';
+  }else if(th.settle>0){   // landed: slide to a stop, straighten up
+    th.settle-=dt;dog.x=clamp(dog.x+th.vx*dt,-xm,xm);th.vx*=Math.exp(-dt*9);th.y=0;
+    th.rz*=Math.exp(-dt*14);
+    if(th.settle<=0){dog.th=null;dog.cy=0;return;}
+  }else{   // in the air
+    th.vy-=THR.g*dt;th.y+=th.vy*dt;dog.x+=th.vx*dt;th.rz+=th.w*dt;
+    if(dog.x>xm||dog.x<-xm){dog.x=clamp(dog.x,-xm,xm);th.vx*=-.5;th.w*=-.5;Au.click(1.1,.4);}
+    if(th.y<=0&&th.vy<0){
+      th.y=0;const sp=-th.vy;
+      if(sp>5){th.vy=sp*THR.rest;th.vx*=.7;th.w*=.45;th.rz*=.6;Au.crash(Math.min(.3,sp*.014));camShake=Math.max(camShake,Math.min(.22,sp*.012));buzz(8);}
+      else{th.vy=0;th.settle=.28;th.rz*=.3;}
+    }
+  }
+  dog.cy=th.y;
+}
 /* ---------- dog wardrobe ----------
    models/wardrobe/manifest.json (written by tools/build_wardrobe.py) lists the slots (which bone each kind of item hangs on, and where) and the items.
    While the dog is around, an open boutique display shelf slides in from the right edge; each slot has one shelf.
