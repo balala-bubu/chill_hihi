@@ -13,7 +13,7 @@
    A vignette quad, a black fade quad (projector warm-up) and a soft floor spill sit just in front of the hole; all of them are ordinary transparent meshes drawn over the video.
    LIGHT: every stage material runs btGrade (a position-based grade: warm key pool at centre stage, cool dark edges, the audience falling off with distance, warm spill on the front rows), plus
    additive light cones with floor pools from the six stage lights (a slow sway), drifting dust motes and a gentle flicker. */
-const BT={s:.3,front:-3,fit:.96,hfit:30,tint:0x88827c,pitch:.1,keep:3,ready:false,job:null,g:new T.Group(),room:new T.Group(),inner:new T.Group(),hk:'',shadow:null,den:null,glow:null,chairs:[],ph:0,t:0,V:[0,.4,.7],vi:null,scr:{x:0,y:14.2,w:38,h:21.4,z:-10.3},cu:{uLt:{value:1}},flat:[],fm:new T.Matrix4(),fs:new T.Matrix4(),ft:new T.Matrix4(),vf:0,vv:0,vx:.56,vs:.26,beams:[],motes:null,spill:null,force:false};
+const BT={s:.3,front:-3,fit:.96,hfit:30,tint:0x88827c,pitch:.1,keep:3,ready:false,job:null,g:new T.Group(),room:new T.Group(),inner:new T.Group(),hk:'',shadow:null,den:null,glow:null,chairs:[],ph:0,t:0,V:[0,.4,.7],vi:null,scr:{x:0,y:15.4,w:38,h:21.4,z:-10.3},cu:{uLt:{value:1}},flat:[],fm:new T.Matrix4(),fs:new T.Matrix4(),ft:new T.Matrix4(),vf:0,lift:9,beams:[],motes:null,spill:null,force:false};
 BT.g.visible=false;BT.inner.position.set(0,5,-10);BT.room.add(BT.inner);BT.g.add(BT.room);scene.add(BT.g);   // inner: the audience floor (y -5) and the stage's front edge (z 10) become the room's origin
 /* position-based light grade, applied to every stage material (p = room-local model units: stage x +-35, floor y 0, back wall z -10.5, front edge z 10, audience z > 10) */
 const _btD=new T.Vector3(),_btDn=new T.Vector3(0,-1,0);
@@ -41,7 +41,8 @@ async function btBuild(){
         sh.vertexShader=sh.vertexShader.replace('void main() {','varying vec3 vBtP;\nvoid main() {').replace('#include <begin_vertex>','#include <begin_vertex>\nvBtP=position;');};
       m.customProgramCacheKey=()=>'btcurtain'+(grade?'g':'');return m;};
     const tint=new T.Color(BT.tint);   // the stage is a little too bright next to the player: a gentle warm multiply
-    const geo=m=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(m.p,3));g.setAttribute('uv',new T.Float32BufferAttribute(m.u,2));
+    const lf=y=>{const t=Math.min(1,Math.max(0,(y-9)/6));return BT.lift*t*t*(3-2*t);};   // the whole top of the room (frame arch, valance, wall tops, ceiling, lights) is lifted by BT.lift model units, smoothly from y 9 to 15: less of the picture is hidden behind the top
+    const geo=m=>{const g=new T.BufferGeometry();const pp=m.p.slice();for(let i=1;i<pp.length;i+=3)pp[i]+=lf(pp[i]);g.setAttribute('position',new T.Float32BufferAttribute(pp,3));g.setAttribute('uv',new T.Float32BufferAttribute(m.u,2));
       if(m.c)g.setAttribute('color',new T.Float32BufferAttribute(m.c,4));g.setIndex(m.i);return g;};
     mj.meshes.forEach(m=>{
       const g=geo(m);let mat;
@@ -59,7 +60,7 @@ async function btBuild(){
     const W=3000,quad=(x0,x1,y0,y1,z0,z1,uv)=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute([x0,y0,z1,x1,y0,z1,x1,y1,z0,x0,y1,z0],3));
       g.setAttribute('uv',new T.Float32BufferAttribute(uv||[0,0,1,0,1,1,0,1],2));g.setIndex([0,1,2,0,2,3]);return g;};
     const bm=mb(null,{color:0x000000,alphaTest:0});
-    [[35.3,W,-5,40],[-W,-35.3,-5,40],[-W,W,25,3000]].forEach(([x0,x1,y0,y1])=>{const me=new T.Mesh(quad(x0,x1,y0,y1,9.35,9.35),bm);R.add(me);});
+    [[35.3,W,-5,40],[-W,-35.3,-5,40],[-W,W,25+BT.lift,3000]].forEach(([x0,x1,y0,y1])=>{const me=new T.Mesh(quad(x0,x1,y0,y1,9.35,9.35),bm);R.add(me);});
     const cu=x=>x*.1413,cv=z=>5.1-z*.132;   // the original carpet's texture density (bti_kyaku_yuka)
     const carpet=new T.Mesh(quad(-W,W,-5,-5,8,700,[cu(-W),cv(700),cu(W),cv(700),cu(W),cv(8),cu(-W),cv(8)]),mb(tx('katen'),{color:0x5a5a5a,alphaTest:0},true));   // a plane facing up: its far edge is the stage front (z 10)
     carpet.renderOrder=-1;carpet.matrixAutoUpdate=false;BT.flat.push(carpet);BT.g.add(carpet);   // the carpet and the seats are NOT tipped with the room: they lie flat on the same level as the player's floor, so the dogs, the TV, the balls... never sink into it
@@ -85,7 +86,7 @@ async function btBuild(){
       {const pos=cone.attributes.position,col=new Float32Array(pos.count*4);for(let i=0;i<pos.count;i++){const k=1-(-pos.getY(i)/20);col.set([1,.84,.58,.2*k*k],i*4);}cone.setAttribute('color',new T.BufferAttribute(col,4));}
       [[-20,-9],[-10,-5],[-3.5,-2],[3.5,-2],[10,-5],[20,-9]].forEach(([x,tx],i)=>{
         const bm=new T.MeshBasicMaterial({vertexColors:true,transparent:true,blending:T.AdditiveBlending,depthWrite:false,side:T.DoubleSide,toneMapped:false});
-        const me=new T.Mesh(cone,bm);me.position.set(x,20.3,0);me.renderOrder=3;R.add(me);
+        const me=new T.Mesh(cone,bm);me.position.set(x,20.3+BT.lift,0);me.renderOrder=3;R.add(me);
         const pool=new T.Mesh(new T.PlaneGeometry(1,1),new T.MeshBasicMaterial({map:pt,transparent:true,opacity:.5,blending:T.AdditiveBlending,depthWrite:false,toneMapped:false}));
         pool.rotation.x=-Math.PI/2;pool.scale.set(11,7,1);pool.renderOrder=3;R.add(pool);
         BT.beams.push({me,pool,x,tx,ph:i*1.7,bm,pm:pool.material});});
@@ -100,10 +101,10 @@ async function btBuild(){
 }
 /* place the room: the frame opening is as wide as the window at the stage's front (but the whole stage also has to fit the window height); the audience floor sits on FLOOR_Y */
 function btLayout(force){
-  if(!BT.inner.children.length)return;const hk=Math.round(L.hw*10)+'|'+Math.round(FLOOR_Y*10)+'|'+Math.round(L.d*10)+'|'+Math.round(BT.vv*80);if(!force&&hk===BT.hk)return;BT.hk=hk;
+  if(!BT.inner.children.length)return;const hk=Math.round(L.hw*10)+'|'+Math.round(FLOOR_Y*10)+'|'+Math.round(L.d*10)+'|'+Math.round(BT.lift*10);if(!force&&hk===BT.hk)return;BT.hk=hk;
   const Wf=2*L.hw*(L.d-BT.front)/L.d,sW=BT.fit*Wf/61,sH=(bgY(BT.front,1)-FLOOR_Y)*.97/BT.hfit;   // 61 = width of the frame opening, BT.hfit = model height (above the audience floor) that has to fit the window: the frame's top (34) may be cut off a little
-  BT.s=Math.min(sW,sH)*(1+BT.vs*BT.vv);BT.room.scale.setScalar(BT.s);   // video view (BT.vv 0..1): the room grows a little and slides to the left, so the screen is not hidden behind the player in the middleBT.room.rotation.x=BT.pitch;
-  {const px=-L.hw*BT.vx*BT.vv;   // the room is tipped about the stage's front edge on the floor level; the flat carpet and seats are placed with the same scale and offset but no tilt
+  BT.s=Math.min(sW,sH);BT.room.scale.setScalar(BT.s);BT.room.rotation.x=BT.pitch;
+  {const px=0;   // the room is tipped about the stage's front edge on the floor level; the flat carpet and seats are placed with the same scale and offset but no tilt
     BT.room.position.set(px,FLOOR_Y,BT.front);
     BT.fm.makeTranslation(px,FLOOR_Y-.02,BT.front).multiply(BT.fs.makeScale(BT.s,BT.s,BT.s)).multiply(BT.ft.makeTranslation(0,5,-10));   // model -> world: inner offset, scale, then the flat position
     BT.flat.forEach(m=>{m.matrix.copy(BT.fm);m.matrixWorldNeedsUpdate=true;});}
@@ -121,13 +122,12 @@ function btVideoFrame(){
   return true;
 }
 function btFrame(dt,time){
-  {const want=BT.screen&&BT.screen.visible?1:0;BT.vv+=(want-BT.vv)*Math.min(1,dt*2.4);if(Math.abs(want-BT.vv)<.004)BT.vv=want;}
   btLayout(false);
   BT.cu.uLt.value=1+.022*Math.sin(time*1.7)+.012*Math.sin(time*5.3+1);
   {const on=BT.screen&&BT.screen.visible;BT.vf+=((on?1:0)-BT.vf)*Math.min(1,dt*3);
     if(BT.fade){BT.fade.material.opacity=Math.max(0,1-BT.vf*1.08);BT.spill.material.opacity=.3*BT.vf*(.9+.1*Math.sin(time*2.3));}
-    BT.beams.forEach(b=>{const sw=Math.sin(time*.45+b.ph)*3.2,tx=b.tx+sw,tz=-4+Math.cos(time*.37+b.ph)*3;_btD.set(tx-b.x,-20.3,tz).normalize();b.me.quaternion.setFromUnitVectors(_btDn,_btD);
-      b.me.scale.y=Math.min(1.25,20.3/(-_btD.y)/20);b.pool.position.set(tx,.07,tz);b.bm.opacity=.9*(1-BT.vf);b.me.visible=BT.vf<.97;b.pm.opacity=.5-.2*BT.vf;});
+    BT.beams.forEach(b=>{const sw=Math.sin(time*.45+b.ph)*3.2,tx=b.tx+sw,tz=-4+Math.cos(time*.37+b.ph)*3;_btD.set(tx-b.x,-(20.3+BT.lift),tz).normalize();b.me.quaternion.setFromUnitVectors(_btDn,_btD);
+      b.me.scale.y=Math.min(1.25,(20.3+BT.lift)/(-_btD.y)/20);b.pool.position.set(tx,.07,tz);b.bm.opacity=.9*(1-BT.vf);b.me.visible=BT.vf<.97;b.pm.opacity=.5-.2*BT.vf;});
     if(BT.motes){BT.motes.visible=BT.vf<.97;BT.motes.material.opacity=.55*(1-BT.vf);const a=BT.motes.geometry.attributes.position,v=BT.motes.userData.v;for(let i=0;i<a.count;i++){let y=a.getY(i)+v[i*2+1]*dt,x=a.getX(i)+Math.sin(time*.3+i)*.2*dt+v[i*2]*dt;if(y>20)y=2;a.setXYZ(i,x,y,a.getZ(i));}a.needsUpdate=true;}}
   BT.t+=dt;if(BT.den&&BT.t>.24){BT.t=0;BT.ph=(BT.ph+1)%3;const a=BT.den.geometry.attributes.uv;for(let i=0;i<a.count;i++)a.setY(i,BT.V[(BT.vi[i]+BT.ph)%3]);a.needsUpdate=true;}   // foot lights: a three-step chase
   if(BT.glow)BT.glow.opacity=.82+.14*Math.sin(time*1.3);
