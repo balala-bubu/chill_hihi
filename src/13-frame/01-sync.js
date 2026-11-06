@@ -50,6 +50,7 @@ function physFrame(dt,time){
     syncCable(dt);}
   /* TV */
   if(tv.b&&tv.state==='on'&&tv.landed&&!(grab.kind==="tv")&&Math.abs(tv.b.angle)>.01&&Math.abs(tv.b.angle)<1.1)Body.setAngularVelocity(tv.b,tv.b.angularVelocity-tv.b.angle*.0025);   // a set that's been dropped settles upright
+  let tvShow=false;
   if(tv.b){const p=bodyWorld(tv.b);tv.g.position.set(p.x,p.y,0);tv.g.rotation.z=-tv.b.angle;
     placeBlob(blobTv,p.x,-.75,TVW*1.05,3.1,p.y-TVH/2-FLOOR_Y);
     if(tv.state==='sinking')blobTv.visible=false;
@@ -57,8 +58,9 @@ function physFrame(dt,time){
     const a=cd&&(cdIn||status!=='empty')?ALBUMS[cd.ai]:null;
     tv.album=a;tv.mode=!a?'noise':(a.yt&&YTA.cur&&(status==='playing'||status==='paused')?'video':'thumb');
     tv.punch.visible=tv.mode==='video';crtDraw(time);
-    ytLayout(tv.mode==='video'&&tv.pw>.02);
-  }else ytLayout(false);
+    tvShow=tv.mode==='video'&&tv.pw>.02;
+  }
+  if(tvShow)ytLayout(true);else if(!btVideoFrame())ytLayout(false);   // the TV wins; otherwise the theater's stage screen (behind everything) shows the video
   hole.g.position.set(hole.x,FLOOR_Y+.015,-.95);hole.g.scale.set(Math.max(.001,hole.rx*hole.k),1,Math.max(.001,hole.rz*hole.k));
   /* the player floats: soft bobbing, shadow on the floor */
   placeBlob(blobPlayer,player.position.x,0,PW*.95,1.3,player.position.y-PH/2-FLOOR_Y);
