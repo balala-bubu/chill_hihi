@@ -70,7 +70,7 @@ dispGlass.position.set(-.85,2.05,FZ+.06);player.add(dispGlass);
 /* volume LEDs */
 const leds=[];for(let i=0;i<10;i++){const m=new T.Mesh(new T.BoxGeometry(.07,.22,.04),new T.MeshBasicMaterial({color:OFF,toneMapped:false}));m.position.set(.5+i*.125,2.05,FZ+.02);player.add(m);leds.push(m);}
 /* label */
-const label=new T.Mesh(new T.PlaneGeometry(1.2,.3),new T.MeshBasicMaterial({toneMapped:false,transparent:true,map:mkTex(256,64,(x)=>{x.fillStyle='#4a4e53';x.font='700 30px '+MONO;x.textBaseline='middle';x.fillText('MT-1',4,26);x.font='500 11px '+MONO;x.fillText('MATTE DISC PLAYER',6,52);})}));
+const label=new T.Mesh(new T.PlaneGeometry(1.2,.3),new T.MeshBasicMaterial({toneMapped:false,transparent:true,map:mkTex(256,64,(x)=>{x.fillStyle='#4a4e53';x.font='700 30px '+MONO;x.textBaseline='middle';x.fillText('BALA-1',4,26);x.font='500 11px '+MONO;x.fillText('MATTE DISC PLAYER',6,52);})}));
 label.position.set(-1.1,1.62-.0,FZ+.01);label.visible=false;player.add(label);
 /* LED halos: additive glow behind each lit LED. brightness eases with volume and flashes on the LED that just changed */
 const glowTex=mkTex(64,64,(x,w)=>{const g=x.createRadialGradient(w/2,w/2,0,w/2,w/2,w/2);g.addColorStop(0,'rgba(255,150,100,1)');g.addColorStop(.35,'rgba(255,110,60,.45)');g.addColorStop(1,'rgba(255,90,40,0)');x.fillStyle=g;x.fillRect(0,0,w,w);});
