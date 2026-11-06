@@ -63,6 +63,7 @@ function physFrame(dt,time){
   /* the player floats: soft bobbing, shadow on the floor */
   placeBlob(blobPlayer,player.position.x,0,PW*.95,1.3,player.position.y-PH/2-FLOOR_Y);
   if(shakeT>0)shakeT=Math.max(0,shakeT-dt);
+  bgFrame(dt,time);
   /* safety net: anything that escaped the world comes back */
   dynBodies().forEach(b=>{if(b!==tv.b&&b.position.y>myp(FLOOR_Y-6)){Body.setPosition(b,{x:0,y:myp(L.half)});Body.setVelocity(b,{x:0,y:0});}});
 }
