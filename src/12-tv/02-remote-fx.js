@@ -16,5 +16,6 @@ function remoteFx(i){
   else if(i===3){
     dogToggle();
   }
+  else if(i===4)clockToggle();   // 05-clock.js
 }
 
