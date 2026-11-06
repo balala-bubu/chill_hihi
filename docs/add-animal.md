@@ -1,7 +1,7 @@
 # 如何新增第三隻（以上）的動物
 
-目前有五隻：A（`models/dog.*`）、B 柴犬（`models/dog2.*`，原檔在 `models/dog2/src/`）、C 巴哥（`models/pug.*`，原檔在 `models/pug/src/`，轉檔 `tools/build_pug.py`）、D 吉娃娃（`models/chihuahua.*`，原檔在 `models/chihuahua/src/`，轉檔 `tools/build_chihuahua.py`）、E 哈士奇（`models/husky.*`，原檔在 `models/husky/src/`，轉檔 `tools/build_husky.py`）。
-按狗狗按鈕時依序出現：A → B → C → D → E → A → …，每隻各自記住穿的衣服（localStorage `chill_hihi.wear`、`wear2`、`wear3`、`wear4`、`wear5`），
+目前有六隻：A（`models/dog.*`）、B 柴犬（`models/dog2.*`，原檔在 `models/dog2/src/`）、C 巴哥（`models/pug.*`，原檔在 `models/pug/src/`，轉檔 `tools/build_pug.py`）、D 吉娃娃（`models/chihuahua.*`，原檔在 `models/chihuahua/src/`，轉檔 `tools/build_chihuahua.py`）、E 哈士奇（`models/husky.*`，原檔在 `models/husky/src/`，轉檔 `tools/build_husky.py`）、F 皮卡丘（`models/pikachu.*` 和 `models/pikachu/`，原檔 `models/pikachu/src/pika.obj`，轉檔 `tools/build_pikachu.py`，見最後一章）。
+按狗狗按鈕時依序出現：A → B → C → D → E → F → A → …，每隻各自記住穿的衣服（localStorage `chill_hihi.wear`、`wear2`、`wear3`、`wear4`、`wear5`、`wear6`），
 輪到誰存在 `chill_hihi.dogNext`。每隻的參數（`map / sit / lie / perch / bite / ak / fit / brow`）放在 `DV.P[i]`，用 `loadDogV(i,'檔名')` 載入；程式在 `src/14-dog/02-dog2.js`，行為（跑、追 CD、翻肚、吃蘋果）共用 `01-dog.js`。
 
 ## 做法（B 是範本）
@@ -52,3 +52,15 @@ B、C、D、E 都是同一位作者的 `xxx_a.dae`：28 根骨頭、名字完全
 
 本機：`python3 -m http.server`，開 `index.html`。console 可用 `__mt.dogToggle()`、`__mt.dogPet()`、`__mt.wardEquip('<id>')`；
 `localStorage.setItem('chill_hihi.dogNext','1')` 後重新整理可直接叫出第二隻。
+
+## 沒有骨架的模型（皮卡丘，靜態 .obj 依部位拆開）
+
+前五隻都是帶骨架的 `.dae`。皮卡丘只有一個 `.obj`：頭、耳、手、腳、尾巴、身體各自是獨立群組，沒有骨架。做法是替它做一副「假骨架」，讓行為程式（走、坐、翻肚、叼 CD、吃蘋果、頂球）完全不用改：
+
+1. `tools/build_pikachu.py` 讀 `models/pikachu/src/pika.obj`，用 `BONES` 表定義關節（名稱比照狗：`skl_root / waist / chest / neck / head / Lear1 / Rear1 / tail1-3 / Larm1 / Rarm1 / Lleg1 / Rleg1`，每個關節給世界座標 pivot），`classify()` 決定每個群組綁哪一根（權重 1，剛體分件）。輸出 `models/pikachu.json/.bin`，格式同 `dog.json`，另外多一個 `tex`（材質 → 貼圖檔名）和 `alt`（表情貼圖）。
+2. 原模型頭和身體之間有縫（頭一轉就露出來），所以腳本另外補一個脖子橢球，權重沿高度在 chest / neck / head 之間平滑混合。
+3. 貼圖在 `models/pikachu/*.png`（像素風，載入時用 NearestFilter）。`02-dog2.js` 的 `loadDogV` 看到 `meta.tex` 就依它建材質（沒有就走舊的 `_all/_hand/_eye` 三張）。
+4. 沒有眼瞼骨頭和下巴骨頭：眨眼、開心、張嘴、受驚（翻倒時的淚眼）都改成**換臉部貼圖**，邏輯在 `02-dog2.js` 的 `dogFaceFx`，由 `01-dog.js` 的 `dogFrame` 每幀呼叫（`dog.faceFx`，只有帶這個欄位的狗會跑）。表情貼圖：`face`（預設）、`face_wavy`（開心／翻肚）、`face_tongue`（張嘴）、`face_cyan`（翻倒時的藍色淚）、`eyes_closed`（眨眼）、`eyes_big`（追東西）、`eyes_drop`（翻倒）。`face_white` 與橘色配色、寶貝球貼圖放在 `models/pikachu/src/extra/` 備用。
+5. 原模型自帶的派對帽拆成衣櫃飾品 `pika_hat`：`python3 tools/build_pikachu_hat.py`（產生 `models/wardrobe/inbox/pika_hat.dae` 和貼圖），再 `python3 tools/build_wardrobe.py`。
+6. 接線：`DV.v / DV.P / DV.WK` 各補一格、`DV.P[5]`（`map` 對到上面的關節、`sit / lie / bite / ak / brow / fit`），檔尾 `loadDogV(5,'pikachu')`。另外 `dogLoad` 載入咬點時改成先套 `DV.base.bite` 再套該隻的 `bite`，這樣皮卡丘改了 `stand` 不會影響後面載入的狗。
+
