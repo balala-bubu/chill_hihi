@@ -11,7 +11,9 @@ const DEFAULT_LISTS=[
  {list:'OLAK5uy_nAgtspFo6LJ1V25viuFzYsapwIqgVvtXY',title:'橙月',author:'方大同',img:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTpquRRtXWGWrpHbPI3L6JDNxAgo7dL8kBIqPhjAFGyaQ&s=10'},
  {list:'OLAK5uy_lfNo3ANxH0bxNC6gS7WtSmR9gRkZpog04',title:'木眼鏡同名專輯',author:'木眼鏡'},
  {list:'OLAK5uy_n9Fsvc257NW36XlPHXduZesadQaPSIjmM',title:'Requiem (Deluxe)',author:'keshi'},
- {list:'OLAK5uy_lfueuQkROx_bShckk3aFVYxZoSrN4Zkzc',title:'The Secret of Us',author:'Gracie Abrams'}
+ {list:'OLAK5uy_lfueuQkROx_bShckk3aFVYxZoSrN4Zkzc',title:'The Secret of Us',author:'Gracie Abrams'},
+ {list:'PLF7EYcZbXFoPIBS3pnQX7w82YonCqQ2pV',title:'巴黎德州',author:'椅子樂團'},
+ {list:'OLAK5uy_nQB6oHXtdG6VxIz1BANENpS-Io6JbENuI',title:'ひとりごつ',author:'吉伊卡哇'}
 ];
 const hashStr=t=>{let h=2166136261;for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;};
 function ytAlbum(o,cov){
