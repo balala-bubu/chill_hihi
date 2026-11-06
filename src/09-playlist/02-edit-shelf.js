@@ -1,5 +1,5 @@
 /* ---------- edit / reset playlist shelf ---------- */
-function disposeAlbum(a){scene.remove(a.g);a.g.traverse(o=>{if(o.geometry&&o.geometry!==cdGeo)o.geometry.dispose();if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m.map)m.map.dispose();m.dispose();});}});}
+function disposeAlbum(a){scene.remove(a.g);a.g.traverse(o=>{if(o.geometry&&o.geometry!==cdGeo&&!o.geometry.userData.keep)o.geometry.dispose();if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m.userData.keep)return;if(m.map)m.map.dispose();m.dispose();});}});}
 function reindexAlbums(){albumMeshes.length=0;albums.forEach((a,i)=>{a.meshes.forEach(m=>{m.userData.album=i;albumMeshes.push(m);});});}
 function canEdit(){if(busy||cd||state!=='home'){say('請先把 CD 放回專輯櫃，再編輯清單。',4000);return false;}return true;}
 function removeAlbumAt(i){disposeAlbum(albums[i]);albums.splice(i,1);ALBUMS.splice(i,1);N=ALBUMS.length;reindexAlbums();sxTarget=clamp(Math.round(Math.min(sxTarget,N-1)),0,N-1);}
