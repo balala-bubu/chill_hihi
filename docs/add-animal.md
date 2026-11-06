@@ -1,16 +1,15 @@
 # 如何新增第三隻（以上）的動物
 
-目前有兩隻：A（`models/dog.*`）與 B 柴犬（`models/dog2.*`，原檔在 `models/dog2/src/`）。
-按狗狗按鈕時依序出現：A → B → A → …，每隻各自記住穿的衣服（localStorage `chill_hihi.wear`、`chill_hihi.wear2`），
-輪到誰存在 `chill_hihi.dogNext`。程式在 `src/14-dog/02-dog2.js`，行為（跑、追 CD、翻肚、吃蘋果）共用 `01-dog.js`。
+目前有三隻：A（`models/dog.*`）、B 柴犬（`models/dog2.*`，原檔在 `models/dog2/src/`）、C 巴哥（`models/pug.*`，原檔在 `models/pug/src/`，轉檔 `tools/build_pug.py`）。
+按狗狗按鈕時依序出現：A → B → C → A → …，每隻各自記住穿的衣服（localStorage `chill_hihi.wear`、`wear2`、`wear3`），
+輪到誰存在 `chill_hihi.dogNext`。每隻的參數（`map / sit / lie / perch / bite / ak / fit / brow`）放在 `DV.P[i]`，用 `loadDogV(i,'檔名')` 載入；程式在 `src/14-dog/02-dog2.js`，行為（跑、追 CD、翻肚、吃蘋果）共用 `01-dog.js`。
 
 ## 做法（B 是範本）
 
 1. **放原檔**：`models/<名字>/src/` 放 `.dae` 和貼圖。
 2. **轉檔**：複製 `tools/build_dog2.py` 成 `tools/build_<名字>.py`，改檔名與 `K`（見下）。它會產生 `models/<名字>.json/.bin` 和貼圖。
-3. **載入與切換**：在 `02-dog2.js` 仿照 `loadDog2()` 寫 `loadXxx()`，登記到 `DV.v[2]`；`DV.WK` 加一個衣服 key；
-   `dogPick()` 改成輪 `% 3`（存的數字也改）；`dogSetVariant` 的 `P=i===1?DV:DV.base` 改成依 i 取各自的參數表。
-   多隻之後建議把 B 的參數（`map / sit / lie / perch / bite / ak / fit`）整理成每隻一個物件，放進陣列。
+3. **載入與切換**：在 `02-dog2.js` 的 `DV.P` 加一筆參數（可從相近的動物複製再改），`DV.v` 補一格 `null`、`DV.WK` 加一個衣服 key，
+   檔尾加 `loadDogV(<編號>,'<名字>')`。`dogPick()` 會依 `DV.v.length` 自動輪流。`fit.pos/s` 與 `brow` 是帽子眼鏡位置（巴哥的眼睛比柴犬高，所以 `brow` y 較大）。
 4. **重建並檢查**：`python3 tools/build.py`，用本機伺服器開頁面測。
 
 ## 要注意的點
