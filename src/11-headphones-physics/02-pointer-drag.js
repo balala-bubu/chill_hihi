@@ -24,7 +24,7 @@ function endPhysGrab(moved){
     const p=grab.pointer;
     if(moved&&p&&dog.ready&&dogAnyOn()){
       const a=wAnchor('hat');
-      if(dogHit(p.x,p.y)||(a&&Math.hypot(p.x-a.x,p.y-a.y)<115)){
+      if(dogHit(p.x,p.y,true)||(a&&Math.hypot(p.x-a.x,p.y-a.y)<115)){
         if(!hpWear())hpRest();
       }else hpRest();
     }else hpRest();

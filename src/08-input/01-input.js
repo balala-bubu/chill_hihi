@@ -55,8 +55,9 @@ cvs.addEventListener('pointermove',e=>{
   if(!pd){
     const h=pick(),o=h&&h.object;let cur='default';hoverKey=-1;
     if(o&&o.userData.phys)cur=o.userData.rbtn!==undefined?'pointer':'grab';else if(o&&!busy){if(o.userData.cd)cur='grab';else if(o.userData.key!==undefined){cur='pointer';hoverKey=o.userData.key;}else if(o.userData.album!==undefined)cur=(state==='home'||state==='album'?'pointer':'default');else if(isPlayerObj(o))cur='grab';}
-    cvs.style.cursor=cur;return;
+    cvs.style.cursor=cur;smHover(o&&o.userData.rbtn!==undefined?o.userData.rbtn:-1);return;   // (10-world/03-summon-menu.js)
   }
+  smHide();
   if(Math.hypot(e.clientX-pd.x,e.clientY-pd.y)>(pd.kind==='shelf'?(e.pointerType==='touch'?8:4):pd.kind==='phys'?8:6))pd.moved=true;
   if(pd.kind==='phys'){moveGrab(e);return;}
   /* shelf drag: just start it. the albums are moved in shelfStep, once per frame, from the latest pointer position */
