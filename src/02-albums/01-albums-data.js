@@ -65,10 +65,25 @@ function art(x,S,alb,txt){
     x.font='700 '+(S*.05)+'px '+MONO;x.textAlign='left';x.fillText(fitText(x,alb.t,S*.6),S*.05,S*.94);
     x.font='500 '+(S*.032)+'px '+MONO;x.textAlign='right';x.fillText(fitText(x,alb.a,S*.26),S*.95,S*.94);x.restore();}
 }
-const coverTex=a=>mkTex(512,512,(x,w)=>art(x,w,a,true));
-function spineTex(a){return mkTex(80,750,(x,w,h)=>{x.fillStyle='#ecebe6';x.fillRect(0,0,w,h);x.fillStyle=a.c[2];x.fillRect(0,0,w,58);x.fillStyle=a.c[0];x.fillRect(0,h-44,w,44);
-  x.fillStyle='#24272a';x.textBaseline='middle';x.save();x.translate(w/2,90);x.rotate(Math.PI/2);let fs=36;x.font='700 '+fs+'px '+MONO;while(x.measureText(a.t).width>560&&fs>18){fs-=2;x.font='700 '+fs+'px '+MONO;}x.textAlign='left';x.fillText(fitText(x,a.t,560),0,0);x.restore();});}
-const trayTex=()=>mkTex(256,256,(x,w)=>{x.fillStyle='#cdd0d3';x.fillRect(0,0,w,w);x.strokeStyle='#b9bdc1';x.lineWidth=5;x.beginPath();x.arc(w/2,w/2,116,0,TAU);x.stroke();x.beginPath();x.arc(w/2,w/2,22,0,TAU);x.stroke();});
+const coverTex=a=>mkTex(512,512,(x,w)=>art(x,w,a,false));   // front = artwork only, the title and artist live on the spine
+function spineTex(a){return mkTex(96,900,(x,w,h)=>{
+  x.fillStyle='#ecebe6';x.fillRect(0,0,w,h);x.fillStyle=a.c[2];x.fillRect(0,0,w,70);x.fillStyle=a.c[0];x.fillRect(0,h-52,w,52);
+  x.fillStyle='rgba(0,0,0,.07)';x.fillRect(0,0,3,h);x.fillRect(w-3,0,3,h);   // faint edge lines where the paper meets the case
+  x.textBaseline='middle';x.textAlign='left';
+  /* artist sits at the foot of the spine (right-aligned, lighter), the song/album title takes whatever length is left above it */
+  x.font='500 32px '+MONO;const art_=fitText(x,a.a||'',250),aw=x.measureText(art_).width,aEnd=h-52-24;
+  x.save();x.translate(w/2,aEnd-aw);x.rotate(Math.PI/2);x.fillStyle='#6a6f75';x.fillText(art_,0,0);x.restore();
+  const tMax=Math.max(120,aEnd-aw-26-100);let fs=44;x.font='700 '+fs+'px '+MONO;while(x.measureText(a.t).width>tMax&&fs>22){fs-=2;x.font='700 '+fs+'px '+MONO;}
+  x.save();x.translate(w/2,100);x.rotate(Math.PI/2);x.fillStyle='#24272a';x.fillText(fitText(x,a.t,tMax),0,0);x.restore();
+  x.fillStyle=a.c[2];x.globalAlpha=.7;x.beginPath();x.arc(w/2,aEnd-aw-14,4,0,TAU);x.fill();x.globalAlpha=1;});}   // little dot between title and artist
+const trayTex=()=>mkTex(512,512,(x,w)=>{   // black slim-case tray: soft sheen, a round recess for the disc, fine concentric moulding lines
+  const c=w/2,g=x.createRadialGradient(c,c,0,c,c,w*.72);g.addColorStop(0,'#26282c');g.addColorStop(1,'#111214');x.fillStyle=g;x.fillRect(0,0,w,w);
+  x.lineWidth=1.2;for(let r=50;r<236;r+=7){x.strokeStyle='rgba(255,255,255,'+(.025+.02*((r/7)%2))+')';x.beginPath();x.arc(c,c,r,0,TAU);x.stroke();}
+  x.strokeStyle='#08090a';x.lineWidth=9;x.beginPath();x.arc(c,c,234,0,TAU);x.stroke();                       // recess wall
+  x.strokeStyle='rgba(255,255,255,.16)';x.lineWidth=2.5;x.beginPath();x.arc(c,c,226,0,TAU);x.stroke();        // lit lip inside it
+  x.strokeStyle='rgba(255,255,255,.06)';x.lineWidth=2;x.beginPath();x.arc(c,c,262,0,TAU);x.stroke();
+  x.fillStyle='#0c0d0e';x.beginPath();x.arc(c,c,46,0,TAU);x.fill();x.strokeStyle='rgba(255,255,255,.12)';x.lineWidth=2;x.beginPath();x.arc(c,c,46,0,TAU);x.stroke();   // hub well
+});
 function cdTex(a){return mkTex(1024,1024,(x)=>{const S=1024;x.save();x.beginPath();x.arc(512,512,508,0,TAU);x.clip();art(x,S,a,false);
   const g=x.createRadialGradient(512,512,60,512,512,190);g.addColorStop(0,'#f2f4f6');g.addColorStop(.6,'#cdd2d7');g.addColorStop(1,'#e8ebee');x.fillStyle=g;x.beginPath();x.arc(512,512,190,0,TAU);x.fill();
   x.strokeStyle='rgba(60,64,70,.35)';x.lineWidth=3;x.beginPath();x.arc(512,512,190,0,TAU);x.stroke();x.restore();
