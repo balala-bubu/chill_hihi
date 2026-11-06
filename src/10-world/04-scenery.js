@@ -1,10 +1,10 @@
 /* ---------- background scenery (remote button "BG") ----------
-   Press BG: the grey dot wall behind the player drops away and a sunny meadow is revealed:
+   Press BG: the grey dot wall + floor are drawn up off the top of the screen like a curtain (see bgCurtain) and a sunny meadow is revealed:
    warm sky + sun, three layers of hazy mountains, rolling grass, big trees (models/scenery/tree.json),
    a notice board and a tent. Press again: the wall slides back up. State is remembered in localStorage.
    Everything lives in one group (BG.g) far behind the action, so it never touches the physics world. */
 const BG={on:false,k:0,wall:0,ready:false,job:null,g:new T.Group(),trees:[],clouds:[],props:{},t:0,hw:-1,tok:0,
-  litSun:null,litFill:null,floorOff:new T.Color(0xe4e6e8),floorOn:new T.Color(0xa7c776)};
+  litSun:null,litFill:null,p:0,cu:{uK:{value:-1},uT:{value:0},uFold:{value:0},uRes:{value:new T.Vector2(1,1)}}};
 BG.g.visible=false;scene.add(BG.g);
 const BG_OK=!(PET.on&&!PET.card);   // transparent desktop pet has no wall to drop
 function bgCanvasTex(w,h,draw,rep){const t=mkTex(w,h,draw);t.anisotropy=4;if(rep){t.wrapS=t.wrapT=T.RepeatWrapping;}return t;}
@@ -95,8 +95,8 @@ async function bgBuild(){
       const m=new T.Mesh(new T.PlaneGeometry(300,1),new T.MeshBasicMaterial({map:bgRidge(seed,top,foot,lo,hi,fr,jg),transparent:true,depthWrite:false,toneMapped:false}));m.position.z=z;lay(m,z,0,pk,hi);});
     /* the meadow: ONE painted ground plane that replaces the grey floor top (it keeps receiving the player's shadow) */
     const gt=bgGroundTex();gt.anisotropy=8;gt.generateMipmaps=true;gt.minFilter=T.LinearMipmapLinearFilter;
-    const ground=new T.Mesh(new T.PlaneGeometry(96,39),new T.MeshLambertMaterial({map:gt,transparent:true,opacity:0}));
-    ground.rotation.x=-Math.PI/2;ground.position.set(0,0,12.4-19.5);ground.receiveShadow=true;ground.renderOrder=-1;G.add(ground);BG.ground=ground;
+    const ground=new T.Mesh(new T.PlaneGeometry(96,39),new T.MeshLambertMaterial({map:gt}));
+    ground.rotation.x=-Math.PI/2;ground.position.set(0,0,12.4-19.5);ground.receiveShadow=true;G.add(ground);BG.ground=ground;
     /* props share one warm tint */
     const mk=(tex,haze)=>new T.MeshBasicMaterial({map:tex,color:new T.Color(0xffffff).lerp(new T.Color(0xf6dcae),haze),side:T.DoubleSide,alphaTest:.45,toneMapped:false});
     const treeTex=tx('tree'),bbsTex=tx('bbs'),tentTex=tx('tent');
@@ -122,7 +122,7 @@ async function bgBuild(){
     const pg=new T.BufferGeometry();pg.setAttribute('position',new T.BufferAttribute(pp,3));
     BG.motes=new T.Points(pg,new T.PointsMaterial({map:bgBlobTex,color:0xfff0b0,size:.5,transparent:true,opacity:.75,blending:T.AdditiveBlending,depthWrite:false,toneMapped:false}));BG.motes.frustumCulled=false;G.add(BG.motes);
     BG.litSun={c:sun.color.clone(),i:sun.intensity};BG.litFill=fill.intensity;
-    BG.ready=true;BG.hw=-1;bgLayout(true);
+    bgPatchCurtain();BG.ready=true;BG.hw=-1;bgLayout(true);
   })().catch(e=>{console.warn('background failed to load',e);BG.failed=true;BG.job=null;});
   return BG.job;
 }
@@ -135,46 +135,55 @@ function bgLayout(force){
   BG.lay.forEach(m=>{const l=m.userData.lay,y0=bgY(l.z,l.foot),y1=bgY(l.z,l.peak),H=(y1-y0)/l.hi;m.scale.y=H;m.position.y=y0+H/2;});
   BG.g.children.forEach(o=>{const s=o.userData.sun;if(s){const k=(L.d-s.z)/L.d;o.position.x=-.5*L.hw*k;o.position.y=bgY(s.z,.84);}
     const c=o.userData.cl;if(c)o.position.y=bgY(o.position.z,c.n);});
-  BG.ground.position.y=FLOOR_Y+.004;BG.tufts.position.y=FLOOR_Y;
+  BG.ground.position.y=FLOOR_Y-.02;BG.tufts.position.y=FLOOR_Y;
   const sx=clamp(L.hw*.74,8,24),P=BG.props;
   P.bbs.position.set(-sx,FLOOR_Y,-8);P.tent.position.set(sx,FLOOR_Y,-8.5);P.owl.position.set(-sx+.1,FLOOR_Y+48*.075,-7.9);
   BG.trees.forEach(p=>{p.position.y=FLOOR_Y;});
   BG.g.children.forEach(o=>{const f=o.userData.follow;if(f)o.position.set(f.position.x+(f===P.tent?.6:0),FLOOR_Y+.02,f.position.z+(f===P.tent?.5:.4));});
 }
-function bgApply(){   // k 0..1: the grass fades in over the grey floor; lighting warms up
+/* the curtain: the grey wall, its shadow catcher and the grey floor all discard the pixels below a wavy "hem" line that
+   travels up the screen (uK: 0 = bottom edge, 1 = top edge); the grass/sky scene sits behind them and shows through.
+   The cloth gets soft pleats while it moves and a darker rolled hem. */
+function bgPatchCurtain(){
+  const hook=(mat,shade)=>{mat.onBeforeCompile=sh=>{Object.assign(sh.uniforms,BG.cu);
+    sh.fragmentShader=sh.fragmentShader.replace('void main() {','uniform float uK,uT,uFold;uniform vec2 uRes;\nvoid main() {')
+      .replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\nfloat cuX=gl_FragCoord.x/uRes.x,cuY=gl_FragCoord.y/uRes.y;\nfloat cuHem=uK+(sin(cuX*9.0+uT*1.2)*.016+sin(cuX*23.0-uT*.9)*.007+sin(cuX*3.1+uT*.5)*.02)*uFold;\nif(cuY<cuHem)discard;')
+      .replace('#include <dithering_fragment>',shade?'#include <dithering_fragment>\nfloat cuD=cuY-cuHem;gl_FragColor.rgb*=1.0-.34*(1.0-smoothstep(0.0,.05,cuD))*step(0.0,uK+.2)-uFold*.075*(sin(cuX*46.0+sin(cuY*4.0+uT)*1.6)*.5+.5);gl_FragColor.rgb+=.05*(1.0-smoothstep(0.0,.006,cuD))*step(0.0,uK+.2);':'#include <dithering_fragment>');};
+    mat.customProgramCacheKey=()=>'bgcurtain'+(shade?'1':'0');mat.needsUpdate=true;};
+  hook(grid.material,true);hook(floorMesh.material,true);hook(catcher.material,false);
+}
+function bgCurtain(p){   // p 0 = grey wall/floor fully in place, 1 = drawn up out of the screen
+  BG.p=p;const c=BG.cu;c.uK.value=p<=0?-1:lerp(-.06,1.14,p);c.uFold.value=Math.sin(Math.PI*clamp(p,0,1));
+  renderer.getDrawingBufferSize(c.uRes.value);
+  const gone=p>=1;grid.visible=catcher.visible=!gone;floorMesh.visible=!gone&&(PET.on?PET.shadow:true);
+}
+function bgApply(){   // lighting warms up with the reveal
   const k=BG.k;if(!BG.ready)return;
   sun.color.copy(BG.litSun.c).lerp(new T.Color(0xffdca0),k);sun.intensity=BG.litSun.i*(1+.1*k);fill.intensity=BG.litFill*(1-.4*k);
-  const m=BG.ground.material;m.opacity=Math.min(1,k*1.6);m.transparent=m.opacity<.999;floorMesh.visible=!(BG.on&&k>.98)&&(PET.on?PET.shadow:true);
 }
-function bgWall(w){   // w 0 = wall in place, 1 = fallen out of view
-  BG.wall=w;const y=-w*92,rz=w*.1;
-  grid.position.y=catcher.position.y=y;grid.rotation.z=catcher.rotation.z=rz;grid.position.x=catcher.position.x=w*4;
-  grid.visible=catcher.visible=w<.999;
-}
+const bgShowFloor=()=>{floorMesh.visible=PET.on?PET.shadow:true;grid.visible=catcher.visible=true;};
 async function bgSet(on,instant){
   if(!BG_OK)return;on=!!on;if(on===BG.on&&!instant)return;BG.on=on;remLit(1,on);
   try{localStorage.setItem('chill_hihi.bg',on?'1':'0');}catch(e){}
   const tok=++BG.tok;
   if(on){await bgBuild();if(tok!==BG.tok||!BG.ready){if(BG.failed&&tok===BG.tok){BG.on=false;remLit(1,false);}return;}
     BG.g.visible=true;bgLayout(true);
-    if(instant){BG.k=1;bgApply();bgWall(1);return;}
+    if(instant){BG.k=1;bgApply();bgCurtain(1);return;}
     Au.whoosh&&Au.whoosh();
-    const w0=BG.wall,k0=BG.k;
-    tween(.6,k=>{if(BG.tok===tok)BG.k=lerp(k0,1,k),bgApply();},ease.io3,.3);
-    await tween(1.05,k=>{if(BG.tok===tok)bgWall(lerp(w0,1,k));},ease.in2);
-    if(BG.tok===tok){camShake=Math.max(camShake,.3);Au.crash&&Au.crash(.45);}
+    const p0=BG.p;bgShowFloor();
+    await tween(1.9*(1-p0)+.2,k=>{if(BG.tok===tok){const p=lerp(p0,1,k);bgCurtain(p);BG.k=clamp(p*1.3,0,1);bgApply();}},ease.io2);
   }else{
-    if(instant||!BG.ready){BG.k=0;bgApply();bgWall(0);BG.g.visible=false;floorMesh.visible=PET.on?PET.shadow:true;return;}
+    if(instant||!BG.ready){BG.k=0;bgApply();bgCurtain(0);bgShowFloor();BG.g.visible=false;return;}
     Au.whoosh&&Au.whoosh();
-    const w0=BG.wall,k0=BG.k;
-    tween(.6,k=>{if(BG.tok===tok)BG.k=lerp(k0,0,k),bgApply();},ease.io3);
-    await tween(.95,k=>{if(BG.tok===tok)bgWall(lerp(w0,0,k));},ease.out3);
-    if(BG.tok===tok){BG.g.visible=false;BG.k=0;bgApply();floorMesh.visible=PET.on?PET.shadow:true;}
+    const p0=BG.p;bgShowFloor();
+    await tween(1.5*p0+.2,k=>{if(BG.tok===tok){const p=lerp(p0,0,k);bgCurtain(p);BG.k=clamp(p*1.3,0,1);bgApply();}},ease.io2);
+    if(BG.tok===tok){BG.g.visible=false;BG.k=0;bgApply();bgCurtain(0);bgShowFloor();}
   }
 }
 function bgToggle(){bgSet(!BG.on);}
 function bgFrame(dt,time){
   if(!BG.ready||!BG.g.visible)return;bgLayout(false);
+  BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);
   const sh=BG.tufts.material.userData.sh;if(sh)sh.uniforms.uTime.value=time;
   BG.trees.forEach(p=>{p.rotation.z=Math.sin(time*.55+p.userData.ph)*.012;p.rotation.x=Math.sin(time*.4+p.userData.ph*.6)*.006;});
   BG.clouds.forEach(m=>{m.position.x+=m.userData.cl.sp*dt;if(m.position.x>140)m.position.x=-140;});
@@ -186,4 +195,4 @@ function bgFrame(dt,time){
   BG.rays.forEach((m,i)=>{m.material.opacity=m.userData.o*(.65+.35*Math.sin(time*.45+i*2));});
 }
 try{if(BG_OK&&localStorage.getItem('chill_hihi.bg')==='1')bgSet(true,true);}catch(e){}
-window.__bg={BG,bgSet,bgToggle,bgWall,bgLayout};   // test hook
+window.__bg={BG,bgSet,bgToggle,bgCurtain,bgLayout,bgShowFloor};   // test hook
