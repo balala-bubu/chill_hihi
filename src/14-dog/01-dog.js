@@ -18,9 +18,9 @@ function dogHit1(cx,cy){   // is the pointer on THIS (loaded) puppy? (03-dogs.js
 }
 function dogPet(){
   const Lc=dog.lie;if(!dog.ready||!dog.present||dog.leaving||Lc.s==='trip')return;
-  if(PET.perch){dog.pet2=1.2;Au.click(.5,.6);return;}   // lying on the player: it wiggles happily instead of rolling over
+  if(PET.perch){dog.pet2=1.2;return;}   // lying on the player: it wiggles happily instead of rolling over
   if(cd&&(cd.mode==='carried'||dog.grab))return;   // busy with a CD: the dog does not flop over
-  if(Lc.s==='none'){Lc.s='down';Lc.ryL=dog.ry>=0?1.25:-1.25;Lc.sign=dog.ry>=0?-1:1;Lc.retried=false;Lc.fast=false;Au.click(.5,.6);}
+  if(Lc.s==='none'){Lc.s='down';Lc.ryL=dog.ry>=0?1.25:-1.25;Lc.sign=dog.ry>=0?-1:1;Lc.retried=false;Lc.fast=false;}
   else if(Lc.s==='up'){Lc.s='down';Lc.fast=false;}
   Lc.petT=performance.now()/1000;
 }

@@ -33,7 +33,7 @@ if(PHYS){TOY.eng=Engine.create({positionIterations:10,velocityIterations:8});TOY
       const A=p.bodyA,B=p.bodyB,n=p.collision.normal,vn=Math.abs((A.velocity.x-B.velocity.x)*n.x+(A.velocity.y-B.velocity.y)*n.y)*120/PXU;   // closing speed in world units per second
       if(vn<1)continue;
       for(const b of [A,B])if(b.apple){const a=b.apple;a.jv+=Math.min(vn*.55,4.2);a.jn.x=Math.abs(n.x);a.jn.y=Math.abs(n.y);}
-      const now=performance.now();if(vn>2.6&&now-TOY.sndT>70){TOY.sndT=now;Au.click(.5+Math.min(.5,vn*.05),.22);}
+      
     }});}
 function toyBounds(){   // floor and side walls follow the screen
   const key=FLOOR_Y.toFixed(2)+'/'+L.hw.toFixed(2);if(key===TOY.key)return;TOY.key=key;
@@ -86,7 +86,7 @@ function toyEat(dt,moving,tz,a0){
   const bow=Math.sin(Math.min(1,p)*Math.PI);
   const att=ss((p-.22)/.2);                                  // the apple travels from the floor into the mouth
   a.att=att;a.r=1-.96*ss((p-.42)/.5);                        // upright in the mouth, shrinking as it is chewed
-  const thr=[.5,.67,.84];while(E.n<3&&p>=thr[E.n]){E.n++;Au.click(1.5+E.n*.2,.55);buzz(6);a.jv+=3;a.jn.x=a.jn.y=.7;}   // every bite squashes it
+  const thr=[.5,.67,.84];while(E.n<3&&p>=thr[E.n]){E.n++;buzz(6);a.jv+=3;a.jn.x=a.jn.y=.7;}   // every bite squashes it
   let jaw=0;if(p>.24&&p<.95)jaw=.38*Math.abs(Math.sin((p-.24)/.7*Math.PI*3));
   if(dog.mouthL&&dog.bones.Head){
     DOGX.mw.copy(dog.mouthL);dog.bones.Head.o.localToWorld(DOGX.mw);
