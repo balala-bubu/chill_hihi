@@ -256,6 +256,8 @@ def build(check):
             item['fit'] = meta['fit']
         if 'display' in meta:
             item['display'] = meta['display']
+        if meta.get('hide'):               # 不放進衣櫃格子（例如打工組的櫃檯：由立牌一起帶出來）
+            item['hide'] = True
         entries.append((slot_ids.index(meta['slot']), meta.get('order', 0), iid, item))
     entries.sort(key=lambda e: e[:3])
     manifest = {'version': 1, 'slots': slots_doc['slots'], 'items': [e[3] for e in entries]}
