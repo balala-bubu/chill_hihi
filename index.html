@@ -1701,7 +1701,7 @@ function hpSpawn(){   // headphones swoop in from above the screen, cable whippi
    The headset model uses the same convention (cups on +-X, band arc over +Y), so it is worn with no rotation; only its size and
    offset are fitted to the ear roots (LearA/RearA sit at x=+-7.2, y=2.7, z=-8.5 in this space). */
 function hpWear(){
-  const h=hpState,brow=wBone('Brow_group'),left=wBone('LearA'),right=wBone('RearA');
+  const h=hpState,brow=wBone('Brow_group'),left=wBone('HpL')||wBone('LearA'),right=wBone('HpR')||wBone('RearA');   // HpL/HpR: markers at the sides of a cartoon character's head (02-dog2.js hpMark)
   if(!h.body||!dog.ready||!dog.present||dog.leaving||!brow||!left||!right)return false;
   brow.updateWorldMatrix(true,true);
   const a=brow.worldToLocal(left.getWorldPosition(new V3()));
@@ -1710,7 +1710,7 @@ function hpWear(){
   if(span<.001)return false;
   if(W.worn.hat)wUnequip('hat');   // hat and headphones are mutually exclusive: the hat goes back to its shelf
   const mid=a.add(b).multiplyScalar(.5);
-  const fitScale=clamp((span+5.2)/2.5,4.5,9.5);
+  const fitScale=clamp((span+5.2)/2.5,4.5,dog.human?32:9.5);
   h.worn=true;brow.add(hpRoot);hpRoot.traverse(o=>o.layers.enable(1));
   // Cup centres sit on the ear roots, band arcs over the top of the skull.
   hpSetBandLean(0);
@@ -1718,6 +1718,7 @@ function hpWear(){
   hpRoot.rotation.set(0,0,0);
   hpRoot.position.set(mid.x,mid.y+.3,mid.z+.9);
   hpRoot.scale.setScalar(fitScale);
+  {const ha=dog.fitAdj&&dog.fitAdj.hp;if(ha&&ha.pos)hpRoot.position.add(new V3().fromArray(ha.pos));}   // per-character nudge
   h.dragNear=0;h.grab=false;Body.setVelocity(h.body,{x:0,y:0});Body.setAngularVelocity(h.body,0);
   W.recycleKey='';Au.snap();buzz(10);return true;
 }
@@ -2489,7 +2490,7 @@ function dogFrame(dt,time){
     dog.g.scale.setScalar(dog.scale*Math.max(.001,dog.pop));
   }else{
     dog.crouch=dog.human?Math.max(bow,bPitch*.8)*.32:0;
-    dog.g.position.set(dog.x,FLOOR_Y+dog.footLift*dog.scale+bob+hopY-dog.sit*DOG_SIT.drop-eo*DOG_LIE.drop-dog.crouch+dog.job*DOG_JOB.rise,dog.z);dog.g.rotation.x=-dog.job*DOG_JOB.pitch;
+    dog.g.position.set(dog.x,FLOOR_Y+dog.footLift*dog.scale+bob+hopY-dog.sit*DOG_SIT.drop-eo*DOG_LIE.drop-dog.crouch+dog.job*(dog.human?DOG_JOB.humanRise:DOG_JOB.rise),dog.z);dog.g.rotation.x=dog.human?0:-dog.job*DOG_JOB.pitch;   // people stay upright (lifted a bit so the head clears the counter), puppies rise on their hind legs
   }
   dog.g.rotation.y=dog.ry;if(dog.rg)dog.rg.rotation.z=Lc.sign*(DOG_LIE.ang*eo+Math.sin(performance.now()/1000*2.2)*.05*eo*(nowS-Lc.petT<.6?2:1));
 dog.g.updateMatrixWorld(true);
@@ -2573,7 +2574,7 @@ dog.g.updateMatrixWorld(true);
     dogAdd('UplidL','r',.7*eo*DOG_LID);dogAdd('UplidR','r',.7*eo*DOG_LID);}
   dogApply();
 }
-const DOG_JOB={rise:.42,pitch:.42,sh:-1.1,clav:-.2,leg:0,neck:.25,head:.1,bust:0};   // 'job' pose: rise = body lift, pitch = whole body tipped nose-up, the rest are bone angles (front paws forward onto the counter)
+const DOG_JOB={humanRise:.85,rise:.42,pitch:.42,sh:-1.1,clav:-.2,leg:0,neck:.25,head:.1,bust:0};   // 'job' pose: rise = body lift, pitch = whole body tipped nose-up, the rest are bone angles (front paws forward onto the counter)
 const DOG_PERCH={dx:0,z:0,drop:.6,ry:.9,hip:0,waist:0,bust:0,clav:.5,sh:.6,leg:1.2,neck:0,head:0,tail:0};   // desktop pet: dx/z = where on the player's top face, drop = how far the belly sinks, ry = facing, the rest are bone angles
 const DOG_LIE={ang:2.6,drop:.75,arm:.9,leg:-.5},DOG_LID=1,DOG_JAW=1,DOG_LEG=1,DOG_SIT={hip:.8,front:1,leg:.9,tail:0,drop:.3};
 /* fetching a CD: mx/my/mz = the lips in model space; stand = how far in front of the hips the CD should lie when the dog bites it (and when it is held out to the pointer);
@@ -2638,8 +2639,8 @@ const HUMANOID={
   perch:DV.P[1].perch,
   bite:{mx:0,my:15,mz:14,stand:1.15},
   ak:{Neck:.8,Head:.8,Bust:1},
-  brow:[0,34,17],
-  fit:{hat:{pos:[0,5,0],s:1.1},glasses:{pos:[0,0,1],s:1.1}}};
+  brow:[0,34,17],hpMark:[20,10.5,0],   // hpMark: where the headphone cups sit (head space, +-x), see hpWear
+  fit:{hat:{pos:[0,5,0],s:1.1},glasses:{pos:[0,0,1],s:1.1},hp:{pos:[0,0,0]}}};
 DV.P[6]=Object.assign({},HUMANOID);                                                            // chiikawa
 DV.P[7]=Object.assign({},HUMANOID);                                                            // hachiware
 DV.P[8]=Object.assign({},HUMANOID,{map:Object.assign({LearA:'Lear1',RearA:'Rear1'},HUMANOID.map),ak:{Neck:.8,Head:.8,Bust:1,LearA:.7,RearA:.7}});   // usagi: long ears that swing
@@ -2707,6 +2708,7 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
       head.getWorldQuaternion(hq);
       const brow=new T.Object3D();brow.name='Brow_group';brow.position.copy(head.worldToLocal(a));brow.quaternion.copy(hq.clone().invert());head.add(brow);
       bones.Brow_group={o:brow,q0:brow.quaternion.clone(),pqi:new T.Quaternion()};}
+    if(P.hpMark){for(const [n,sx] of [['HpL',1],['HpR',-1]]){const m=new T.Object3D();m.name=n;m.position.set(sx*P.hpMark[0],P.hpMark[1],P.hpMark[2]);bones.Head.o.add(m);}}
     const root=objs[0];
     root.traverse(o=>o.layers.enable(1));
     /* the mouth: the bite point, remembered in the head's own space (same trick as puppy A) */
@@ -2732,7 +2734,8 @@ const dogCap=()=>(PET.perch||PET.mini)?1:2;
 const isToon=I=>I.v>=DV.NDOG;   // the cartoon characters (pikachu, chiikawa, hachiware, usagi) belong to the TOON button, the puppies to the dog button
 const dogActive=()=>DOGS.list.filter(I=>!isToon(I)&&(I.pend||(DS(I).present&&!DS(I).leaving)));
 const toonActive=()=>DOGS.list.filter(I=>isToon(I)&&(I.pend||(DS(I).present&&!DS(I).leaving)));
-const dogAnyOn=()=>dog.ready?dogActive().length>0:dog.wantShow;
+const dogAnyOn=()=>dog.ready?DOGS.list.some(I=>I.pend||(DS(I).present&&!DS(I).leaving)):dog.wantShow;   // any character at all (toys, headphones, the TV ... ask this)
+const dogsOnlyOn=()=>dog.ready?dogActive().length>0:dog.wantShow;   // puppies only (the dog button's lamp)
 function dogSave(I){for(const k in dog)I.st[k]=dog[k];I.restored=W.restored;I.worn=W.worn;}
 function dogLoad(I){
   if(!I||DOGS.cur===I)return;
@@ -2763,7 +2766,7 @@ function dogsNext(n){
 }
 function dogSummon(vs,t0){
   let t=t0||0;
-  for(const v of vs){const I=dogInst(v);if(!I)continue;I.pend=true;I.delay=t;t+=DOGS.stagger;DOGS.list.push(I);}
+  for(const v of vs){const I=dogInst(v);if(!I||DOGS.list.includes(I))continue;I.pend=true;I.delay=t;t+=DOGS.stagger;DOGS.list.push(I);}
 }
 function dogEnter(I){
   dogLoad(I);
@@ -2788,19 +2791,27 @@ function dogToggle(){   // short press
   const act=dogActive();
   if(act.length)act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));
   else dogSummon(dogsNext(1));
-  remLit(3,dogAnyOn());
+  remLit(3,dogsOnlyOn());
 }
 /* ---------- the TOON button (remote button 6): 1st press -> pikachu walks in, 2nd press -> pikachu leaves and chiikawa + hachiware + usagi walk in together, 3rd press -> they all leave.
    They are ordinary entries of DOGS.list, so they share everything with the puppies: the floor lane, collisions (nobody stands inside another), the CD, apples, balls, the TV, petting. */
-const TOON={q:0,trio:[6,7,8]};
-function toonStage(){const a=toonActive();return !a.length?0:a.some(I=>I.v===5)?1:2;}
-function toonToggle(){
+const TOON={q:0,trio:[6,7,8],cast:[5,6,7,8],KEY:'chill_hihi.toonNext'};
+const toonReady=vs=>vs.filter(v=>DV.v[v]&&DV.v[v].ready);
+function toonToggle(){   // short press
   if(dog.failed)return;
   if(!dog.ready){TOON.q=1;return;}   // pressed before the models have loaded: runs as soon as they are there
-  const st=toonStage(),act=toonActive();
-  if(st===0)dogSummon([5].filter(v=>DV.v[v]&&DV.v[v].ready));
-  else if(st===1){act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));dogSummon(TOON.trio.filter(v=>DV.v[v]&&DV.v[v].ready),.9);}
-  else act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));
+  const act=toonActive();
+  if(!act.length)dogSummon(toonReady([5]));                                                   // nobody: pikachu walks in
+  else if(act.every(I=>I.v===5)){act.forEach(I=>dogLeave(I,0));dogSummon(toonReady(TOON.trio),.9);}   // only pikachu: it leaves and the three friends walk in together
+  else act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));                                        // otherwise: everybody leaves
+}
+function toonCall2(){   // long press (~3 s): the next two of pikachu / chiikawa / hachiware / usagi (in that order) walk in, one after the other
+  if(dog.failed||!dog.ready)return;
+  const N=TOON.cast.length;let s=LS.get(TOON.KEY,0)|0;if(s<0||s>=N)s=0;const out=[];
+  for(let k=0;k<N&&out.length<2;k++){const v=TOON.cast[(s+k)%N];if(DV.v[v]&&DV.v[v].ready&&!DOGS.list.some(I=>I.v===v))out.push(v);}
+  if(!out.length)return;
+  LS.set(TOON.KEY,(TOON.cast.indexOf(out[out.length-1])+1)%N);
+  dogSummon(out);
 }
 function dogCall2(){    // long press: the next two puppies walk in
   if(dog.failed||!dog.ready)return;
@@ -2864,14 +2875,14 @@ function dogRestoreWear(){
     if(DOGS.list.some(x=>x!==DOGS.me&&Object.values(x.worn).some(w=>w.id===id)))continue;   // the other puppy already wears it
     wEquip(id,true);}
 }
-function dogsLongPress(){
-  const hold=pd&&pd.kind==='phys'&&grab.kind==='rem'&&grab.btn===3&&!pd.moved,now=performance.now();
+function dogsLongPress(){   // hold the dog button (3) or the TOON button (5) for ~3 s: two more come in
+  const hold=pd&&pd.kind==='phys'&&grab.kind==='rem'&&(grab.btn===3||grab.btn===5)&&!pd.moved,now=performance.now();
   if(hold){
-    if(!grab.t0)grab.t0=now;
+    const bt=grab.btn;if(!grab.t0)grab.t0=now;
     const h=(now-grab.t0)/3000;
     if(!grab.long){
-      if(h>=1){grab.long=true;DOGS.blink=false;dogCall2();}
-      else{DOGS.blink=true;remLit(3,(((now-grab.t0)/(320-220*h))|0)%2===0);}   // the lamp blinks faster and faster until it triggers
+      if(h>=1){grab.long=true;DOGS.blink=false;if(bt===3)dogCall2();else toonCall2();}
+      else{DOGS.blink=bt;remLit(bt,(((now-grab.t0)/(320-220*h))|0)%2===0);}   // the lamp blinks faster and faster until it triggers
     }
   }else{DOGS.blink=false;grab.t0=0;}
 }
@@ -2908,10 +2919,10 @@ function dogsFrame(dt,time){
     if(DOGS.focus&&!DOGS.list.includes(DOGS.focus))DOGS.focus=DOGS.list.find(I=>I.st.present&&!I.st.leaving)||DOGS.list[0]||null;
   }finally{DOGS.inFrame=false;DOGS.me=null;}
   dogLoad(DOGS.focus||DOGS.byV[0]);
-  if(!DOGS.blink)remLit(3,dogAnyOn());
-  remLit(5,toonActive().length>0);
+  if(DOGS.blink!==3)remLit(3,dogsOnlyOn());
+  if(DOGS.blink!==5)remLit(5,toonActive().length>0);
 }
-window.__dogs={testCd(x){cd=makeCD(0);cd.mode='floor';cd.pos.set(x,FLOOR_Y+.02,FLOOR_Z);cd.flat=1;cd.vel.set(0,0);cdIn=false;},DOGS,DV,dogToggle,dogCall2,toonToggle,TOON,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
+window.__dogs={hpWear,hpSpawn,toonCall2,testCd(x){cd=makeCD(0);cd.mode='floor';cd.pos.set(x,FLOOR_Y+.02,FLOOR_Z);cd.flat=1;cd.vel.set(0,0);cdIn=false;},DOGS,DV,dogToggle,dogCall2,toonToggle,TOON,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
 /* ---------- dog wardrobe ----------
    models/wardrobe/manifest.json (written by tools/build_wardrobe.py) lists the slots (which bone each kind of item hangs on, and where) and the items.
    While the dog is around, an open boutique display shelf slides in from the right edge; each slot has one shelf.
@@ -3483,7 +3494,7 @@ function toyFrame(dt,time){
    While it stands, the puppies walk round the left end of the counter, stand behind it and rest their front paws on top (dogFrame mode 'job', 14-dog/01-dog.js). Two puppies stand side by side.
    Layout is in the set's own model units (counter x -33..33 after the 1.3 widening so two puppies fit behind it, floor y=0; the standee stands to the right of it); JOB.k scales it to world units. The counter's front (drawers) and the standee's logo face +Z = the camera. */
 const JOB={on:false,st:'none',root:null,rot:null,sh:null,k:.082,sx:1.3,x:0,y:0,z:.35,vy:0,y0:1,tilt:0,sq:0,sqv:0,bounced:false,held:null,stow:0,blk:null,err:0,
-  SIGN_X:49,CL:33,SR:12,spots:{1:[-14],2:[-22,-6.5]},mats:{},rc:new T.Raycaster(),nd:new T.Vector2(),tmp:new T.Vector3()};
+  SIGN_X:49,CL:33,SR:12,spots:{1:[-14],2:[-22,-6.5],3:[-31,-13,5]},mats:{},rc:new T.Raycaster(),nd:new T.Vector2(),tmp:new T.Vector3()};
 function jobBuild(){
   if(JOB.root)return true;
   const ci=W.items.t_job_counter,si=W.items.t_job;if(!ci||!si)return false;
@@ -3538,8 +3549,8 @@ cvs.addEventListener('pointermove',e=>{if(!JOB.held&&JOB.st==='rest'&&!TOY.sel&&
 /* where a puppy stands: spot s (0 = left) of n, behind the counter. returns null when the set is not standing */
 function jobSpot(rank,n){
   if(JOB.st!=='rest'||PET.perch||PET.mini)return null;
-  if(n>2)return null;   // three or more characters do not fit behind the counter
-  const arr=JOB.spots[Math.min(2,Math.max(1,n))],s=Math.min(arr.length-1,Math.max(0,n-1-rank));
+  const arr=JOB.spots[Math.min(3,Math.max(1,n))],s=n-1-rank;
+  if(s<0||s>=arr.length)return null;   // the counter has room for three: the others keep playing outside
   return {x:JOB.x+arr[s]*JOB.k,z:JOB.z+JOB.dz};
 }
 JOB.dz=-.32;

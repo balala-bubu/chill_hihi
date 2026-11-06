@@ -55,8 +55,8 @@ const HUMANOID={
   perch:DV.P[1].perch,
   bite:{mx:0,my:15,mz:14,stand:1.15},
   ak:{Neck:.8,Head:.8,Bust:1},
-  brow:[0,34,17],
-  fit:{hat:{pos:[0,5,0],s:1.1},glasses:{pos:[0,0,1],s:1.1}}};
+  brow:[0,34,17],hpMark:[20,10.5,0],   // hpMark: where the headphone cups sit (head space, +-x), see hpWear
+  fit:{hat:{pos:[0,5,0],s:1.1},glasses:{pos:[0,0,1],s:1.1},hp:{pos:[0,0,0]}}};
 DV.P[6]=Object.assign({},HUMANOID);                                                            // chiikawa
 DV.P[7]=Object.assign({},HUMANOID);                                                            // hachiware
 DV.P[8]=Object.assign({},HUMANOID,{map:Object.assign({LearA:'Lear1',RearA:'Rear1'},HUMANOID.map),ak:{Neck:.8,Head:.8,Bust:1,LearA:.7,RearA:.7}});   // usagi: long ears that swing
@@ -124,6 +124,7 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
       head.getWorldQuaternion(hq);
       const brow=new T.Object3D();brow.name='Brow_group';brow.position.copy(head.worldToLocal(a));brow.quaternion.copy(hq.clone().invert());head.add(brow);
       bones.Brow_group={o:brow,q0:brow.quaternion.clone(),pqi:new T.Quaternion()};}
+    if(P.hpMark){for(const [n,sx] of [['HpL',1],['HpR',-1]]){const m=new T.Object3D();m.name=n;m.position.set(sx*P.hpMark[0],P.hpMark[1],P.hpMark[2]);bones.Head.o.add(m);}}
     const root=objs[0];
     root.traverse(o=>o.layers.enable(1));
     /* the mouth: the bite point, remembered in the head's own space (same trick as puppy A) */

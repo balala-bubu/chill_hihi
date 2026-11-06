@@ -5,7 +5,7 @@
    While it stands, the puppies walk round the left end of the counter, stand behind it and rest their front paws on top (dogFrame mode 'job', 14-dog/01-dog.js). Two puppies stand side by side.
    Layout is in the set's own model units (counter x -33..33 after the 1.3 widening so two puppies fit behind it, floor y=0; the standee stands to the right of it); JOB.k scales it to world units. The counter's front (drawers) and the standee's logo face +Z = the camera. */
 const JOB={on:false,st:'none',root:null,rot:null,sh:null,k:.082,sx:1.3,x:0,y:0,z:.35,vy:0,y0:1,tilt:0,sq:0,sqv:0,bounced:false,held:null,stow:0,blk:null,err:0,
-  SIGN_X:49,CL:33,SR:12,spots:{1:[-14],2:[-22,-6.5]},mats:{},rc:new T.Raycaster(),nd:new T.Vector2(),tmp:new T.Vector3()};
+  SIGN_X:49,CL:33,SR:12,spots:{1:[-14],2:[-22,-6.5],3:[-31,-13,5]},mats:{},rc:new T.Raycaster(),nd:new T.Vector2(),tmp:new T.Vector3()};
 function jobBuild(){
   if(JOB.root)return true;
   const ci=W.items.t_job_counter,si=W.items.t_job;if(!ci||!si)return false;
@@ -60,8 +60,8 @@ cvs.addEventListener('pointermove',e=>{if(!JOB.held&&JOB.st==='rest'&&!TOY.sel&&
 /* where a puppy stands: spot s (0 = left) of n, behind the counter. returns null when the set is not standing */
 function jobSpot(rank,n){
   if(JOB.st!=='rest'||PET.perch||PET.mini)return null;
-  if(n>2)return null;   // three or more characters do not fit behind the counter
-  const arr=JOB.spots[Math.min(2,Math.max(1,n))],s=Math.min(arr.length-1,Math.max(0,n-1-rank));
+  const arr=JOB.spots[Math.min(3,Math.max(1,n))],s=n-1-rank;
+  if(s<0||s>=arr.length)return null;   // the counter has room for three: the others keep playing outside
   return {x:JOB.x+arr[s]*JOB.k,z:JOB.z+JOB.dz};
 }
 JOB.dz=-.32;
