@@ -97,3 +97,12 @@ B、C、D、E 都是同一位作者的 `xxx_a.dae`：28 根骨頭、名字完全
 - **兩面繪製**：耳朵和頭頂的毛是單片，`stitch.json` 的 `double:['skin','head']`，`loadDogV` 看到 `meta.double` 就把那些材質設成 `DoubleSide`（其他角色沒有這個欄位，不受影響）。
 - **動作**：`DV.P[10]`＝`HUMANOID` ＋ 烏薩奇的耳朵對應（`LearA/RearA`，`ak` .5）。短按 TOON 的「三隻一組」**不含**史迪奇（和奇諾比奧一樣），長按 3 秒的順序變成 皮卡丘→吉伊卡哇→小八→烏薩奇→奇諾比奧→史迪奇；懸停 TOON 選單多一格「史迪奇」（縮圖 `models/thumbs/v10.png`，`python3 tools/render_thumbs.py <node_modules> 10` 只重畫這一張）。存檔 key `chill_hihi.wear11`。
 - **可再調**（`DV.P[10]`）：`rad`／`hit`（耳朵很寬，碰撞只算身體）、`bite`（CD 握持高度）、`brow`（眼睛中心 y≈41.6、z≈12）、`fit.hat/glasses/hp`、`hpMark`；項圈用預設位置，要調可加 `fit.collar:{pos,s}`。沒做眨眼／換表情（臉是單張貼圖，可仿皮卡丘做 `alt`）。
+
+## 小火龍（有骨架的 .dae，每頂點最多 4 根骨頭權重，Z 向上）→ TOON 按鈕第 7 位（編號 11）
+
+`models/hitokage/src/`（`Hitokage.dae` 有骨架版、`.obj/.mtl` 靜態版沒用、兩張貼圖）→ `python3 tools/build_hitokage.py` → `models/hitokage.json/.bin`，貼圖 `models/hitokage/HitokageDh.png`（身體）、`HitokageEyeDh.png`（眼睛圖集 128×256，2 欄×4 列），走 `meta.tex` 像素貼圖路徑。
+
+- **轉檔**：原檔 Z 向上、臉朝 +X → 座標 (x,y,z)→(y,z,x)（循環排列，不用翻面）；v 座標是負的，轉成 `1+v`；24 根關節收成 12 根假骨架，**直接用原檔的蒙皮權重**（同一根假骨頭的權重加總；Spine 依高度在 waist／chest 混合）；尾巴 Tail/Tail1/Tail2 → `tail1/2/3`（`DV.P[11].map` 補 `tailB/tailC`，尾巴和火焰會擺動）；手臂是 T-pose，`ARM_DOWN=55°`；`K=9.5`（身高約 52）。
+- **眼睛表情**：不換貼圖，`meta.cells` 指定圖集格子，`dogCellFx`（`02-dog2.js`）移動貼圖 `offset`：平常 (0,0)、眨眼 (0,2) 細線、被摸 (1,1) 開心弧線、絆倒 (3,1)→ 暈眼螺旋、追東西 (1,0) 認真眼。
+- **動作**：`DV.P[11]`＝`HUMANOID`＋尾巴對應。短按「三隻一組」不含小火龍；長按順序多一位；懸停 TOON 選單多一格（縮圖 `models/thumbs/v11.png`，`python3 tools/render_thumbs.py <node_modules> 11`）。存檔 key `chill_hihi.wear12`。
+- **已看過**：走路、彎腰叼 CD、帽子／眼鏡（`fit.hat/glasses`）、耳機（`hpMark:[11,8,2]`）。**沒測**：坐電視前、打工櫃檯、玩球、被摸表情切換的連續畫面（`rad:1.5` 因為大尾巴取大一點）。

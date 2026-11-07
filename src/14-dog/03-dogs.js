@@ -68,9 +68,9 @@ function dogToggle(){   // short press
   else dogSummon(dogsNext(1));
   remLit(3,dogsOnlyOn());
 }
-/* ---------- the TOON button (remote button 6): 1st press -> pikachu walks in, 2nd press -> pikachu leaves and chiikawa + hachiware + usagi walk in together (toad and stitch are not in the group: long press or the menu), 3rd press -> they all leave.
+/* ---------- the TOON button (remote button 6): 1st press -> pikachu walks in, 2nd press -> pikachu leaves and chiikawa + hachiware + usagi walk in together (toad, stitch and charmander are not in the group: long press or the menu), 3rd press -> they all leave.
    They are ordinary entries of DOGS.list, so they share everything with the puppies: the floor lane, collisions (nobody stands inside another), the CD, apples, balls, the TV, petting. */
-const TOON={q:0,trio:[6,7,8],cast:[5,6,7,8,9,10],KEY:'chill_hihi.toonNext'};
+const TOON={q:0,trio:[6,7,8],cast:[5,6,7,8,9,10,11],KEY:'chill_hihi.toonNext'};
 const toonReady=vs=>vs.filter(v=>DV.v[v]&&DV.v[v].ready);
 function toonToggle(){   // short press
   if(dog.failed)return;
@@ -80,7 +80,7 @@ function toonToggle(){   // short press
   else if(act.every(I=>I.v===5)){act.forEach(I=>dogLeave(I,0));dogSummon(toonReady(TOON.trio),.9);}   // only pikachu: it leaves and the three friends walk in together
   else act.forEach((I,i)=>dogLeave(I,i*DOGS.stagger));                                        // otherwise: everybody leaves
 }
-function toonCall2(){   // long press (~3 s): the next two of pikachu / chiikawa / hachiware / usagi / toad / stitch (in that order) walk in, one after the other
+function toonCall2(){   // long press (~3 s): the next two of pikachu / chiikawa / hachiware / usagi / toad / stitch / charmander (in that order) walk in, one after the other
   if(dog.failed||!dog.ready)return;
   const N=TOON.cast.length;let s=LS.get(TOON.KEY,0)|0;if(s<0||s>=N)s=0;const out=[];
   for(let k=0;k<N&&out.length<2;k++){const v=TOON.cast[(s+k)%N];if(DV.v[v]&&DV.v[v].ready&&!DOGS.list.some(I=>I.v===v))out.push(v);}
@@ -209,7 +209,7 @@ function dogsFrame(dt,time){
   if(DOGS.blink!==3)remLit(3,dogsOnlyOn());
   if(DOGS.blink!==5)remLit(5,toonActive().length>0);
 }
-window.__dogs={dogHit,hpWear,hpSpawn,toonCall2,testCd(x){cd=makeCD(0);cd.mode='floor';cd.pos.set(x,FLOOR_Y+.02,FLOOR_Z);cd.flat=1;cd.vel.set(0,0);cdIn=false;},DOGS,DV,dogToggle,dogCall2,toonToggle,TOON,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
+window.__dogs={dogSummonOne,wEquip:(a,b)=>wEquip(a,b),get W(){return W;},dogHit,hpWear,hpSpawn,toonCall2,testCd(x){cd=makeCD(0);cd.mode='floor';cd.pos.set(x,FLOOR_Y+.02,FLOOR_Z);cd.flat=1;cd.vel.set(0,0);cdIn=false;},DOGS,DV,dogToggle,dogCall2,toonToggle,TOON,dogsNext,rem,cam,get grab(){return grab;}};   // test hook
 
 /* tool hook (tools/render_thumbs.py): a transparent portrait of variant v for the hover menu, rendered with its own renderer so the game scene is not touched */
 window.__thumb=(v,size)=>{
