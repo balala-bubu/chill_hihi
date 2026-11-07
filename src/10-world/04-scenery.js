@@ -3,7 +3,7 @@
    warm sky + sun, three layers of hazy mountains, rolling grass, big trees (models/scenery/tree.json),
    a notice board and a tent. Press again: the wall slides back up. State is remembered in localStorage.
    Everything lives in one group (BG.g) far behind the action, so it never touches the physics world.
-   Backgrounds: BG.mode 1 = meadow (this file), 2 = cafe (10-world/05-cafe.js), 3 = museum (06-museum.js), 4 = moon (06-moon.js), 5 = theater (06-bti-theater.js). The BG button switches the last picked one on/off; the hover menu on the button (03-summon-menu.js) picks which.
+   Backgrounds: BG.mode 1 = meadow (this file), 2 = cafe (10-world/05-cafe.js), 3 = museum (06-museum.js), 4 = moon (06-moon.js), 5 = theater (06-bti-theater.js), 6 = fireplace living room (06-fireplace.js). The BG button switches the last picked one on/off; the hover menu on the button (03-summon-menu.js) picks which.
    Changing between two scenes draws the cloth back down and up again. localStorage 'chill_hihi.bg' = the mode shown ('0' off), 'chill_hihi.bgPick' = the last one picked. */
 const BG={on:false,mode:0,k:0,wall:0,ready:false,job:null,g:new T.Group(),trees:[],clouds:[],props:{},t:0,hw:-1,tok:0,
   litSun:null,litFill:null,p:0,cu:{uK:{value:-1},uT:{value:0},uFold:{value:0},uRes:{value:new T.Vector2(1,1)}}};
@@ -162,21 +162,21 @@ function bgCurtain(p){   // p 0 = grey wall/floor fully in place, 1 = drawn up o
 function bgLitInit(){if(!BG.litSun){BG.litSun={c:sun.color.clone(),i:sun.intensity};BG.litFill=fill.intensity;}}   // the normal lighting, remembered once so both scenes can warm it up and put it back
 function bgApply(){   // lighting warms up with the reveal
   const k=BG.k;if(!BG.litSun)return;
-  sun.color.copy(BG.litSun.c).lerp(new T.Color(BG.mode===4?0xb8c8ff:BG.mode===5?0xffcf9a:0xffdca0),k);sun.intensity=BG.litSun.i*(BG.mode===4?1-.12*k:BG.mode===5?1-.06*k:1+.1*k);fill.intensity=BG.litFill*(1-.4*k);   // moonlight is cool and a little dimmer
+  sun.color.copy(BG.litSun.c).lerp(new T.Color(BG.mode===4?0xb8c8ff:BG.mode===5?0xffcf9a:BG.mode===6?0xffb878:0xffdca0),k);sun.intensity=BG.litSun.i*(BG.mode===4?1-.12*k:BG.mode===5?1-.06*k:BG.mode===6?1-.2*k:1+.1*k);fill.intensity=BG.litFill*(1-.4*k);   // moonlight is cool and a little dimmer
 }
 const bgShowFloor=()=>{floorMesh.visible=PET.on?PET.shadow:true;grid.visible=catcher.visible=true;};
-async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe, 3 museum, 4 moon, 5 theater (true/false also work: meadow / off)
-  if(!BG_OK)return;m=m===true?1:!m?0:clamp(m|0,0,5);if(m===BG.mode&&!instant)return;
+async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe, 3 museum, 4 moon, 5 theater, 6 fireplace (true/false also work: meadow / off)
+  if(!BG_OK)return;m=m===true?1:!m?0:clamp(m|0,0,6);if(m===BG.mode&&!instant)return;
   const prev=BG.mode;BG.mode=m;BG.on=m>0;remLit(1,m>0);
   try{localStorage.setItem('chill_hihi.bg',String(m));if(m)localStorage.setItem('chill_hihi.bgPick',String(m));}catch(e){}
   const tok=++BG.tok;
-  if(m===1)await bgBuild();else if(m===2)await cfBuild();else if(m===3)await muBuild();else if(m===4)await mnBuild();else if(m===5)await btBuild();
+  if(m===1)await bgBuild();else if(m===2)await cfBuild();else if(m===3)await muBuild();else if(m===4)await mnBuild();else if(m===5)await btBuild();else if(m===6)await fpBuild();
   if(tok!==BG.tok)return;
-  if(m&&!([0,BG,CF,MU,MN,BT][m].ready)){BG.mode=0;BG.on=false;remLit(1,false);try{localStorage.setItem('chill_hihi.bg','0');}catch(e){}return;}   // the scene failed to load: stay off
-  const show=n=>{BG.g.visible=n===1;CF.g.visible=n===2;MU.g.visible=n===3;MN.g.visible=n===4;BT.g.visible=n===5;};
-  const lay=()=>{if(BG.mode===1)bgLayout(true);else if(BG.mode===2)cfLayout(true);else if(BG.mode===3)muLayout(true);else if(BG.mode===4)mnLayout(true);else if(BG.mode===5)btLayout(true);};
+  if(m&&!([0,BG,CF,MU,MN,BT,FP][m].ready)){BG.mode=0;BG.on=false;remLit(1,false);try{localStorage.setItem('chill_hihi.bg','0');}catch(e){}return;}   // the scene failed to load: stay off
+  const show=n=>{BG.g.visible=n===1;CF.g.visible=n===2;MU.g.visible=n===3;MN.g.visible=n===4;BT.g.visible=n===5;FP.g.visible=n===6;};
+  const lay=()=>{if(BG.mode===1)bgLayout(true);else if(BG.mode===2)cfLayout(true);else if(BG.mode===3)muLayout(true);else if(BG.mode===4)mnLayout(true);else if(BG.mode===5)btLayout(true);else if(BG.mode===6)fpLayout(true);};
   const run=(from,to,sec,tk)=>tween(sec,k=>{if(BG.tok===tk){const p=lerp(from,to,k);bgCurtain(p);BG.k=clamp(p*1.3,0,1);bgApply();}},ease.io2);
-  if(instant||(!m&&!BG.g.visible&&!CF.g.visible&&!MU.g.visible&&!MN.g.visible&&!BT.g.visible)){
+  if(instant||(!m&&!BG.g.visible&&!CF.g.visible&&!MU.g.visible&&!MN.g.visible&&!BT.g.visible&&!FP.g.visible)){
     if(m){show(m);lay();BG.k=1;bgApply();bgCurtain(1);}else{show(0);BG.k=0;bgApply();bgCurtain(0);bgShowFloor();}return;}
   Au.whoosh&&Au.whoosh();
   const p0=BG.p;bgShowFloor();
@@ -190,10 +190,11 @@ async function bgSet(m,instant){   // m: 0 off, 1 meadow, 2 cafe, 3 museum, 4 mo
   }
 }
 function bgToggle(){   // the BG button: grey <-> a background, cycling meadow / cafe / museum / moon / theater, one per press (menu on hover picks one directly, see 03-summon-menu.js); meadow first
-  if(BG.mode){try{localStorage.setItem('chill_hihi.bgPick',String(BG.mode%5+1));}catch(e){}bgSet(0);}   // turning off: the next press brings the OTHER background (grey -> meadow -> grey -> cafe -> grey ...)
+  if(BG.mode){try{localStorage.setItem('chill_hihi.bgPick',String(BG.mode%6+1));}catch(e){}bgSet(0);}   // turning off: the next press brings the OTHER background (grey -> meadow -> grey -> cafe -> grey ...)
   else{let m=1;try{m=+localStorage.getItem('chill_hihi.bgPick')||1;}catch(e){}bgSet(m);}
 }
 function bgFrame(dt,time){
+  if(FP.g.visible&&FP.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);fpFrame(dt,time);return;}
   if(BT.g.visible&&BT.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);btFrame(dt,time);return;}
   if(MN.g.visible&&MN.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);mnFrame(dt,time);return;}
   if(MU.g.visible&&MU.ready){BG.cu.uT.value=time;if(BG.p>0&&BG.p<1)renderer.getDrawingBufferSize(BG.cu.uRes.value);muLayout(false);return;}
