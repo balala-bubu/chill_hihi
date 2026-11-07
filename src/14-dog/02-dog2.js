@@ -2,15 +2,15 @@
    The dog button brings the puppies in turn: 1st press -> puppy A, next press (when none is out) -> puppy B, then C, then D, then E, then F, then A again ...; a long press brings the next two.
    Every puppy has its own model group and state (03-dogs.js); they all run the same behaviour code (dogFrame). A variant is the skinned model, the bone table
    (dog1's bone names -> this model's joints), a few pose numbers, and which wardrobe outfit is on (each puppy keeps its own, localStorage key per variant). */
-const DV={cur:0,v:[null,null,null,null,null,null,null,null,null,null,null],KEY:'chill_hihi.dogNext',NDOG:5,   // variants 0..NDOG-1 are the puppies (the dog button's rotation); 5.. are the cartoon characters (the TOON button: 5 = pikachu, then 6/7/8/9/10 = chiikawa / hachiware / usagi / toad / stitch)
-  WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3','chill_hihi.wear4','chill_hihi.wear5','chill_hihi.wear6','chill_hihi.wear7','chill_hihi.wear8','chill_hihi.wear9','chill_hihi.wear10','chill_hihi.wear11'],
+const DV={cur:0,v:[null,null,null,null,null,null,null,null,null,null,null,null],KEY:'chill_hihi.dogNext',NDOG:5,   // variants 0..NDOG-1 are the puppies (the dog button's rotation); 5.. are the cartoon characters (the TOON button: 5 = pikachu, then 6/7/8/9/10/11 = chiikawa / hachiware / usagi / toad / stitch / charmander)
+  WK:['chill_hihi.wear','chill_hihi.wear2','chill_hihi.wear3','chill_hihi.wear4','chill_hihi.wear5','chill_hihi.wear6','chill_hihi.wear7','chill_hihi.wear8','chill_hihi.wear9','chill_hihi.wear10','chill_hihi.wear11','chill_hihi.wear12'],
   base:null,   // pose numbers of puppy A, to restore
   /* per-puppy numbers, index = variant (0 = puppy A, kept in DV.base). Each entry:
      map  how its joints answer dog1's bone names (null = not driven)
      sit / lie / perch / bite  pose numbers (override DOG_SIT / DOG_LIE / DOG_PERCH / DOG_BITE)
      ak   motion strengths (dog.ak)     fit  headgear: extra offset (pos) and size factor (s) on top of the slot numbers
      brow  where "Brow_group" sits in the head model (between the eyes) */
-  P:[null,null,null,null,null,null,null,null,null,null]};
+  P:[null,null,null,null,null,null,null,null,null,null,null]};
 DV.P[1]={
   map:{Hip:'skl_root',Waist:'waist',Bust:'chest',Neck:'neck',Head:'head',jawA:'mouth',LearA:'Lear1',RearA:'Rear1',tailA:'tail1',tailB:'tail2',tailC:'tail3',
     ShoulderL:'Larm1',ShoulderR:'Rarm1',LegL:'Lleg1',LegR:'Rleg1'},
@@ -74,6 +74,14 @@ DV.P[10]=Object.assign({},HUMANOID,{map:Object.assign({LearA:'Lear1',RearA:'Rear
   bite:{mx:0,my:14,mz:14,stand:1.15},
   brow:[0,41,12],hpMark:[12.5,9.5,-.5],   // eyes at y~38..46, z~12 (K=4.2); the headphone cups (head space) sit on the sides of the head under the ears
   fit:{hat:{pos:[0,2,0],s:1.3},glasses:{pos:[0,1,6],s:1.1},hp:{pos:[0,0,0]},collar:{no:true}}});   // collar:{no:true} = he does not wear the collar (it looked sideways on him)
+/* charmander (models/hitokage.*, from models/hitokage/src/Hitokage.dae by tools/build_hitokage.py): a skinned model (24 joints, up to 4 weights per vertex) collapsed to the same 12-joint names, so he moves like
+   chiikawa (HUMANOID); the big tail swings through tail1..3 (tailA/B/C, the flame at its tip moves with it). Two painted pixel textures (body, eye atlas 2x4 cells; meta.tex). The eyes change by shifting the atlas
+   offset (meta.cells, dogCellFx below): blink, happy arc when petted, spiral when he trips, a determined look while chasing. K=9.5 so he is about as tall as the others; the tail reaches z=-37.
+   All numbers are first guesses: tune after looking at it. */
+DV.P[11]=Object.assign({},HUMANOID,{map:Object.assign({tailB:'tail2',tailC:'tail3'},HUMANOID.map),ak:{Neck:.8,Head:.8,Bust:1},rad:1.5,tvGap:3.2,hit:{C:[0,26,0],R:[18,30,24]},
+  bite:{mx:0,my:17,mz:14,stand:1.15},
+  brow:[0,44,11],hpMark:[11,8,2],   // eyes centre y 43.5, z 9.7, x=+-4..8.6 (K=9.5); the headphone cups sit on the sides of the head (x about +-9.6)
+  fit:{hat:{pos:[0,-3,-4],s:1},glasses:{pos:[0,-3,2],s:1.1},hp:{pos:[0,0,0]}}});
 DV.P[5].rad=1;DV.P[5].tvGap=2.8;
 function dogVarReg0(){   // called by loadDog when puppy A is built
   DV.v[0]={bones:dog.bones,mouthL:dog.mouthL,fix:dog.fix,footLift:dog.footLift,ak:undefined,fitAdj:undefined,ready:true};
@@ -88,6 +96,15 @@ function dogFaceFx(alt,mats){
     const busy=mode==='chase'||mode==='fetch'||mode==='bring'||mode==='eat'||mode==='ball';
     eye=set('eyes',lie==='trip'?'drop':(eo>.4||bl>.5)?'closed':busy?'big':'base',eye);
     face=set('face',lie==='trip'?'cyan':eo>.4?'wavy':open>.05||mode==='bring'||mode==='eat'?'tongue':playing?'wavy':'base',face);
+  };
+}
+/* charmander's eyes: one atlas texture (2 cols x 4 rows), the cell is picked by moving the texture offset. same arguments as dogFaceFx */
+function dogCellFx(mat,c){
+  const map=mat.map,cw=1/c.cols,ch=1/c.rows;let cur='';
+  const set=k=>{if(k===cur)return;cur=k;const e=c.expr[k]||c.expr.base;map.offset.set(e[0]*cw,-e[1]*ch);};
+  return (bl,open,mode,eo,playing,lie)=>{
+    const busy=mode==='chase'||mode==='fetch'||mode==='bring'||mode==='eat'||mode==='ball';
+    set(lie==='trip'?'spiral':(eo>.4)?'happy':bl>.5?'closed':busy?'fierce':'base');
   };
 }
 async function loadDogV(vi,name){   // vi = variant index, name = file stem under models/ ('dog2', 'pug')
@@ -143,7 +160,7 @@ async function loadDogV(vi,name){   // vi = variant index, name = file stem unde
     const root=objs[0];
     root.traverse(o=>o.layers.enable(1));
     /* the mouth: the bite point, remembered in the head's own space (same trick as puppy A) */
-    DV.v[vi]={bones,fix,mouthL:null,footLift:.02,ak:P.ak,fitAdj:P.fit,ready:true,faceFx:(alt&&meta.alt)?dogFaceFx(alt,mats):null,human:!!P.human,biteBone:P.biteBone||'Head',rad:P.rad||1.3,tvGap:P.tvGap||3.4,hit:P.hit||null};
+    DV.v[vi]={bones,fix,mouthL:null,footLift:.02,ak:P.ak,fitAdj:P.fit,ready:true,faceFx:(alt&&meta.alt)?dogFaceFx(alt,mats):meta.cells?dogCellFx(mats[meta.cells.mat],meta.cells):null,human:!!P.human,biteBone:P.biteBone||'Head',rad:P.rad||1.3,tvGap:P.tvGap||3.4,hit:P.hit||null};
   }catch(e){console.warn(name+' failed to load',e);}
 }
 loadDogV(1,'dog2');
@@ -156,3 +173,4 @@ loadDogV(7,'hachiware');
 loadDogV(8,'usagi');
 loadDogV(9,'toad');
 loadDogV(10,'stitch');
+loadDogV(11,'hitokage');
